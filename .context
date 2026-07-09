@@ -1,0 +1,371 @@
+# Contexto rapido para agentes IA
+
+Ultima actualizacion: 2026-07-09 (fix expo-image-manipulator + redesign PDF)
+Proyecto: `catalog-clean`
+Raiz: `C:\Users\bodega 1\Desktop\workspace\catalog`
+
+## Que es
+
+Aplicacion movil Expo / React Native para crear catalogos PDF de productos.
+Funciona offline, guarda datos en SQLite local y archivos en el almacenamiento
+persistente de la app.
+
+Flujos principales:
+- Gestionar familias/categorias.
+- Gestionar productos con precio, formato, codigo opcional, familia e imagen.
+- Configurar perfil del negocio con logo y datos de contacto.
+- Generar catalogos PDF con varios formatos visuales.
+- Guardar historial de catalogos y compartir PDFs por el share sheet nativo.
+
+## Stack
+
+- Expo SDK 54 (`expo` 54.0.35)
+- React Native 0.81.5
+- React 19.1.0
+- TypeScript estricto
+- SQLite local con `expo-sqlite`
+- Archivos con `expo-file-system`
+- Imagenes con `expo-image-picker` y `expo-image-manipulator@14.0.8` (compatible SDK 54)
+- Fonts con `expo-font`
+- PDF con `expo-print`
+- Compartir con `expo-sharing`
+- Formularios/validacion con `react-hook-form` y `zod`
+- Tests unitarios con Vitest
+
+Scripts utiles:
+- `npm start`
+- `npm run start:clear`
+- `npm run android`
+- `npm run ios`
+- `npm run web`
+- `npm test`
+- `npx tsc --noEmit`
+
+## Entradas de app
+
+- `index.ts`: registra el componente raiz de Expo.
+- `App.tsx`: exporta `AppRoot`.
+- `src/bootstrap/AppRoot.tsx`: monta `SafeAreaProvider`, `ThemeProvider`,
+  `DependencyProvider`, `StatusBar` y `AppNavigator`.
+- `src/bootstrap/navigation.tsx`: navegacion manual por estado, sin React
+  Navigation. Rutas: `Dashboard`, `Products`, `Families`, `Catalogs`,
+  `CatalogBuilder`, `Profile`.
+- `src/bootstrap/dependencies.tsx`: composicion de dependencias, repositorios,
+  servicios y casos de uso.
+
+## Arquitectura
+
+La app esta organizada por modulos y capas:
+
+```text
+src/
+  bootstrap/
+  shared/
+    infrastructure/
+    presentation/
+    utils/
+  modules/
+    catalogs/
+    families/
+    history/
+    pdf/
+    products/
+    profile/
+    sharing/
+```
+
+Patron local:
+- `domain/entities`: tipos del dominio.
+- `domain/repositories`: contratos.
+- `application/dtos`: schemas Zod y tipos de entrada.
+- `application/use-cases`: logica de aplicacion.
+- `infrastructure/repositories` o `infrastructure`: adaptadores concretos.
+- `presentation/hooks`: estado/orquestacion de pantalla.
+- `presentation/screens`: UI.
+- `presentation/components`: componentes especificos del modulo.
+
+Al agregar funcionalidad, seguir esa separacion. Evitar meter reglas de negocio
+nuevas directamente en pantallas si pertenecen a casos de uso o repositorios.
+
+## Persistencia
+
+SQLite:
+- Archivo DB: `catalog.db`
+- Implementacion central: `src/shared/infrastructure/sqlite.ts`
+- Version actual de esquema: `DATABASE_SCHEMA_VERSION = 4`
+- Migraciones actuales:
+  1. `families`, `products`, `catalogs`, `schema_migrations`
+  2. `profile`
+  3. `catalogs.familyIds`
+  4. `products.code`
+
+Tablas principales:
+- `families`: `id`, `name`, `createdAt`, `updatedAt`
+- `products`: `id`, `name`, `code`, `price`, `format`, `photoUri`, `familyId`,
+  `createdAt`, `updatedAt`
+- `catalogs`: `id`, `name`, `familyId`, `familyIds`, `format`, `productIds`,
+  `pdfUri`, `createdAt`
+- `profile`: datos del negocio y `logoUri`
+
+Archivos persistentes:
+- Imagenes: `Paths.document/product-images`
+- PDFs: `Paths.document/catalog-pdfs`
+
+Notas:
+- `SQLiteCatalogRepository.delete` borra el PDF fisico solo si ningun otro
+  catalogo referencia la misma `pdfUri`.
+- `DuplicateCatalogUseCase` hoy duplica metadata y conserva la misma `pdfUri`;
+  no crea un PDF nuevo.
+- `SQLiteProductRepository.delete` no borra la imagen fisica del producto.
+
+## Modulos clave
+
+### Families
+
+Archivos:
+- `src/modules/families/domain/entities/Family.ts`
+- `src/modules/families/application/dtos/FamilyDtos.ts`
+- `src/modules/families/application/use-cases/FamilyUseCases.ts`
+- `src/modules/families/infrastructure/repositories/SQLiteFamilyRepository.ts`
+- `src/modules/families/presentation/hooks/useFamilies.ts`
+- `src/modules/families/presentation/screens/FamiliesScreen.tsx`
+
+Validacion:
+- Nombre requerido, minimo 2 caracteres.
+
+### Products
+
+Archivos:
+- `src/modules/products/domain/entities/Product.ts`
+- `src/modules/products/application/dtos/ProductDtos.ts`
+- `src/modules/products/application/use-cases/ProductUseCases.ts`
+- `src/modules/products/infrastructure/repositories/SQLiteProductRepository.ts`
+- `src/modules/products/infrastructure/repositories/ExpoImagePickerService.ts`
+- `src/modules/products/presentation/hooks/useProducts.ts`
+- `src/modules/products/presentation/screens/ProductsScreen.tsx`
+
+Validacion:
+- `name`: minimo 2 caracteres
+- `code`: opcional
+- `price`: numero positivo
+- `format`: `unit`, `box`, `pack`, `service`
+- `familyId`: requerido
+- `photoUri`: opcional
+
+Imagenes:
+- `ExpoImagePickerService` pide permisos de camara o galeria.
+- Copia imagen a `product-images` con `expo-file-system`.
+
+### Catalogs / History
+
+Archivos:
+- `src/modules/catalogs/domain/entities/Catalog.ts`
+- `src/modules/catalogs/application/dtos/CatalogDtos.ts`
+- `src/modules/catalogs/application/use-cases/CatalogUseCases.ts`
+- `src/modules/catalogs/infrastructure/repositories/SQLiteCatalogRepository.ts`
+- `src/modules/catalogs/presentation/screens/DashboardScreen.tsx`
+- `src/modules/catalogs/presentation/screens/CatalogBuilderScreen.tsx`
+- `src/modules/history/presentation/screens/HistoryScreen.tsx`
+- `src/modules/catalogs/presentation/hooks/useCatalogs.ts`
+- `src/modules/catalogs/presentation/hooks/useCatalogSelection.ts`
+- `src/modules/catalogs/presentation/components/*`
+
+Formatos de catalogo:
+- `grid-2`
+- `grid-3`
+- `grid-4x5`
+- `grid-3x7`
+- `simple-list`
+- `premium-cover`
+
+Nota: los ScrollView de seleccion de familias y productos en
+`CatalogBuilderScreen.tsx` usan `nestedScrollEnabled` para poder scrollear
+dentro del ScrollView padre de la pantalla.
+
+Validacion:
+- Nombre minimo 2 caracteres.
+- Al menos una familia.
+- Al menos un producto.
+
+### PDF
+
+Archivos:
+- `src/modules/pdf/domain/PdfGenerator.ts`
+- `src/modules/pdf/infrastructure/ExpoPdfGenerator.ts`
+- `src/modules/pdf/infrastructure/CatalogImageResolver.ts`
+
+Notas:
+- `ExpoPdfGenerator` arma HTML y usa `Print.printToFileAsync`.
+- Convierte imagenes locales a data URI mediante `CatalogImageResolver`.
+- Copia PDF temporal a `Paths.document/catalog-pdfs`.
+- Existe `escapeHtml` en el generador actual. Si un reporte dice que falta
+  sanitizar HTML, revisar si el reporte esta desactualizado.
+- **Bug conocido (fix 2026-07-08):** catalogos con >18 productos se generaban en
+  blanco. Causa: formatos sin `rows` explicito (grid-2, grid-3, simple-list,
+  premium-cover) ponian todos los productos en una sola pagina HTML sin saltos de
+  pagina; el Android Print API no manejaba el overflow. Fix: `layoutFor` calcula
+  `rows` automaticamente segun `photoHeight` + `availableHeight`, y se agrego
+  `size: A4` al `@page` CSS. Ver `layoutFor()` en `ExpoPdfGenerator.ts`.
+- **Rediseño PDF (2026-07-09):** se reescribió el generador HTML/CSS. Layout
+  cambiado de CSS Grid a Flexbox rows con `flex-wrap: wrap`. Cada tarjeta tiene
+  `break-inside: avoid` para evitar cortes entre páginas. Alturas fijas para
+  imágenes y cards. Header compacto. Optimización de imágenes con `ExpoCatalogImageOptimizer`
+  (resizes a 480px, JPEG 0.65 quality, cache). El HTML generado es más compacto.
+- **WhatsApp:** el icono de WhatsApp ya se incluye junto al telefono en el PDF
+  via SVG inline (`whatsappSvg`), con enlace `https://wa.me/<numero>`.
+- **Familias en PDF:** no se renderizan nombres de familia en los productos del
+  PDF. Solo aparecen: nombre, codigo, formato y precio.
+
+### Profile
+
+Archivos:
+- `src/modules/profile/domain/entities/Profile.ts`
+- `src/modules/profile/application/dtos/ProfileDtos.ts`
+- `src/modules/profile/application/use-cases/ProfileUseCases.ts`
+- `src/modules/profile/infrastructure/repositories/SQLiteProfileRepository.ts`
+- `src/modules/profile/presentation/hooks/useProfile.ts`
+- `src/modules/profile/presentation/screens/ProfileScreen.tsx`
+
+Validacion:
+- `businessName`: minimo 2 caracteres.
+- `email`: email valido o string vacio.
+- Campos restantes opcionales.
+
+### Sharing
+
+Archivos:
+- `src/modules/sharing/domain/NativeShareService.ts`
+- `src/modules/sharing/infrastructure/ExpoNativeShareService.ts`
+
+Uso:
+- `ShareCatalogPdfUseCase` comparte `catalog.pdfUri` por servicio nativo.
+
+## UI / tema
+
+Archivos base:
+- `src/shared/presentation/ThemeContext.tsx`
+- `src/shared/presentation/theme.ts`
+- `src/shared/presentation/theme/*`
+- `src/shared/presentation/components/ui.tsx`
+- `src/shared/presentation/components/FormInput.tsx`
+- `src/shared/presentation/components/BottomMenu.tsx`
+- `src/shared/presentation/components/LiquidGlassContainer.tsx`
+
+Notas:
+- Hay modo claro/oscuro via `ThemeContext`.
+- `ThemeContext` propaga `setColorScheme(theme)` hacia componentes UI.
+- Mantener estilos consistentes con los componentes existentes.
+
+## Tests
+
+Configuracion:
+- `vitest.config.ts`
+- Ambiente `node`
+- Include: `src/**/*.test.ts`
+
+Tests existentes:
+- `src/modules/families/application/use-cases/FamilyUseCases.test.ts`
+- `src/modules/products/application/use-cases/ProductUseCases.test.ts`
+- `src/modules/catalogs/application/use-cases/CatalogUseCases.test.ts`
+- `src/modules/catalogs/domain/services/getCatalogSelectedProducts.test.ts`
+- Fakes: `src/__tests__/fakes.ts`
+
+Antes de entregar cambios de logica:
+- Correr `npm test`.
+- Si toca tipos/TSX, correr `npx tsc --noEmit`.
+
+## Documentos utiles
+
+- `docs/WORKFLOWS_AND_HU.md`: flujos e historias de usuario.
+- `docs/PRODUCTION_READINESS_AUDIT.md`: auditoria de brechas para produccion.
+- `CATALOG_CLEAN_APP_STORE_REPORT.md`: metadata/checklist App Store.
+
+Ojo: algunos documentos pueden estar un poco desfasados frente al codigo actual.
+Por ejemplo, el reporte de produccion menciona sanitizacion HTML pendiente, pero
+`ExpoPdfGenerator.ts` ya contiene `escapeHtml`.
+
+## Estado actual del repo
+
+El working tree esta muy sucio y no debe asumirse que los cambios son del agente
+actual. Hay muchos archivos agregados/modificados/eliminados y una carpeta local
+pesada `.build-tools` con Android SDK/JDK.
+
+Reglas para agentes:
+- No revertir cambios existentes sin instruccion explicita.
+- Evitar inspeccionar masivamente `.build-tools`, `node_modules`, `dist`,
+  `.expo` y `android` salvo que el trabajo lo requiera.
+- Para estado legible usar:
+  `git status --short -- . ':!node_modules' ':!.build-tools' ':!android' ':!dist' ':!.expo'`
+- Para listar archivos fuente usar:
+  `rg --files src docs assets -g '!node_modules' -g '!.build-tools' -g '!dist' -g '!.expo'`
+
+Cambios/observaciones relevantes vistas el 2026-07-09:
+- `package.json` version: `1.0.4`.
+- `app.json` version: `1.0.4`; Android `versionCode`: 5.
+- Build Android estabilizado y APK generado exitosamente (~65 MB).
+- Fix crash `NoClassDefFoundError: AnyTypeCache`: `expo-image-manipulator` 
+  bajado de 57.0.2 a 14.0.8 (compatible SDK 54).
+- `expo-font` agregado como peer dependency resuelta.
+- `app.json` actualizado con `expo-font` en plugins, versionCode 5.
+- `node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt`
+  parchado: se agrego `c++_shared` a `target_link_libraries`. Se pierde en
+  `npm install` y requiere re-parche manual.
+- Rediseño de `ExpoPdfGenerator.ts`: layout CSS Grid → Flexbox rows, alturas fijas,
+  `break-inside: avoid`, header compacto.
+- Verificado: el icono de WhatsApp ya esta implementado junto al telefono en el
+  PDF.
+- Verificado: las familias no se mencionan en los productos del PDF del catalogo.
+- `app.json` contiene textos de permisos con mojibake visible
+  (`galerÃ­a`, `cÃ¡mara`). Revisar encoding antes de release.
+- `app.json` no muestra `ios.bundleIdentifier` aunque el reporte App Store lo
+  recomienda.
+- `CATALOG_CLEAN_APP_STORE_REPORT.md` tambien tiene mojibake.
+- Hay carpeta `backup/` marcada como eliminada en git.
+
+## Pendientes conocidos
+
+Prioridad alta / produccion:
+- ~~Estabilizar build Android y generar APK instalable probado.~~ HECHO
+- ~~Unificar versiones entre `package.json` y `app.json`.~~ HECHO (ambas 1.0.4, versionCode 5)
+- Probar APK en dispositivo fisico: crear producto con foto, generar PDF,
+  compartir desde recien generado e historial. Verificar que el fix de
+  `expo-image-manipulator` resuelve el crash `NoClassDefFoundError: AnyTypeCache`.
+- Revisar encoding/mojibake en `app.json` y docs.
+- Definir bundle/package final (`com.anonymous.catalogclean` probablemente no es
+  definitivo para tiendas).
+- Agregar `ios.bundleIdentifier`, permisos Info.plist y metadata si se apunta a
+  App Store.
+
+Mejoras funcionales:
+- Refresco de datos al volver a pantallas.
+- Limpieza de imagenes huerfanas al borrar/editar productos.
+- Decidir si duplicar catalogo debe copiar PDF o solo metadata.
+- Validar existencia de PDF antes de compartir.
+- Manejar errores visibles en eliminaciones.
+- Prevenir nombres duplicados si negocio lo requiere.
+- Preview visual antes de generar PDF si no esta completo en UI actual.
+
+Cobertura:
+- Agregar tests de repositorios SQLite.
+- Agregar tests para generacion HTML/PDF por formato (especialmente
+  paginacion multi-pagina con >18 productos).
+- Agregar pruebas de hooks/pantallas si se introduce complejidad de UI.
+
+Build Android notas:
+- `node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt`
+  requiere parche manual despues de `npm install`: agregar `c++_shared` a
+  `target_link_libraries`. Sin esto, el build falla con error de linking.
+- Android SDK local: `.build-tools/android-sdk` (no commiteado).
+- JDK 17 local: `.build-tools/jdk17.zip` (extraer antes de build).
+
+## Como actualizar este archivo
+
+Actualizar `.context` cuando:
+- Cambie la arquitectura o rutas principales.
+- Se agreguen/remuevan comandos.
+- Cambie el esquema SQLite o version de migracion.
+- Se cierre un pendiente importante.
+- Se detecte una diferencia entre docs y codigo.
+
+Mantenerlo breve, operativo y verificable. No copiar archivos completos aqui; usar
+rutas concretas para que el siguiente agente pueda abrir solo lo necesario.

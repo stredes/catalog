@@ -1,6 +1,3 @@
-import React from 'react';
-import { Main } from './src/app/main';
+import { AppRoot } from './src/bootstrap/AppRoot';
 
-export default function App() {
-  return <Main />;
-}
+export default AppRoot;

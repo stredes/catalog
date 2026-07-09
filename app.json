@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "catalog",
-    "slug": "catalog",
-    "version": "1.0.0",
+    "name": "catalog-clean",
+    "slug": "catalog-clean",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,10 +16,23 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "versionCode": 5,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.catalogclean"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Acceder a tu galería para seleccionar fotos de productos.",
+          "cameraPermission": "Usar la cámara para tomar fotos de productos."
+        }
+      ]
+    ]
   }
 }

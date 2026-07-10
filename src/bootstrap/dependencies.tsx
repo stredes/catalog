@@ -33,7 +33,7 @@ import { SeedUseCase } from '../seed/SeedUseCase';
 import { PreferencesPort } from '../shared/domain/PreferencesPort';
 import { AsyncStoragePreferencesAdapter } from '../shared/infrastructure/AsyncStoragePreferencesAdapter';
 import { AuthPort } from '../modules/auth/domain/AuthPort';
-import { GoogleAuthAdapter } from '../modules/auth/infrastructure/GoogleAuthAdapter';
+import { LocalAuthAdapter } from '../modules/auth/infrastructure/LocalAuthAdapter';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -48,7 +48,7 @@ function buildDependencies() {
   const shareService = new ExpoNativeShareService();
   const imagePicker = new ExpoImagePickerService();
   const preferences: PreferencesPort = new AsyncStoragePreferencesAdapter();
-  const auth: AuthPort = new GoogleAuthAdapter();
+  const auth: AuthPort = new LocalAuthAdapter(preferences);
 
     const seed = new SeedUseCase(familyRepository, productRepository);
 

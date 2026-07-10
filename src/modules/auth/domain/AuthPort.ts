@@ -2,11 +2,11 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  photo?: string;
 }
 
 export interface AuthPort {
   getCurrentUser(): Promise<User | null>;
-  signIn(): Promise<User>;
-  signOut(): Promise<void>;
+  login(email: string, password: string): Promise<User>;
+  register(email: string, password: string, name: string): Promise<User>;
+  logout(): Promise<void>;
 }

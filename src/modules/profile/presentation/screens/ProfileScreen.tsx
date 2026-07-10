@@ -150,8 +150,7 @@ export function ProfileScreen() {
           text: 'Cerrar sesión',
           style: 'destructive',
           onPress: async () => {
-            await services.auth.signOut();
-            await services.preferences.setString(USER_KEY, '');
+            await services.auth.logout();
             navigate('Login');
           },
         },
@@ -177,25 +176,18 @@ export function ProfileScreen() {
         {user && (
           <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              {user.photo ? (
-                <Image
-                  source={{ uri: user.photo }}
-                  style={{ width: 48, height: 48, borderRadius: 24 }}
-                />
-              ) : (
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    backgroundColor: colors.primaryLight,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Ionicons name="person-outline" size={24} color={colors.primary} />
-                </View>
-              )}
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: colors.primaryLight,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Ionicons name="person-outline" size={24} color={colors.primary} />
+              </View>
               <View style={{ flex: 1 }}>
                 <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>
                   {user.name}

@@ -5,6 +5,7 @@ import { Resolver, useForm } from 'react-hook-form';
 import { Alert, Image, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDependencies } from '../../../../bootstrap/dependencies';
+import { useAppNavigation } from '../../../../bootstrap/navigation';
 import { BottomMenu } from '../../../../shared/presentation/components/BottomMenu';
 import {
   AppText,
@@ -27,11 +28,15 @@ import { useProducts } from '../../../products/presentation/hooks/useProducts';
 import { ProfileInputDto, profileSchema } from '../../application/dtos/ProfileDtos';
 import { useProfile } from '../hooks/useProfile';
 import { useTheme, useThemeColors } from '../../../../shared/presentation/ThemeContext';
+import { User } from '../../../auth/domain/AuthPort';
+
+const USER_KEY = 'catalog_clean_user';
 
 export function ProfileScreen() {
   const { isDark, toggleTheme } = useTheme();
   const colors = useThemeColors();
-  const { useCases } = useDependencies();
+  const { navigate } = useAppNavigation();
+  const { useCases, services } = useDependencies();
   const { catalogs, reload } = useCatalogs();
   const { families } = useFamilies();
   const { products } = useProducts();
@@ -39,6 +44,13 @@ export function ProfileScreen() {
   const [logoUri, setLogoUri] = useState<string | undefined>();
   const [error, setError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    services.preferences.getString(USER_KEY).then((data) => {
+      if (data) setUser(JSON.parse(data));
+    });
+  }, []);
 
   const form = useForm<ProfileInputDto>({
     defaultValues: {
@@ -128,6 +140,25 @@ export function ProfileScreen() {
     await reload();
   }
 
+  async function handleLogout() {
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Estás seguro de que deseas cerrar sesión?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: async () => {
+            await services.auth.signOut();
+            await services.preferences.setString(USER_KEY, '');
+            navigate('Login');
+          },
+        },
+      ],
+    );
+  }
+
   const stats = useMemo(() => [
     { label: 'Productos', value: String(products.length), icon: 'cube-outline' },
     { label: 'Familias', value: String(families.length), icon: 'folder-outline' },
@@ -142,6 +173,38 @@ export function ProfileScreen() {
           title="Mi negocio"
           subtitle="Configura los datos que aparecerán en tus catálogos PDF."
         />
+
+        {user && (
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {user.photo ? (
+                <Image
+                  source={{ uri: user.photo }}
+                  style={{ width: 48, height: 48, borderRadius: 24 }}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    backgroundColor: colors.primaryLight,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Ionicons name="person-outline" size={24} color={colors.primary} />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>
+                  {user.name}
+                </AppText>
+                <AppText variant="bodySmall" color="secondary">{user.email}</AppText>
+              </View>
+            </View>
+          </Card>
+        )}
 
         <Card>
           <CardHeader title="Información del negocio" />
@@ -285,6 +348,12 @@ export function ProfileScreen() {
             ))
           )}
         </Section>
+
+        <SecondaryButton
+          label="Cerrar sesión"
+          icon="log-out-outline"
+          onPress={handleLogout}
+        />
       </Screen>
 
       <ConfirmDialog

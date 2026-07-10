@@ -36,6 +36,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
+# EAS / Google Play
+google-service-account.json
+
 # local env files
 .env*.local
 

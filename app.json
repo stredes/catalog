@@ -32,7 +32,9 @@
           "photosPermission": "Acceder a tu galería para seleccionar fotos de productos.",
           "cameraPermission": "Usar la cámara para tomar fotos de productos."
         }
-      ]
+      ],
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
     ]
   }
 }

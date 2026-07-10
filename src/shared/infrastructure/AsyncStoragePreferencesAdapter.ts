@@ -15,4 +15,12 @@ export class AsyncStoragePreferencesAdapter implements PreferencesPort {
   async setBoolean(key: string, value: boolean): Promise<void> {
     await AsyncStorage.setItem(key, value ? 'true' : 'false');
   }
+
+  async getString(key: string): Promise<string | null> {
+    return AsyncStorage.getItem(key);
+  }
+
+  async setString(key: string, value: string): Promise<void> {
+    await AsyncStorage.setItem(key, value);
+  }
 }

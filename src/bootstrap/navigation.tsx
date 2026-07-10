@@ -7,11 +7,13 @@ import { ProfileScreen } from '../modules/profile/presentation/screens/ProfileSc
 import { ProductsScreen } from '../modules/products/presentation/screens/ProductsScreen';
 import { HistoryScreen } from '../modules/history/presentation/screens/HistoryScreen';
 import { OnboardingScreen } from '../modules/onboarding/presentation/screens/OnboardingScreen';
+import { LoginScreen } from '../modules/auth/presentation/screens/LoginScreen';
 import { useDependencies } from './dependencies';
 
-export type AppRoute = 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile';
+export type AppRoute = 'Login' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile';
 
 const ONBOARDING_KEY = 'catalog_clean_onboarding_completed';
+const USER_KEY = 'catalog_clean_user';
 
 type NavigationContextValue = {
   activeRoute: AppRoute;
@@ -32,6 +34,8 @@ export function useAppNavigation() {
 
 function renderRoute(route: AppRoute) {
   switch (route) {
+    case 'Login':
+      return <LoginScreen />;
     case 'Onboarding':
       return <OnboardingScreen />;
     case 'Products':
@@ -53,13 +57,21 @@ function renderRoute(route: AppRoute) {
 export function AppNavigator() {
   const { services } = useDependencies();
   const [ready, setReady] = useState(false);
-  const [activeRoute, setActiveRoute] = useState<AppRoute>('Dashboard');
+  const [activeRoute, setActiveRoute] = useState<AppRoute>('Login');
 
   useEffect(() => {
-    services.preferences.getBoolean(ONBOARDING_KEY).then((completed) => {
+    async function init() {
+      const user = await services.preferences.getString(USER_KEY);
+      if (!user) {
+        setActiveRoute('Login');
+        setReady(true);
+        return;
+      }
+      const completed = await services.preferences.getBoolean(ONBOARDING_KEY);
       setActiveRoute(completed ? 'Dashboard' : 'Onboarding');
       setReady(true);
-    });
+    }
+    init();
   }, []);
 
   const navigation = useMemo(

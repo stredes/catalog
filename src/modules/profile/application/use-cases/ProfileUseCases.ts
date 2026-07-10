@@ -26,6 +26,9 @@ export class SaveProfileUseCase {
       address: dto.address || undefined,
       website: dto.website || undefined,
       logoUri: dto.logoUri,
+      bankName: dto.bankName || undefined,
+      bankAccountType: dto.bankAccountType || undefined,
+      bankAccountNumber: dto.bankAccountNumber || undefined,
       updatedAt: nowIso(),
     };
 

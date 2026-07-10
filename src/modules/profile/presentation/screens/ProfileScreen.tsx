@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState as useStateReact } from 'react';
 import { useState } from 'react';
 import { Resolver, useForm } from 'react-hook-form';
-import { Alert, Image, Pressable, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { BottomMenu } from '../../../../shared/presentation/components/BottomMenu';
@@ -19,12 +19,13 @@ import {
   SecondaryButton,
   Section,
   CatalogHistoryItem,
+  BottomSheet,
 } from '../../../../shared/presentation/components/ui';
 import { formatDate } from '../../../../shared/utils/dates';
 import { useCatalogs } from '../../../catalogs/presentation/hooks/useCatalogs';
 import { useFamilies } from '../../../families/presentation/hooks/useFamilies';
 import { useProducts } from '../../../products/presentation/hooks/useProducts';
-import { ProfileInputDto, profileSchema } from '../../application/dtos/ProfileDtos';
+import { ProfileInputDto, profileSchema, CHILEAN_BANKS, BANK_ACCOUNT_TYPES } from '../../application/dtos/ProfileDtos';
 import { useProfile } from '../hooks/useProfile';
 import { useTheme, useThemeColors } from '../../../../shared/presentation/ThemeContext';
 
@@ -39,6 +40,8 @@ export function ProfileScreen() {
   const [logoUri, setLogoUri] = useState<string | undefined>();
   const [error, setError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showBankPicker, setShowBankPicker] = useState(false);
+  const [showAccountTypePicker, setShowAccountTypePicker] = useState(false);
 
   const form = useForm<ProfileInputDto>({
     defaultValues: {
@@ -49,6 +52,9 @@ export function ProfileScreen() {
       address: '',
       website: '',
       logoUri: undefined,
+      bankName: '',
+      bankAccountType: '',
+      bankAccountNumber: '',
     },
     resolver: zodResolver(profileSchema) as Resolver<ProfileInputDto>,
   });
@@ -64,6 +70,9 @@ export function ProfileScreen() {
       address: profile.address ?? '',
       website: profile.website ?? '',
       logoUri: profile.logoUri,
+      bankName: profile.bankName ?? '',
+      bankAccountType: profile.bankAccountType ?? '',
+      bankAccountNumber: profile.bankAccountNumber ?? '',
     });
   }, [form, profile]);
 
@@ -209,6 +218,59 @@ export function ProfileScreen() {
         </Card>
 
         <Card>
+          <CardHeader title="Datos bancarios" subtitle="Información para transferencias y pagos" />
+          <Pressable
+            onPress={() => setShowBankPicker(true)}
+            style={{
+              backgroundColor: colors.backgroundSurface,
+              borderRadius: 12,
+              borderWidth: 1.5,
+              borderColor: colors.borderDefault,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              marginBottom: 12,
+            }}
+          >
+            <AppText variant="labelMedium" color="muted" style={{ marginBottom: 4 }}>Banco</AppText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <AppText variant="bodyMedium" color={form.watch('bankName') ? 'primary' : 'muted'}>
+                {form.watch('bankName') || 'Seleccionar banco'}
+              </AppText>
+              <Ionicons name="chevron-down-outline" size={18} color={colors.textMuted} />
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setShowAccountTypePicker(true)}
+            style={{
+              backgroundColor: colors.backgroundSurface,
+              borderRadius: 12,
+              borderWidth: 1.5,
+              borderColor: colors.borderDefault,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              marginBottom: 12,
+            }}
+          >
+            <AppText variant="labelMedium" color="muted" style={{ marginBottom: 4 }}>Tipo de cuenta</AppText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <AppText variant="bodyMedium" color={form.watch('bankAccountType') ? 'primary' : 'muted'}>
+                {form.watch('bankAccountType') || 'Seleccionar tipo'}
+              </AppText>
+              <Ionicons name="chevron-down-outline" size={18} color={colors.textMuted} />
+            </View>
+          </Pressable>
+
+          <Input
+            label="Número de cuenta"
+            placeholder="1234567890"
+            keyboardType="numeric"
+            value={form.watch('bankAccountNumber') ?? ''}
+            onChangeText={(t) => form.setValue('bankAccountNumber', t)}
+          />
+        </Card>
+
+        <Card>
           <CardHeader title="Apariencia" />
           <Pressable
             onPress={toggleTheme}
@@ -297,6 +359,70 @@ export function ProfileScreen() {
         onConfirm={executeDelete}
         onCancel={() => setDeleteId(null)}
       />
+
+      <BottomSheet
+        visible={showBankPicker}
+        onClose={() => setShowBankPicker(false)}
+        title="Seleccionar banco"
+      >
+        <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
+          {CHILEAN_BANKS.map((bank) => (
+            <Pressable
+              key={bank}
+              onPress={() => {
+                form.setValue('bankName', bank);
+                setShowBankPicker(false);
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.borderDefault,
+              }}
+            >
+              <AppText variant="bodyMedium" color={form.watch('bankName') === bank ? 'accent' : 'primary'}>
+                {bank}
+              </AppText>
+              {form.watch('bankName') === bank && (
+                <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+              )}
+            </Pressable>
+          ))}
+        </ScrollView>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={showAccountTypePicker}
+        onClose={() => setShowAccountTypePicker(false)}
+        title="Tipo de cuenta"
+      >
+        {BANK_ACCOUNT_TYPES.map((type) => (
+          <Pressable
+            key={type}
+            onPress={() => {
+              form.setValue('bankAccountType', type);
+              setShowAccountTypePicker(false);
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingVertical: 14,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.borderDefault,
+            }}
+          >
+            <AppText variant="bodyMedium" color={form.watch('bankAccountType') === type ? 'accent' : 'primary'}>
+              {type}
+            </AppText>
+            {form.watch('bankAccountType') === type && (
+              <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+            )}
+          </Pressable>
+        ))}
+      </BottomSheet>
 
       <BottomMenu />
     </>

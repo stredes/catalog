@@ -8,7 +8,7 @@ type DatabaseVersionRow = {
 };
 
 const DATABASE_NAME = 'catalog.db';
-const DATABASE_SCHEMA_VERSION = 4;
+const DATABASE_SCHEMA_VERSION = 5;
 
 const migrations: Record<number, string> = {
   1: `
@@ -64,6 +64,11 @@ const migrations: Record<number, string> = {
   `,
   4: `
     ALTER TABLE products ADD COLUMN code TEXT;
+  `,
+  5: `
+    ALTER TABLE profile ADD COLUMN bankName TEXT;
+    ALTER TABLE profile ADD COLUMN bankAccountType TEXT;
+    ALTER TABLE profile ADD COLUMN bankAccountNumber TEXT;
   `,
 };
 

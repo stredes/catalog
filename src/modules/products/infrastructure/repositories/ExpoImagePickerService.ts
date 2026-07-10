@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { ImagePickerService, ImageSource } from '../../domain/repositories/ImagePickerService';
+import { imagePickerDeniedError } from '../../../../shared/errors/AppError';
 
 const MAX_IMAGE_DIMENSION = 1024;
 const JPEG_QUALITY = 0.75;
@@ -23,7 +24,7 @@ export class ExpoImagePickerService implements ImagePickerService {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
 
     if (!permission.granted) {
-      throw new Error('Permiso de cámara denegado');
+      throw imagePickerDeniedError('camera');
     }
 
     const result = await ImagePicker.launchCameraAsync({
@@ -45,7 +46,7 @@ export class ExpoImagePickerService implements ImagePickerService {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      throw new Error('Permiso de galería denegado');
+      throw imagePickerDeniedError('gallery');
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({

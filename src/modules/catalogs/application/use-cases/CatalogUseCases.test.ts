@@ -37,7 +37,7 @@ describe('Catalog use cases', () => {
       pdfGenerator,
       profile,
     ).execute({
-      name: 'Catalogo audio',
+      name: 'Catálogo audio',
       familyId: 'fam_audio',
       format: 'grid-4x5',
       productIds: ['prd_1'],
@@ -62,7 +62,7 @@ describe('Catalog use cases', () => {
         new FakePdfGenerator(),
         new InMemoryProfileRepository(),
       ).execute({
-        name: 'Catalogo',
+        name: 'Catálogo',
         familyId: 'missing',
         format: 'grid-3x7',
         productIds: ['prd_1'],
@@ -82,7 +82,7 @@ describe('Catalog use cases', () => {
         new FakePdfGenerator(),
         new InMemoryProfileRepository(),
       ).execute({
-        name: 'Catalogo',
+        name: 'Catálogo',
         familyId: 'fam_1',
         format: 'grid-2',
         productIds: [],
@@ -111,7 +111,7 @@ describe('Catalog use cases', () => {
       pdfGenerator,
       profile,
     ).execute({
-      name: 'Catalogo combinado',
+      name: 'Catálogo combinado',
       familyIds: ['fam_tazas', 'fam_poleras'],
       productIds: ['prd_taza1', 'prd_taza2', 'prd_polera1'],
       format: 'grid-4x5',
@@ -125,12 +125,12 @@ describe('Catalog use cases', () => {
 
   it('shares a generated catalog through the sharing port', async () => {
     const shareService = new FakeShareService();
-    const catalog = makeCatalog({ name: 'Catalogo premium' });
+    const catalog = makeCatalog({ name: 'Catálogo premium' });
 
     await new ShareCatalogPdfUseCase(shareService).execute(catalog);
 
     expect(shareService.calls).toEqual([
-      { uri: catalog.pdfUri, title: 'Catalogo premium' },
+      { uri: catalog.pdfUri, title: 'Catálogo premium' },
     ]);
   });
 
@@ -152,7 +152,7 @@ describe('Catalog use cases', () => {
 
     await expect(
       new DuplicateCatalogUseCase(repository).execute('missing'),
-    ).rejects.toThrow('Catalogo no encontrado');
+    ).rejects.toThrow('Catálogo no encontrado');
   });
 
   it('deletes a catalog history record', async () => {

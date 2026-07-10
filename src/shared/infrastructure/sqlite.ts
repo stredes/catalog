@@ -76,7 +76,7 @@ async function applyMigration(db: SQLiteDatabase, version: number) {
   const sql = migrations[version];
 
   if (!sql) {
-    throw new Error(`No existe migracion para la version ${version}`);
+    throw new Error(`No existe migración para la versión ${version}`);
   }
 
   await db.withExclusiveTransactionAsync(async (transaction) => {
@@ -97,7 +97,7 @@ async function migrateDatabase(db: SQLiteDatabase) {
 
   if (currentVersion > DATABASE_SCHEMA_VERSION) {
     throw new Error(
-      `La base de datos esta en version ${currentVersion}, pero la app soporta hasta ${DATABASE_SCHEMA_VERSION}`,
+      `La base de datos está en versión ${currentVersion}, pero la app soporta hasta ${DATABASE_SCHEMA_VERSION}`,
     );
   }
 

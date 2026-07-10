@@ -1,12 +1,13 @@
 import * as Sharing from 'expo-sharing';
 import { NativeShareService } from '../domain/NativeShareService';
+import { shareUnavailableError } from '../../../shared/errors/AppError';
 
 export class ExpoNativeShareService implements NativeShareService {
   async shareFile(uri: string, title: string) {
     const available = await Sharing.isAvailableAsync();
 
     if (!available) {
-      throw new Error('Compartir no esta disponible en este dispositivo');
+      throw shareUnavailableError();
     }
 
     await Sharing.shareAsync(uri, {

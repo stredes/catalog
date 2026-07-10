@@ -68,7 +68,7 @@ export function DashboardScreen() {
         `Se insertaron ${result.families} familias y ${result.products} productos.`,
       );
     } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'Ocurrio un error al cargar los datos.');
+      Alert.alert('Error', err instanceof Error ? err.message : 'Ocurrió un error al cargar los datos.');
     } finally {
       setSeeding(false);
     }

@@ -30,6 +30,8 @@ import { SQLiteProfileRepository } from '../modules/profile/infrastructure/repos
 import { ExpoNativeShareService } from '../modules/sharing/infrastructure/ExpoNativeShareService';
 import { SQLiteCatalogRepository } from '../modules/catalogs/infrastructure/repositories/SQLiteCatalogRepository';
 import { SeedUseCase } from '../seed/SeedUseCase';
+import { PreferencesPort } from '../shared/domain/PreferencesPort';
+import { AsyncStoragePreferencesAdapter } from '../shared/infrastructure/AsyncStoragePreferencesAdapter';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -43,6 +45,7 @@ function buildDependencies() {
   const pdfGenerator = new ExpoPdfGenerator();
   const shareService = new ExpoNativeShareService();
   const imagePicker = new ExpoImagePickerService();
+  const preferences: PreferencesPort = new AsyncStoragePreferencesAdapter();
 
     const seed = new SeedUseCase(familyRepository, productRepository);
 
@@ -52,6 +55,9 @@ function buildDependencies() {
         families: familyRepository,
         catalogs: catalogRepository,
         profile: profileRepository,
+      },
+      services: {
+        preferences,
       },
       useCases: {
         createProduct: new CreateProductUseCase(productRepository),
@@ -94,7 +100,7 @@ export function useDependencies() {
   const dependencies = useContext(DependenciesContext);
 
   if (!dependencies) {
-    throw new Error('DependenciesProvider no esta configurado');
+    throw new Error('DependenciesProvider no está configurado');
   }
 
   return dependencies;

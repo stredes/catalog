@@ -154,7 +154,7 @@ export function makeProduct(overrides: Partial<Product> = {}): Product {
 export function makeCatalog(overrides: Partial<Catalog> = {}): Catalog {
   return {
     id: 'cat_1',
-    name: 'Catalogo',
+    name: 'Catálogo',
     familyId: 'fam_1',
     format: 'grid-4x5',
     productIds: ['prd_1'],

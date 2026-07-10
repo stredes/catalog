@@ -9,6 +9,12 @@ import { ProductRepository } from '../../../products/domain/repositories/Product
 import { ProfileRepository } from '../../../profile/domain/repositories/ProfileRepository';
 import { NativeShareService } from '../../../sharing/domain/NativeShareService';
 import { CatalogInputDto, catalogSchema } from '../dtos/CatalogDtos';
+import {
+  catalogNoFamilySelectedError,
+  familyNotFoundError,
+  catalogNotFoundError,
+  catalogPdfEmptyError,
+} from '../../../../shared/errors/AppError';
 
 export class GenerateCatalogPdfUseCase {
   constructor(
@@ -28,7 +34,7 @@ export class GenerateCatalogPdfUseCase {
     const primaryFamilyId = dto.familyId ?? familyIds[0] ?? '';
 
     if (familyIds.length === 0) {
-      throw new Error('Selecciona al menos una familia');
+      throw catalogNoFamilySelectedError();
     }
 
     const foundFamilies: Family[] = [];
@@ -36,7 +42,7 @@ export class GenerateCatalogPdfUseCase {
     for (const fid of familyIds) {
       const family = await this.families.findById(fid);
       if (!family) {
-        throw new Error(`Familia no encontrada: ${fid}`);
+        throw familyNotFoundError(fid);
       }
       foundFamilies.push(family);
     }
@@ -56,6 +62,11 @@ export class GenerateCatalogPdfUseCase {
       },
       onProgress,
     );
+
+    if (!pdfUri || typeof pdfUri !== 'string' || pdfUri.trim().length === 0) {
+      throw catalogPdfEmptyError();
+    }
+
     const catalog: Catalog = {
       id: createId('cat'),
       name: dto.name,
@@ -103,7 +114,7 @@ export class DuplicateCatalogUseCase {
     const source = await this.repository.findById(id);
 
     if (!source) {
-      throw new Error('Catalogo no encontrado');
+      throw catalogNotFoundError(id);
     }
 
     const copy: Catalog = {

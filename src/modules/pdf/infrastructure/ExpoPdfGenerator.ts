@@ -170,6 +170,12 @@ export class ExpoPdfGenerator implements PdfGenerator {
 
       source.copy(destination);
 
+      if (!destination.exists || destination.size === 0) {
+        throw new CatalogPdfGenerationError(
+          'El PDF generado está vacío o no se pudo copiar correctamente.',
+        );
+      }
+
       emit('completed', { message: 'Catálogo listo.' });
 
       return destination.uri;

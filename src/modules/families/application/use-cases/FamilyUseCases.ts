@@ -3,6 +3,7 @@ import { createId } from '../../../../shared/utils/ids';
 import { Family } from '../../domain/entities/Family';
 import { FamilyRepository } from '../../domain/repositories/FamilyRepository';
 import { FamilyInputDto, familySchema } from '../dtos/FamilyDtos';
+import { familyNotFoundError } from '../../../../shared/errors/AppError';
 
 export class CreateFamilyUseCase {
   constructor(private readonly repository: FamilyRepository) {}
@@ -29,7 +30,7 @@ export class UpdateFamilyUseCase {
     const current = await this.repository.findById(id);
 
     if (!current) {
-      throw new Error('Familia no encontrada');
+      throw familyNotFoundError(id);
     }
 
     const dto = familySchema.parse(input);

@@ -4,6 +4,7 @@ import { Product } from '../../domain/entities/Product';
 import { ImagePickerService, ImageSource } from '../../domain/repositories/ImagePickerService';
 import { ProductRepository } from '../../domain/repositories/ProductRepository';
 import { ProductInputDto, productSchema } from '../dtos/ProductDtos';
+import { productNotFoundError } from '../../../../shared/errors/AppError';
 
 export class CreateProductUseCase {
   constructor(private readonly repository: ProductRepository) {}
@@ -30,7 +31,7 @@ export class UpdateProductUseCase {
     const current = await this.repository.findById(id);
 
     if (!current) {
-      throw new Error('Producto no encontrado');
+      throw productNotFoundError(id);
     }
 
     const dto = productSchema.parse(input);

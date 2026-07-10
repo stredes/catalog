@@ -1,9 +1,8 @@
-export class CatalogPdfGenerationError extends Error {
-  constructor(
-    message: string,
-    public readonly cause?: Error,
-  ) {
-    super(message);
+import { AppError } from '../../../shared/errors/AppError';
+
+export class CatalogPdfGenerationError extends AppError {
+  constructor(message: string, cause?: Error) {
+    super('CATALOG_PDF_GENERATION_FAILED', message, cause);
     this.name = 'CatalogPdfGenerationError';
   }
 }
@@ -22,5 +21,6 @@ export class CatalogPdfMemoryError extends CatalogPdfGenerationError {
       'Estamos optimizando el contenido. Intenta nuevamente.',
     );
     this.name = 'CatalogPdfMemoryError';
+    (this as { code: string }).code = 'CATALOG_PDF_MEMORY';
   }
 }

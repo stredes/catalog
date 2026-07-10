@@ -18,7 +18,7 @@
       },
       "versionCode": 5,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.catalogclean"
+      "package": "com.catalogclean.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

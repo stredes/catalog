@@ -3,10 +3,10 @@ import { CatalogRepository } from '../modules/catalogs/domain/repositories/Catal
 import { Family } from '../modules/families/domain/entities/Family';
 import { FamilyRepository } from '../modules/families/domain/repositories/FamilyRepository';
 import { PdfCatalogInput, PdfGenerator } from '../modules/pdf/domain/PdfGenerator';
-import { Product } from '../modules/products/domain/entities/Product';
+import { Product } from '../modules/products/domain/entities/product';
 import { ImagePickerService, ImageSource } from '../modules/products/domain/repositories/ImagePickerService';
 import { ProductRepository } from '../modules/products/domain/repositories/ProductRepository';
-import { Profile } from '../modules/profile/domain/entities/Profile';
+import { Profile } from '../modules/profile/domain/entities/profile';
 import { ProfileRepository } from '../modules/profile/domain/repositories/ProfileRepository';
 import { NativeShareService } from '../modules/sharing/domain/NativeShareService';
 
@@ -43,6 +43,13 @@ export class InMemoryProductRepository implements ProductRepository {
 
   async update(product: Product) {
     this.products.set(product.id, product);
+  }
+
+  async updateStock(id: string, stock: number) {
+    const product = this.products.get(id);
+    if (product) {
+      this.products.set(id, { ...product, stock, updatedAt: new Date().toISOString() });
+    }
   }
 
   async delete(id: string) {
@@ -142,6 +149,7 @@ export function makeProduct(overrides: Partial<Product> = {}): Product {
     name: 'Producto',
     code: undefined,
     price: 1000,
+    stock: 10,
     format: 'unit',
     familyId: 'fam_1',
     photoUri: 'file:///product-images/product.jpg',

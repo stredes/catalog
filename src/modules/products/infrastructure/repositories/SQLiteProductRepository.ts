@@ -1,5 +1,5 @@
 import { getDatabase } from '../../../../shared/infrastructure/sqlite';
-import { Product } from '../../domain/entities/Product';
+import { Product } from '../../domain/entities/product';
 import { ProductRepository } from '../../domain/repositories/ProductRepository';
 
 export class SQLiteProductRepository implements ProductRepository {
@@ -7,12 +7,13 @@ export class SQLiteProductRepository implements ProductRepository {
     const db = await getDatabase();
     await db.runAsync(
       `INSERT INTO products
-       (id, name, code, price, format, photoUri, familyId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, name, code, price, stock, format, photoUri, familyId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       product.id,
       product.name,
       product.code ?? null,
       product.price,
+      product.stock,
       product.format,
       product.photoUri ?? null,
       product.familyId,
@@ -25,16 +26,27 @@ export class SQLiteProductRepository implements ProductRepository {
     const db = await getDatabase();
     await db.runAsync(
       `UPDATE products
-       SET name = ?, code = ?, price = ?, format = ?, photoUri = ?, familyId = ?, updatedAt = ?
+       SET name = ?, code = ?, price = ?, stock = ?, format = ?, photoUri = ?, familyId = ?, updatedAt = ?
        WHERE id = ?`,
       product.name,
       product.code ?? null,
       product.price,
+      product.stock,
       product.format,
       product.photoUri ?? null,
       product.familyId,
       product.updatedAt,
       product.id,
+    );
+  }
+
+  async updateStock(id: string, stock: number) {
+    const db = await getDatabase();
+    await db.runAsync(
+      'UPDATE products SET stock = ?, updatedAt = ? WHERE id = ?',
+      stock,
+      new Date().toISOString(),
+      id,
     );
   }
 

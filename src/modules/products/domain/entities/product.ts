@@ -5,6 +5,7 @@ export type Product = {
   name: string;
   code?: string;
   price: number;
+  stock: number;
   format: ProductFormat;
   photoUri?: string;
   familyId: string;

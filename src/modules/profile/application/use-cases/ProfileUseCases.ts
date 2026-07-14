@@ -1,6 +1,6 @@
 import { nowIso } from '../../../../shared/utils/dates';
 import { ImagePickerService, ImageSource } from '../../../products/domain/repositories/ImagePickerService';
-import { Profile } from '../../domain/entities/Profile';
+import { Profile } from '../../domain/entities/profile';
 import { ProfileRepository } from '../../domain/repositories/ProfileRepository';
 import { ProfileInputDto, profileSchema } from '../dtos/ProfileDtos';
 
@@ -26,6 +26,9 @@ export class SaveProfileUseCase {
       address: dto.address || undefined,
       website: dto.website || undefined,
       logoUri: dto.logoUri,
+      bankName: dto.bankName || undefined,
+      bankAccountType: dto.bankAccountType || undefined,
+      bankAccountNumber: dto.bankAccountNumber || undefined,
       updatedAt: nowIso(),
     };
 

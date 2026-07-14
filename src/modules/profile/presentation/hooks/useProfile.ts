@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useDependencies } from '../../../../bootstrap/dependencies';
-import { Profile } from '../../domain/entities/Profile';
+import { Profile } from '../../domain/entities/profile';
 
 export function useProfile() {
   const { useCases } = useDependencies();

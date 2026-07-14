@@ -1,4 +1,4 @@
-import { Product } from '../../../products/domain/entities/Product';
+import { Product } from '../../../products/domain/entities/product';
 
 export type CatalogSelectionInput = {
   products: Product[];

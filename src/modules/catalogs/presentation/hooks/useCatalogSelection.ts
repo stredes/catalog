@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Product } from '../../../products/domain/entities/Product';
+import { Product } from '../../../products/domain/entities/product';
 import { Family } from '../../../families/domain/entities/Family';
 import {
   getCatalogSelectedProducts,

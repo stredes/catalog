@@ -1,6 +1,6 @@
 # Contexto rapido para agentes IA
 
-Ultima actualizacion: 2026-07-09 (fix expo-image-manipulator + redesign PDF)
+Ultima actualizacion: 2026-07-14 (UI/UX 2.0 fase 1 + modulo editorial + APK)
 Proyecto: `catalog-clean`
 Raiz: `C:\Users\bodega 1\Desktop\workspace\catalog`
 
@@ -15,6 +15,7 @@ Flujos principales:
 - Gestionar productos con precio, formato, codigo opcional, familia e imagen.
 - Configurar perfil del negocio con logo y datos de contacto.
 - Generar catalogos PDF con varios formatos visuales.
+- Contenido editorial: texto profesional auto-generado offline por categoria/producto.
 - Guardar historial de catalogos y compartir PDFs por el share sheet nativo.
 
 ## Stack
@@ -66,6 +67,7 @@ src/
     utils/
   modules/
     catalogs/
+    editorial/
     families/
     history/
     pdf/
@@ -170,6 +172,14 @@ Archivos:
 - `src/modules/catalogs/presentation/hooks/useCatalogSelection.ts`
 - `src/modules/catalogs/presentation/components/*`
 
+Wizard del builder (6 pasos):
+- 0: Nombre del catálogo
+- 1: Selección de familias/productos
+- 2: Formato PDF
+- 3: Contenido editorial (EditorialContentScreen)
+- 4: Vista previa
+- 5: Generar/Éxito
+
 Formatos de catalogo:
 - `grid-2`
 - `grid-3`
@@ -187,12 +197,44 @@ Validacion:
 - Al menos una familia.
 - Al menos un producto.
 
+### Editorial (Contenido)
+
+Archivos:
+- `src/modules/editorial/domain/entities/EditorialContent.ts`
+- `src/modules/editorial/domain/services/ContentGenerator.ts`
+- `src/modules/editorial/application/dtos/EditorialContentDtos.ts`
+- `src/modules/editorial/application/use-cases/EditorialContentUseCases.ts`
+- `src/modules/editorial/presentation/hooks/useEditorialContent.ts`
+- `src/modules/editorial/presentation/components/EditorialTextArea.tsx`
+- `src/modules/editorial/presentation/components/GenerateButton.tsx`
+- `src/modules/editorial/presentation/components/CategoryEditorialCard.tsx`
+- `src/modules/editorial/presentation/components/ProductEditorialCard.tsx`
+- `src/modules/editorial/presentation/screens/EditorialContentScreen.tsx`
+
+Flujo:
+- Paso 3 del wizard de CatalogBuilder (de 6 pasos totales).
+- 3 modos: `basic` (sin editorial), `auto` (generado offline), `custom` (manual).
+- `ContentGenerator` usa templates variados con hash determinístico por ID de
+  producto/familia. 80+ templates por tipo de texto, anti-repetición.
+- Campos por producto: description, benefits, highlights, uses, specifications,
+  quote, notes, savedForFuture.
+- Campos de catálogo: title, subtitle, welcomeMessage, introduction.
+- Campos About Us: description, history, mission, vision, values.
+- Cada campo tiene su botón ✨ Generar individual.
+- Checkbox "Guardar para futuros catálogos" por producto.
+- El contenido editorial NO modifica los productos originales; pertenece al
+  catálogo en construcción.
+- Pantalla usa FlatList para virtualizar la lista de productos.
+- No persiste en SQLite (estado en memoria del hook). El contenido se pasa
+  al generador PDF cuando se integre.
+
 ### PDF
 
 Archivos:
 - `src/modules/pdf/domain/PdfGenerator.ts`
 - `src/modules/pdf/infrastructure/ExpoPdfGenerator.ts`
-- `src/modules/pdf/infrastructure/CatalogImageResolver.ts`
+- `src/modules/pdf/infrastructure/ExpoCatalogImageOptimizer.ts`
+- `src/modules/pdf/templates/editorial/*`
 
 Notas:
 - `ExpoPdfGenerator` arma HTML y usa `Print.printToFileAsync`.
@@ -215,6 +257,12 @@ Notas:
   via SVG inline (`whatsappSvg`), con enlace `https://wa.me/<numero>`.
 - **Familias en PDF:** no se renderizan nombres de familia en los productos del
   PDF. Solo aparecen: nombre, codigo, formato y precio.
+- **Plantilla editorial premium (2026-07-14):** el formato `premium-cover`
+  usa `src/modules/pdf/templates/editorial`. Incluye tokens (`Colors`,
+  `Spacing`, `Typography`, `Grid`), componentes reutilizables y paginas
+  independientes: portada, tabla de contenidos, sobre nosotros, categoria,
+  destacado, comparativa, galeria y contacto. Los demas formatos siguen usando
+  el renderer compacto de `ExpoPdfGenerator.ts`.
 
 ### Profile
 
@@ -255,6 +303,26 @@ Notas:
 - Hay modo claro/oscuro via `ThemeContext`.
 - `ThemeContext` propaga `setColorScheme(theme)` hacia componentes UI.
 - Mantener estilos consistentes con los componentes existentes.
+- **UI/UX 2.0 fase 1 (2026-07-14):** se ampliaron tokens del design system
+  sin romper compatibilidad: colores semanticos, `motion.ts`, `sizes.ts`,
+  `opacity.ts`, `zIndex.ts`, spacing completo, radios alias y tipografia
+  semantica sin letter spacing negativo. `ui.tsx` agrega aliases/componentes
+  compatibles (`AppScreen`, `GhostButton`, `IconButton`, `StatusBadge`,
+  `LoadingState`, `ErrorState`, `SkeletonCard`, `SearchField`, etc.).
+  `BottomMenu.tsx` fue limpiado visualmente con roles accesibles y labels
+  ASCII. `DashboardScreen.tsx` fue redisenado como inicio editorial premium
+  con saludo, negocio, CTA principal, metricas reales, acciones rapidas y
+  catalogos recientes. No se cambio la logica de PDF, SQLite ni repositorios.
+- **PDF Editorial Premium 2.0 (2026-07-14):** `premium-cover` ahora usa un
+  motor editorial automatico en `src/modules/pdf/templates/editorial/index.ts`.
+  Compone portada dividida, bienvenida con indice dinamico, sobre nosotros
+  condicional, aperturas de categoria alternadas, producto premium, layouts de
+  6/4/2 productos, galeria, comparativa editorial y contraportada/contacto.
+  Los estilos viven en `Layouts/A4Layout.ts`, usan tokens en `Colors.ts` y
+  `Typography.ts`, A4 fijo y Flexbox para compatibilidad con Android Print.
+  El contenido editorial opcional del wizard ahora viaja por
+  `CatalogInputDto -> GenerateCatalogPdfUseCase -> PdfCatalogInput` y se
+  renderiza sin mostrar campos vacios/null/undefined.
 
 ## Tests
 
@@ -273,6 +341,10 @@ Tests existentes:
 Antes de entregar cambios de logica:
 - Correr `npm test`.
 - Si toca tipos/TSX, correr `npx tsc --noEmit`.
+- Ultima verificacion UI/UX 2.0 fase 1 (2026-07-14): `npx tsc --noEmit` OK
+  y `npm test` OK (4 archivos, 29 tests).
+- Ultima verificacion PDF Editorial Premium 2.0 (2026-07-14):
+  `npx tsc --noEmit` OK y `npm test` OK (4 archivos, 29 tests).
 
 ## Documentos utiles
 
@@ -303,6 +375,11 @@ Cambios/observaciones relevantes vistas el 2026-07-09:
 - `package.json` version: `1.0.4`.
 - `app.json` version: `1.0.4`; Android `versionCode`: 5.
 - Build Android estabilizado y APK generado exitosamente (~65 MB).
+- APK versionada generada el 2026-07-14:
+  `C:\Users\bodega 1\Desktop\CatalogClean-v1.0.4.apk` (65.4 MB).
+  Comando usado: `android\gradlew.bat -p android assembleRelease` con
+  `JAVA_HOME=.build-tools\jdk17\jdk-17.0.19+10` y
+  `ANDROID_HOME=.build-tools\android-sdk`.
 - Fix crash `NoClassDefFoundError: AnyTypeCache`: `expo-image-manipulator` 
   bajado de 57.0.2 a 14.0.8 (compatible SDK 54).
 - `expo-font` agregado como peer dependency resuelta.
@@ -321,6 +398,11 @@ Cambios/observaciones relevantes vistas el 2026-07-09:
   recomienda.
 - `CATALOG_CLEAN_APP_STORE_REPORT.md` tambien tiene mojibake.
 - Hay carpeta `backup/` marcada como eliminada en git.
+- **Módulo editorial (2026-07-14):** nuevo módulo `src/modules/editorial/` con
+  10 archivos. Wizard del builder ampliado de 5 a 6 pasos. Paso 3 = EditorialContentScreen.
+  3 modos (basic/auto/custom). ContentGenerator offline con 80+ templates.
+  Productos con 7 campos editables + checkbox "guardar para futuro".
+  FlatList para virtualización. Estado en memoria (no persiste en SQLite).
 
 ## Pendientes conocidos
 
@@ -337,6 +419,9 @@ Prioridad alta / produccion:
   App Store.
 
 Mejoras funcionales:
+- Continuar rediseno UI/UX 2.0 por fases: Productos, Categorias, Historial,
+  Perfil, Wizard, Editorial, Preview y Resultado. La fase 1 solo cubrio
+  design system base, componentes compartidos, barra inferior y Dashboard.
 - Refresco de datos al volver a pantallas.
 - Limpieza de imagenes huerfanas al borrar/editar productos.
 - Decidir si duplicar catalogo debe copiar PDF o solo metadata.

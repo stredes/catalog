@@ -59,6 +59,7 @@ export class GenerateCatalogPdfUseCase {
         format: dto.format,
         products: selectedProducts,
         profile,
+        editorialContent: dto.editorialContent,
       },
       onProgress,
     );

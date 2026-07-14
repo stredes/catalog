@@ -1,6 +1,6 @@
 import { createId } from '../../../../shared/utils/ids';
 import { nowIso } from '../../../../shared/utils/dates';
-import { Product } from '../../domain/entities/Product';
+import { Product } from '../../domain/entities/product';
 import { ImagePickerService, ImageSource } from '../../domain/repositories/ImagePickerService';
 import { ProductRepository } from '../../domain/repositories/ProductRepository';
 import { ProductInputDto, productSchema } from '../dtos/ProductDtos';
@@ -59,6 +59,17 @@ export class GetProductsByFamilyUseCase {
 
   execute(familyId: string) {
     return this.repository.findByFamily(familyId);
+  }
+}
+
+export class UpdateStockUseCase {
+  constructor(private readonly repository: ProductRepository) {}
+
+  async execute(id: string, stock: number) {
+    if (stock < 0) {
+      throw new Error('El stock no puede ser negativo');
+    }
+    await this.repository.updateStock(id, stock);
   }
 }
 

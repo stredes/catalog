@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useDependencies } from '../../../../bootstrap/dependencies';
-import { Product } from '../../domain/entities/Product';
+import { Product } from '../../domain/entities/product';
 
 export function useProducts() {
   const { repositories } = useDependencies();

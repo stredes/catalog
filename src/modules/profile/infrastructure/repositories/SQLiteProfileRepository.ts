@@ -1,5 +1,5 @@
 import { getDatabase } from '../../../../shared/infrastructure/sqlite';
-import { Profile } from '../../domain/entities/Profile';
+import { Profile } from '../../domain/entities/profile';
 import { ProfileRepository } from '../../domain/repositories/ProfileRepository';
 
 export class SQLiteProfileRepository implements ProfileRepository {
@@ -12,8 +12,8 @@ export class SQLiteProfileRepository implements ProfileRepository {
     const db = await getDatabase();
     await db.runAsync(
       `INSERT INTO profile
-       (id, businessName, ownerName, phone, email, address, website, logoUri, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (id, businessName, ownerName, phone, email, address, website, logoUri, bankName, bankAccountType, bankAccountNumber, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          businessName = excluded.businessName,
          ownerName = excluded.ownerName,
@@ -22,6 +22,9 @@ export class SQLiteProfileRepository implements ProfileRepository {
          address = excluded.address,
          website = excluded.website,
          logoUri = excluded.logoUri,
+         bankName = excluded.bankName,
+         bankAccountType = excluded.bankAccountType,
+         bankAccountNumber = excluded.bankAccountNumber,
          updatedAt = excluded.updatedAt`,
       profile.id,
       profile.businessName,
@@ -31,6 +34,9 @@ export class SQLiteProfileRepository implements ProfileRepository {
       profile.address ?? null,
       profile.website ?? null,
       profile.logoUri ?? null,
+      profile.bankName ?? null,
+      profile.bankAccountType ?? null,
+      profile.bankAccountNumber ?? null,
       profile.updatedAt,
     );
   }

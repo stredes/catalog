@@ -7,5 +7,8 @@ export type Profile = {
   address?: string;
   website?: string;
   logoUri?: string;
+  bankName?: string;
+  bankAccountType?: string;
+  bankAccountNumber?: string;
   updatedAt: string;
 };

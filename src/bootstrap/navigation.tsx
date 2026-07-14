@@ -64,14 +64,7 @@ export function AppNavigator() {
 
   useEffect(() => {
     async function init() {
-      const user = await services.preferences.getString(USER_KEY);
-      if (!user) {
-        setActiveRoute('Login');
-        setReady(true);
-        return;
-      }
-      const completed = await services.preferences.getBoolean(ONBOARDING_KEY);
-      setActiveRoute(completed ? 'Dashboard' : 'Onboarding');
+      setActiveRoute('Dashboard');
       setReady(true);
     }
     init();

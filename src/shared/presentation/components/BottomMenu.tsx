@@ -32,7 +32,7 @@ function TabButton({ item, isActive, onPress }: {
 
   useEffect(() => {
     Animated.spring(translateY, {
-      toValue: isActive ? -4 : 0,
+      toValue: isActive ? -2 : 0,
       useNativeDriver: true,
       friction: 6,
       tension: 80,
@@ -61,7 +61,7 @@ function TabButton({ item, isActive, onPress }: {
         {isActive ? (
           <LiquidGlassContainer variant="floating" style={styles.tabItemActiveContent}>
             <Ionicons name={item.iconActive} size={22} color={c().primary} />
-            <AppText variant="caption" color="accent" style={{ marginTop: 2, color: c().primary } as any}>
+            <AppText variant="caption" color="accent" numberOfLines={1} style={{ marginTop: 2, color: c().primary } as any}>
               {item.label}
             </AppText>
             <View style={[styles.activeIndicator, { backgroundColor: c().primary }]} />
@@ -69,7 +69,7 @@ function TabButton({ item, isActive, onPress }: {
         ) : (
           <>
             <Ionicons name={item.icon} size={22} color={c().textMuted} />
-            <AppText variant="caption" color="muted" style={{ marginTop: 2, color: c().textMuted } as any}>
+            <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: 2, color: c().textMuted } as any}>
               {item.label}
             </AppText>
           </>
@@ -121,17 +121,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: borderRadius.md,
     justifyContent: 'center',
-    minHeight: sizes.touchTarget,
-    paddingHorizontal: spacing.xs,
+    minHeight: 44,
+    paddingHorizontal: 2,
     paddingVertical: spacing.xs,
     width: '100%',
   },
   tabItemActiveContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 54,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
     width: '100%',
   },
   activeIndicator: {

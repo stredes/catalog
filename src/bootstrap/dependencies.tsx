@@ -18,6 +18,7 @@ import {
   GetProductsByFamilyUseCase,
   PickProductImageUseCase,
   UpdateProductUseCase,
+  UpdateStockUseCase,
 } from '../modules/products/application/use-cases/ProductUseCases';
 import { ExpoImagePickerService } from '../modules/products/infrastructure/repositories/ExpoImagePickerService';
 import { SQLiteProductRepository } from '../modules/products/infrastructure/repositories/SQLiteProductRepository';
@@ -57,6 +58,7 @@ function buildDependencies() {
         createProduct: new CreateProductUseCase(productRepository),
         updateProduct: new UpdateProductUseCase(productRepository),
         deleteProduct: new DeleteProductUseCase(productRepository),
+        updateStock: new UpdateStockUseCase(productRepository),
         getProductsByFamily: new GetProductsByFamilyUseCase(productRepository),
         pickProductImage: new PickProductImageUseCase(imagePicker),
         createFamily: new CreateFamilyUseCase(familyRepository),

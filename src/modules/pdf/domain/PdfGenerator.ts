@@ -2,6 +2,7 @@ import { CatalogFormat } from '../../catalogs/domain/entities/Catalog';
 import { Family } from '../../families/domain/entities/Family';
 import { Product } from '../../products/domain/entities/Product';
 import { Profile } from '../../profile/domain/entities/Profile';
+import { EditorialContent } from '../../editorial/domain/entities/EditorialContent';
 
 export type PdfCatalogInput = {
   catalogName: string;
@@ -9,6 +10,7 @@ export type PdfCatalogInput = {
   families: Family[];
   products: Product[];
   profile?: Profile | null;
+  editorialContent?: EditorialContent;
 };
 
 export type CatalogGenerationStage =

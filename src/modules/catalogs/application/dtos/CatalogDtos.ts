@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { EditorialContent } from '../../../editorial/domain/entities/EditorialContent';
 
 export const catalogSchema = z.object({
   name: z.string().trim().min(2, 'Nombre minimo de 2 caracteres'),
@@ -13,6 +14,7 @@ export const catalogSchema = z.object({
     'premium-cover',
   ]),
   productIds: z.array(z.string()).min(1, 'Selecciona al menos un producto'),
+  editorialContent: z.custom<EditorialContent>().optional(),
 });
 
 export type CatalogInputDto = z.infer<typeof catalogSchema>;

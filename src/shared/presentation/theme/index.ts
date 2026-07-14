@@ -5,3 +5,7 @@ export { typography, fontWeights } from './typography';
 export type { TypographyVariant } from './typography';
 export { radius } from './radius';
 export { shadow } from './shadows';
+export { motion } from './motion';
+export { sizes } from './sizes';
+export { opacity } from './opacity';
+export { zIndex } from './zIndex';

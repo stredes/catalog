@@ -25,10 +25,12 @@ import { useCatalogSelection } from '../hooks/useCatalogSelection';
 import { FamilySelectionCard } from '../components/FamilySelectionCard';
 import { ProductSelectionCard } from '../components/ProductSelectionCard';
 import { SelectionSummaryBar } from '../components/SelectionSummaryBar';
+import { EditorialContentScreen } from '../../../editorial/presentation/screens/EditorialContentScreen';
+import { EditorialContent, createEmptyEditorialContent } from '../../../editorial/domain/entities/EditorialContent';
 import { spacing } from '../../../../shared/presentation/theme/spacing';
 import { radius } from '../../../../shared/presentation/theme/radius';
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 const formatPreviews: Record<CatalogFormat, { label: string; desc: string; icon: string; columns: number }> = {
   'grid-2': { label: 'Grilla 2', desc: '2 columnas, ideal para fotos grandes', icon: 'grid-outline', columns: 2 },
@@ -36,7 +38,7 @@ const formatPreviews: Record<CatalogFormat, { label: string; desc: string; icon:
   'grid-4x5': { label: 'Grilla 4×5', desc: '4 columnas, 20 productos por página', icon: 'grid-outline', columns: 4 },
   'grid-3x7': { label: 'Grilla 3×7', desc: '3 columnas, 21 productos por página', icon: 'grid-outline', columns: 3 },
   'simple-list': { label: 'Lista simple', desc: 'Formato lista con precios', icon: 'list-outline', columns: 1 },
-  'premium-cover': { label: 'Portada premium', desc: 'Con portada oscura destacada', icon: 'star-outline', columns: 2 },
+  'premium-cover': { label: 'Editorial Premium', desc: 'Catalogo corporativo tipo revista con paginas premium', icon: 'star-outline', columns: 2 },
 };
 
 export function CatalogBuilderScreen() {
@@ -53,6 +55,7 @@ export function CatalogBuilderScreen() {
   const [progressStage, setProgressStage] = useState<CatalogGenerationStage | null>(null);
   const [progressCurrent, setProgressCurrent] = useState(0);
   const [progressTotal, setProgressTotal] = useState(0);
+  const [editorialContent, setEditorialContent] = useState<EditorialContent>(createEmptyEditorialContent);
 
   const sel = useCatalogSelection(products, families);
 
@@ -81,6 +84,7 @@ export function CatalogBuilderScreen() {
       case 2: return true;
       case 3: return true;
       case 4: return true;
+      case 5: return true;
       default: return false;
     }
   }
@@ -102,6 +106,7 @@ export function CatalogBuilderScreen() {
             : undefined,
           format,
           productIds: sel.selectionResult.selectedProductIds,
+          editorialContent,
         },
         (progress) => {
           setProgressStage(progress.stage);
@@ -110,7 +115,7 @@ export function CatalogBuilderScreen() {
         },
       );
       setGenerated(catalog);
-      setStep(4);
+      setStep(5);
     } catch (currentError) {
       setError(
         currentError instanceof Error ? currentError.message : 'No se pudo generar el catálogo.',
@@ -139,6 +144,7 @@ export function CatalogBuilderScreen() {
     setFormat('grid-2');
     setGenerated(null);
     setError('');
+    setEditorialContent(createEmptyEditorialContent());
     sel.resetSelection();
   }
 
@@ -198,6 +204,19 @@ export function CatalogBuilderScreen() {
                 <View style={{ flex: 1 }}>
                   <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '700' } as any}>{fmt.label}</AppText>
                   <AppText variant="bodySmall" color="muted" style={{ marginTop: 1 }}>{fmt.desc}</AppText>
+                  {key === 'premium-cover' ? (
+                    <View style={{
+                      alignSelf: 'flex-start',
+                      borderColor: format === key ? colors.primary : colors.borderDefault,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      marginTop: 6,
+                      paddingHorizontal: 8,
+                      paddingVertical: 2,
+                    }}>
+                      <AppText variant="caption" color={format === key ? 'accent' : 'muted'}>PREMIUM</AppText>
+                    </View>
+                  ) : null}
                 </View>
                 {format === key ? (
                   <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
@@ -210,11 +229,24 @@ export function CatalogBuilderScreen() {
         );
 
       case 3:
-        return renderPreviewStep();
+        return (
+          <EditorialContentScreen
+            selectedProductIds={sel.selectionResult.selectedProductIds}
+            selectedFamilyIds={sel.state.selectedFamilyIds}
+            onContinue={(content) => {
+              setEditorialContent(content);
+              setStep(4);
+            }}
+            onBack={() => setStep(2)}
+          />
+        );
 
       case 4:
+        return renderPreviewStep();
+
+      case 5:
         return (
-          <WizardStep step={4} total={TOTAL_STEPS} title={generated ? '¡Catálogo generado!' : 'Generar catálogo'}>
+          <WizardStep step={5} total={TOTAL_STEPS} title={generated ? '¡Catálogo generado!' : 'Generar catálogo'}>
             {generated ? (
               <Card>
                 <View style={{ alignItems: 'center', paddingVertical: 10 }}>
@@ -242,7 +274,7 @@ export function CatalogBuilderScreen() {
     const gap = 10;
 
     return (
-      <WizardStep step={3} total={TOTAL_STEPS} title="Vista previa">
+      <WizardStep step={4} total={TOTAL_STEPS} title="Vista previa">
         <AppText variant="bodyMedium" color="secondary" style={{ marginBottom: 16 }}>
           Revisa cómo se verán los productos en el formato {formatPreviews[format]?.label ?? format}.
         </AppText>
@@ -378,7 +410,8 @@ export function CatalogBuilderScreen() {
             </View>
           </Card>
         ) : (
-          <View style={{ marginTop: 12 }}>
+          <View style={{ marginTop: 12, gap: 10 }}>
+            <SecondaryButton label="Atrás" onPress={() => setStep(3)} />
             <PrimaryButton
               label="Confirmar y generar PDF"
               icon="document-outline"
@@ -653,18 +686,27 @@ export function CatalogBuilderScreen() {
 
         {renderStep()}
 
-        {!generated && step < 4 && (
+        {!generated && step < 3 && (
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
             {step > 0 ? (
               <View style={{ flex: 1 }}>
                 <SecondaryButton label="Atrás" onPress={() => setStep((s) => Math.max(0, s - 1))} />
               </View>
             ) : null}
-            {step < 3 ? (
+            {step < 2 ? (
               <View style={{ flex: 1 }}>
                 <PrimaryButton
                   label="Siguiente"
-                  onPress={() => setStep((s) => Math.min(3, s + 1))}
+                  onPress={() => setStep((s) => Math.min(2, s + 1))}
+                  disabled={!canGoNext()}
+                />
+              </View>
+            ) : null}
+            {step === 2 ? (
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Siguiente"
+                  onPress={() => setStep(3)}
                   disabled={!canGoNext()}
                 />
               </View>

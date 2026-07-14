@@ -10,6 +10,7 @@ import {
 import { PdfCatalogInput, PdfGenerationProgress, PdfGenerator } from '../domain/PdfGenerator';
 import { CatalogImageOptimizer } from '../domain/CatalogImageOptimizer';
 import { ExpoCatalogImageOptimizer } from './ExpoCatalogImageOptimizer';
+import { buildEditorialCatalogHtml } from '../templates/editorial';
 
 const IMAGE_CONCURRENCY = 2;
 
@@ -52,7 +53,7 @@ type Layout = {
 };
 
 const PAGE_HEIGHT_MM = 273;
-const FIRST_PAGE_OVERHEAD_MM = 42;
+const FIRST_PAGE_OVERHEAD_MM = 52;
 
 function layoutFor(format: CatalogFormat): Layout {
   const configs: Record<CatalogFormat, {
@@ -280,13 +281,30 @@ export class ExpoPdfGenerator implements PdfGenerator {
       detailRows.push(`<div class="detail-row"><span class="detail-icon">&#127760;</span><span>${escapeHtml(profile.website)}</span></div>`);
     }
 
+    const transferRows: string[] = [];
+    if (profile.ownerName) {
+      transferRows.push(`<div class="transfer-row"><span>Titular</span><strong>${escapeHtml(profile.ownerName)}</strong></div>`);
+    }
+    if (profile.bankName) {
+      transferRows.push(`<div class="transfer-row"><span>Banco</span><strong>${escapeHtml(profile.bankName)}</strong></div>`);
+    }
+    if (profile.bankAccountType) {
+      transferRows.push(`<div class="transfer-row"><span>Tipo</span><strong>${escapeHtml(profile.bankAccountType)}</strong></div>`);
+    }
+    if (profile.bankAccountNumber) {
+      transferRows.push(`<div class="transfer-row"><span>Nro. cuenta</span><strong>${escapeHtml(profile.bankAccountNumber)}</strong></div>`);
+    }
+    const transferHtml = transferRows.length > 0
+      ? `<div class="transfer-box"><p class="transfer-title">Datos de transferencia</p><div class="transfer-grid">${transferRows.join('')}</div></div>`
+      : '';
+
     return `<div class="brand"><div class="brand-row">${
       profile.pdfLogoSrc
         ? `<img src="${profile.pdfLogoSrc}" class="brand-logo" />`
         : '<div class="brand-logo brand-logo-placeholder">Logo</div>'
     }<div class="brand-info"><p class="brand-label">Catálogo generado por</p><h2>${escapeHtml(profile.businessName)}</h2></div></div>${
       detailRows.length > 0 ? `<div class="brand-details">${detailRows.join('')}</div>` : ''
-    }</div>`;
+    }${transferHtml}</div>`;
   }
 
   private renderProductCard(product: PrintableProduct, cardWidth: string, simpleList: boolean) {
@@ -368,6 +386,10 @@ export class ExpoPdfGenerator implements PdfGenerator {
     productsForPdf: PrintableProduct[],
     profile: PrintableProfile | undefined,
   ) {
+    if (input.format === 'premium-cover') {
+      return buildEditorialCatalogHtml(input, productsForPdf, profile);
+    }
+
     const layout = layoutFor(input.format);
     const compact = layout.compact;
 
@@ -415,6 +437,11 @@ body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:12px;line-he
 .detail-row{display:flex;align-items:center;gap:4px;font-size:8.5px;color:#475569}
 .detail-icon{font-size:11px;width:16px;text-align:center}
 .wa-link{text-decoration:none;display:inline-flex;align-items:center}
+.transfer-box{background:#f8fafc;border:1px solid #dbeafe;border-radius:4px;margin-top:5px;padding:5px}
+.transfer-title{color:#1d4ed8;font-size:8px;font-weight:800;letter-spacing:.8px;margin-bottom:4px;text-transform:uppercase}
+.transfer-grid{display:flex;flex-wrap:wrap;gap:3px 10px}
+.transfer-row{display:flex;align-items:baseline;gap:4px;font-size:8px;color:#64748b;min-width:31%}
+.transfer-row strong{color:#111827;font-size:8.5px}
 
 .cat-hdr{border-bottom:1px solid #dbeafe;margin-bottom:4px;padding-bottom:4px}
 .cat-hdr h1{margin:0;font-size:16px}

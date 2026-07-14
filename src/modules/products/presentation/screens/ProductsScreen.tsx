@@ -139,6 +139,7 @@ export function ProductsScreen() {
     defaultValues: {
       name: '',
       price: 0,
+      stock: 0,
       format: 'unit',
       familyId: '',
       photoUri: undefined,
@@ -195,7 +196,7 @@ export function ProductsScreen() {
       setEditing(null);
       setPhotoUri(undefined);
       setShowForm(false);
-      form.reset({ name: '', price: 0, format: 'unit', familyId: families[0]?.id ?? '' });
+      form.reset({ name: '', price: 0, stock: 0, format: 'unit', familyId: families[0]?.id ?? '' });
       await reload();
     } catch (currentError) {
       setError(
@@ -213,6 +214,7 @@ export function ProductsScreen() {
       name: product.name,
       code: product.code ?? '',
       price: product.price,
+      stock: product.stock,
       format: product.format,
       familyId: product.familyId,
       photoUri: product.photoUri,
@@ -258,6 +260,12 @@ export function ProductsScreen() {
         },
       },
     ]);
+  }
+
+  async function handleStockChange(product: Product, newStock: number) {
+    if (newStock < 0) return;
+    await useCases.updateStock.execute(product.id, newStock);
+    await reload();
   }
 
   return (
@@ -356,7 +364,7 @@ export function ProductsScreen() {
                   onPress={() => {
                     setEditing(null);
                     setPhotoUri(undefined);
-          form.reset({ name: '', code: '', price: 0, format: 'unit', familyId: families[0]?.id ?? '' });
+          form.reset({ name: '', code: '', price: 0, stock: 0, format: 'unit', familyId: families[0]?.id ?? '' });
                     setShowForm(true);
                   }}
                 />
@@ -373,9 +381,13 @@ export function ProductsScreen() {
                 format={p.format}
                 family={familyById.get(p.familyId) ?? ''}
                 photoUri={p.photoUri}
+                stock={p.stock}
                 onPress={() => setSelectedProduct(p)}
                 onEdit={() => startEdit(p)}
                 onDelete={() => remove(p.id)}
+                onIncrement={() => handleStockChange(p, p.stock + 1)}
+                onDecrement={() => handleStockChange(p, p.stock - 1)}
+                onStockChange={(newStock) => handleStockChange(p, newStock)}
               />
             ))}
           </View>
@@ -401,6 +413,8 @@ export function ProductsScreen() {
                     <AppText variant="caption" color="muted">{familyById.get(p.familyId) ?? ''}</AppText>
                     <AppText variant="caption" color="disabled">·</AppText>
                     <AppText variant="caption" color="muted">{p.format}</AppText>
+                    <AppText variant="caption" color="disabled">·</AppText>
+                    <AppText variant="caption" color="muted">Stock: {p.stock}</AppText>
                   </View>
                 </View>
                 <View style={{ gap: 6 }}>
@@ -425,7 +439,7 @@ export function ProductsScreen() {
         onPress={() => {
           setEditing(null);
           setPhotoUri(undefined);
-          form.reset({ name: '', price: 0, format: 'unit', familyId: families[0]?.id ?? '' });
+          form.reset({ name: '', price: 0, stock: 0, format: 'unit', familyId: families[0]?.id ?? '' });
           setShowForm(true);
         }}
         bottom={insets.bottom + 108}
@@ -496,6 +510,7 @@ export function ProductsScreen() {
                 {selectedProduct.code ? (
                   <Badge label={`Cod. ${selectedProduct.code}`} color={colors.success} />
                 ) : null}
+                <Badge label={`Stock: ${selectedProduct.stock}`} color={colors.warning} />
               </View>
 
               <Card style={{ padding: 14, gap: 10 }}>
@@ -521,6 +536,12 @@ export function ProductsScreen() {
                   <AppText variant="bodySmall" color="muted">Formato</AppText>
                   <AppText variant="bodySmall" color="primary" style={{ flex: 1, textAlign: 'right' }}>
                     {selectedProduct.format}
+                  </AppText>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                  <AppText variant="bodySmall" color="muted">Stock</AppText>
+                  <AppText variant="bodySmall" color="primary" style={{ flex: 1, textAlign: 'right', fontWeight: '600' } as any}>
+                    {selectedProduct.stock} unidades
                   </AppText>
                 </View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
@@ -608,6 +629,30 @@ export function ProductsScreen() {
               }}
               value={value ? String(value) : ''}
               onChangeText={(t) => onChange(Number(t.replace(/[^0-9]/g, '')))}
+            />
+          )}
+        />
+        <Controller
+          control={form.control}
+          name="stock"
+          render={({ field: { onChange, value } }) => (
+            <TextInput
+              keyboardType="numeric"
+              placeholder="Stock"
+              placeholderTextColor={colors.textMuted}
+              style={{
+                borderRadius: 12,
+                borderWidth: 1.5,
+                borderColor: colors.borderDefault,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                fontSize: 15,
+                fontWeight: '500',
+                color: colors.textPrimary,
+                marginBottom: 12,
+              }}
+              value={value !== undefined ? String(value) : '0'}
+              onChangeText={(t) => onChange(Number(t.replace(/[^0-9]/g, '')) || 0)}
             />
           )}
         />

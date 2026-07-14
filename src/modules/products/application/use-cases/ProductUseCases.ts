@@ -61,6 +61,17 @@ export class GetProductsByFamilyUseCase {
   }
 }
 
+export class UpdateStockUseCase {
+  constructor(private readonly repository: ProductRepository) {}
+
+  async execute(id: string, stock: number) {
+    if (stock < 0) {
+      throw new Error('El stock no puede ser negativo');
+    }
+    await this.repository.updateStock(id, stock);
+  }
+}
+
 export class PickProductImageUseCase {
   constructor(private readonly imagePicker: ImagePickerService) {}
 

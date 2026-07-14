@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { palette, darkPalette, spacing, typography as typo, fontWeights, borderRadius, shadows } from '../theme';
+import { palette, darkPalette, spacing, typography as typo, fontWeights, borderRadius, shadows, sizes, opacity as opacityTokens } from '../theme';
 import { TypographyVariant } from '../theme/typography';
 import { LiquidGlassContainer, setLiquidGlassScheme } from './LiquidGlassContainer';
 
@@ -102,6 +102,8 @@ export function Screen({ children, style }: PropsWithChildren<{ style?: ViewStyl
   );
 }
 
+export const AppScreen = Screen;
+
 // ─── Header ────────────────────────────────────────────
 
 export function Header({ title, subtitle, eyebrow, action }: {
@@ -183,7 +185,7 @@ export function CardHeader({ title, subtitle, action }: {
 
 // ─── Button ────────────────────────────────────────────
 
-export function Button({ label, onPress, disabled, loading, icon, variant = 'primary', color }: {
+export function Button({ label, onPress, disabled, loading, icon, variant = 'primary', color, fullWidth, accessibilityLabel }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
@@ -191,6 +193,8 @@ export function Button({ label, onPress, disabled, loading, icon, variant = 'pri
   icon?: keyof typeof Ionicons.glyphMap;
   variant?: 'primary' | 'secondary' | 'ghost';
   color?: string;
+  fullWidth?: boolean;
+  accessibilityLabel?: string;
 }) {
   const colors = c();
   const btnColor = color ?? colors.primary;
@@ -200,7 +204,18 @@ export function Button({ label, onPress, disabled, loading, icon, variant = 'pri
       <Pressable
         disabled={disabled}
         onPress={onPress}
-        style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingVertical: spacing.sm, paddingHorizontal: spacing.md }]}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? label}
+        accessibilityState={{ disabled: Boolean(disabled) }}
+        style={({ pressed }) => [
+          {
+            opacity: disabled ? opacityTokens.disabled : pressed ? opacityTokens.pressed : 1,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            minHeight: sizes.touchTarget,
+            alignSelf: fullWidth ? 'stretch' : 'auto',
+          },
+        ]}
       >
         <View style={styles.buttonContent}>
           {icon ? <Ionicons name={icon} size={18} color={btnColor} /> : null}
@@ -215,15 +230,18 @@ export function Button({ label, onPress, disabled, loading, icon, variant = 'pri
       <Pressable
         disabled={disabled || loading}
         onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? label}
+        accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(loading) }}
         style={({ pressed }) => [
           styles.secondaryButton,
           {
             backgroundColor: btnColor + '14',
             borderColor: btnColor + '30',
-            opacity: pressed ? 0.8 : 1,
-            transform: [{ scale: pressed ? 0.98 : 1 }] as any,
+            opacity: disabled ? opacityTokens.disabled : pressed ? opacityTokens.pressed : 1,
+            transform: [{ scale: pressed ? 0.98 : 1 }],
+            alignSelf: fullWidth ? 'stretch' : 'auto',
           },
-          disabled ? { opacity: 0.5 } : null,
         ]}
       >
         {loading ? (
@@ -242,13 +260,17 @@ export function Button({ label, onPress, disabled, loading, icon, variant = 'pri
     <Pressable
       disabled={disabled || loading}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(loading) }}
       style={({ pressed }) => [
         shadows.md,
         styles.primaryButton,
         {
           backgroundColor: disabled ? colors.textDisabled : btnColor,
           opacity: pressed ? 0.92 : 1,
-          transform: [{ scale: pressed ? 0.98 : 1 }] as any,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+          alignSelf: fullWidth ? 'stretch' : 'auto',
         },
       ]}
     >
@@ -341,15 +363,19 @@ export function FloatingActionButton({ icon, label, onPress, bottom }: {
 
 // ─── ProductCard (responsive) ──────────────────────────
 
-export function ProductCard({ name, price, format, family, photoUri, onPress, onEdit, onDelete }: {
+export function ProductCard({ name, price, format, family, photoUri, stock, onPress, onEdit, onDelete, onIncrement, onDecrement, onStockChange }: {
   name: string;
   price: string;
   format: string;
   family: string;
   photoUri?: string | null;
+  stock?: number;
   onPress?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onIncrement?: () => void;
+  onDecrement?: () => void;
+  onStockChange?: (newStock: number) => void;
 }) {
   const colors = c();
   const { width } = useWindowDimensions();
@@ -372,6 +398,24 @@ export function ProductCard({ name, price, format, family, photoUri, onPress, on
   const fmtColor = formatColors[format] ?? colors.primary;
 
   const AnimatedPressable = useMemo(() => Animated.createAnimatedComponent(Pressable), []);
+  const [editingStock, setEditingStock] = useState(false);
+  const [stockInputValue, setStockInputValue] = useState('');
+  const stockInputRef = useRef<TextInput>(null);
+
+  const handleStockPress = () => {
+    if (onStockChange && stock !== undefined) {
+      setStockInputValue(String(stock));
+      setEditingStock(true);
+    }
+  };
+
+  const confirmStockEdit = () => {
+    const parsed = parseInt(stockInputValue, 10);
+    if (!isNaN(parsed) && parsed >= 0 && onStockChange) {
+      onStockChange(parsed);
+    }
+    setEditingStock(false);
+  };
 
   return (
     <AnimatedPressable
@@ -397,6 +441,45 @@ export function ProductCard({ name, price, format, family, photoUri, onPress, on
             </View>
           </View>
           <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: 2 }}>{family}</AppText>
+          {stock !== undefined ? (
+            <View style={[styles.stockCounter, { marginTop: spacing.sm }]}>
+              <Pressable
+                onPress={onDecrement}
+                style={[styles.stockButton, { backgroundColor: colors.primaryLight }]}
+              >
+                <Ionicons name="remove" size={16} color={colors.primary} />
+              </Pressable>
+              {editingStock ? (
+                <TextInput
+                  ref={stockInputRef}
+                  value={stockInputValue}
+                  onChangeText={setStockInputValue}
+                  onBlur={confirmStockEdit}
+                  onSubmitEditing={confirmStockEdit}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  selectTextOnFocus
+                  autoFocus
+                  style={[styles.stockInput, { backgroundColor: colors.borderSubtle, color: colors.primary }]}
+                />
+              ) : (
+                <Pressable
+                  onPress={handleStockPress}
+                  style={[styles.stockValue, { backgroundColor: colors.borderSubtle }]}
+                >
+                  <AppText variant="labelLarge" color="primary" style={{ fontWeight: '700' as any, textAlign: 'center', minWidth: 28 }}>
+                    {stock}
+                  </AppText>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={onIncrement}
+                style={[styles.stockButton, { backgroundColor: colors.primaryLight }]}
+              >
+                <Ionicons name="add" size={16} color={colors.primary} />
+              </Pressable>
+            </View>
+          ) : null}
           <View style={[styles.rowActions, { marginTop: spacing.sm }]}>
             <Pressable onPress={onEdit} style={[styles.iconButtonSmall, { backgroundColor: colors.primaryLight }]}>
               <Ionicons name="ellipsis-horizontal" size={16} color={colors.primary} />
@@ -609,6 +692,108 @@ export function PrimaryButton(props: Omit<React.ComponentProps<typeof Button>, '
 
 export function SecondaryButton(props: Omit<React.ComponentProps<typeof Button>, 'variant'>) {
   return <Button variant="secondary" {...props} />;
+}
+
+export function GhostButton(props: Omit<React.ComponentProps<typeof Button>, 'variant'>) {
+  return <Button variant="ghost" {...props} />;
+}
+
+export const AppCard = Card;
+
+export function InteractiveCard(props: React.ComponentProps<typeof Card>) {
+  return <Card variant="interactive" {...props} />;
+}
+
+export function AppDivider() {
+  return <Divider />;
+}
+
+export const SearchField = SearchInput;
+export const AppChip = ChoiceChip;
+
+export function StatusBadge({ label, tone = 'info' }: {
+  label: string;
+  tone?: 'info' | 'success' | 'warning' | 'danger';
+}) {
+  const colors = c();
+  const toneColor = {
+    info: colors.info,
+    success: colors.success,
+    warning: colors.warning,
+    danger: colors.danger,
+  }[tone];
+
+  return <Badge label={label} color={toneColor} />;
+}
+
+export function IconButton({ icon, label, onPress, tone = 'default', disabled }: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  tone?: 'default' | 'primary' | 'danger';
+  disabled?: boolean;
+}) {
+  const colors = c();
+  const toneColor = tone === 'danger' ? colors.danger : tone === 'primary' ? colors.primary : colors.textSecondary;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.iconButton,
+        {
+          backgroundColor: tone === 'primary' ? colors.primaryLight : tone === 'danger' ? colors.destructiveLight : colors.surfaceMuted,
+          opacity: disabled ? opacityTokens.disabled : pressed ? opacityTokens.pressed : 1,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={20} color={toneColor} />
+    </Pressable>
+  );
+}
+
+export function LoadingState({ title = 'Cargando', description = 'Preparando la informacion.' }: {
+  title?: string;
+  description?: string;
+}) {
+  return (
+    <View style={styles.stateBlock}>
+      <SkeletonLoader height={18} style={{ width: '56%' }} />
+      <SkeletonLoader height={12} style={{ width: '82%', marginTop: spacing.sm }} />
+      <AppText variant="headingSmall" color="primary" style={{ marginTop: spacing.xl }}>{title}</AppText>
+      <AppText variant="bodySmall" color="muted" style={{ marginTop: spacing.xs, textAlign: 'center' }}>{description}</AppText>
+    </View>
+  );
+}
+
+export function ErrorState({ title, description, actionLabel, onAction }: {
+  title: string;
+  description?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <EmptyState
+      icon="alert-circle-outline"
+      title={title}
+      description={description}
+      actionLabel={actionLabel}
+      onAction={onAction}
+    />
+  );
+}
+
+export function SkeletonCard() {
+  return (
+    <Card style={{ gap: spacing.md }}>
+      <SkeletonLoader height={18} style={{ width: '72%' }} />
+      <SkeletonLoader height={12} style={{ width: '92%' }} />
+      <SkeletonLoader height={12} style={{ width: '48%' }} />
+    </Card>
+  );
 }
 
 // ─── SearchBar alias ────────────────────────────────────
@@ -912,6 +1097,11 @@ const styles = StyleSheet.create({
 
   formatBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.sm },
 
+  stockCounter: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 0 },
+  stockButton: { width: 30, height: 28, borderRadius: borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
+  stockValue: { paddingHorizontal: 8, height: 28, borderRadius: borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
+  stockInput: { paddingHorizontal: 8, height: 28, borderRadius: borderRadius.sm, minWidth: 40, textAlign: 'center', fontSize: 14, fontWeight: '700' },
+
   familyCard: { padding: spacing.lg, borderLeftWidth: 4 },
   familyCardContent: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   familyIcon: { width: 48, height: 48, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
@@ -923,6 +1113,7 @@ const styles = StyleSheet.create({
 
   rowActions: { flexDirection: 'row', gap: 8 },
   iconButtonSmall: { width: 32, height: 32, borderRadius: borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
+  iconButton: { width: 44, height: 44, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
 
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: borderRadius.lg, borderWidth: 1.5, paddingHorizontal: 14, height: 46 },
   searchInput: { flex: 1, fontSize: 15, fontWeight: '500', paddingVertical: 0 },
@@ -952,6 +1143,7 @@ const styles = StyleSheet.create({
   bottomSheetHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 4 },
 
   skeleton: { borderRadius: borderRadius.sm },
+  stateBlock: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
 
   wizardProgress: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   wizardDot: { height: 8, borderRadius: 4 },

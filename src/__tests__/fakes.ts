@@ -45,6 +45,13 @@ export class InMemoryProductRepository implements ProductRepository {
     this.products.set(product.id, product);
   }
 
+  async updateStock(id: string, stock: number) {
+    const product = this.products.get(id);
+    if (product) {
+      this.products.set(id, { ...product, stock, updatedAt: new Date().toISOString() });
+    }
+  }
+
   async delete(id: string) {
     this.products.delete(id);
   }
@@ -142,6 +149,7 @@ export function makeProduct(overrides: Partial<Product> = {}): Product {
     name: 'Producto',
     code: undefined,
     price: 1000,
+    stock: 10,
     format: 'unit',
     familyId: 'fam_1',
     photoUri: 'file:///product-images/product.jpg',

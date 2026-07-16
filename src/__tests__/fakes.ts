@@ -9,6 +9,8 @@ import { ProductRepository } from '../modules/products/domain/repositories/Produ
 import { Profile } from '../modules/profile/domain/entities/profile';
 import { ProfileRepository } from '../modules/profile/domain/repositories/ProfileRepository';
 import { NativeShareService } from '../modules/sharing/domain/NativeShareService';
+import { BackupSnapshot, BackupPayload } from '../modules/backup/domain/entities/BackupSnapshot';
+import { BackupRepository } from '../modules/backup/domain/repositories/BackupRepository';
 
 export class InMemoryFamilyRepository implements FamilyRepository {
   families = new Map<string, Family>();
@@ -183,6 +185,60 @@ export function makeProfile(overrides: Partial<Profile> = {}): Profile {
     website: '@mimarca',
     logoUri: 'file:///profile/logo.jpg',
     updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export class InMemoryBackupRepository implements BackupRepository {
+  snapshots = new Map<string, BackupSnapshot>();
+  payloads = new Map<string, BackupPayload>();
+
+  async saveSnapshot(snapshot: BackupSnapshot, payload: BackupPayload): Promise<void> {
+    this.snapshots.set(snapshot.id, snapshot);
+    this.payloads.set(snapshot.id, payload);
+  }
+
+  async findAll(): Promise<BackupSnapshot[]> {
+    return [...this.snapshots.values()].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }
+
+  async findById(id: string): Promise<BackupSnapshot | null> {
+    return this.snapshots.get(id) ?? null;
+  }
+
+  async loadPayload(id: string): Promise<BackupPayload | null> {
+    return this.payloads.get(id) ?? null;
+  }
+
+  async delete(id: string): Promise<void> {
+    this.snapshots.delete(id);
+    this.payloads.delete(id);
+  }
+
+  async deleteAll(): Promise<void> {
+    this.snapshots.clear();
+    this.payloads.clear();
+  }
+
+  async count(): Promise<number> {
+    return this.snapshots.size;
+  }
+}
+
+export function makeBackupSnapshot(overrides: Partial<BackupSnapshot> = {}): BackupSnapshot {
+  return {
+    id: 'bkp_1',
+    label: 'Test backup',
+    trigger: 'manual',
+    familiesCount: 1,
+    productsCount: 1,
+    catalogsCount: 0,
+    hasProfile: true,
+    checksum: 'abc123',
+    filePath: '',
+    createdAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
   };
 }

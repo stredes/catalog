@@ -35,6 +35,12 @@ import { PreferencesPort } from '../shared/domain/PreferencesPort';
 import { AsyncStoragePreferencesAdapter } from '../shared/infrastructure/AsyncStoragePreferencesAdapter';
 import { AuthPort } from '../modules/auth/domain/AuthPort';
 import { LocalAuthAdapter } from '../modules/auth/infrastructure/LocalAuthAdapter';
+import { SQLiteBackupRepository } from '../modules/backup/infrastructure/repositories/SQLiteBackupRepository';
+import { ChangeDetector } from '../modules/backup/infrastructure/services/ChangeDetector';
+import { AutoBackupService } from '../modules/backup/infrastructure/services/AutoBackupService';
+import { CreateBackupUseCase } from '../modules/backup/application/use-cases/CreateBackupUseCase';
+import { ListBackupsUseCase } from '../modules/backup/application/use-cases/ListBackupsUseCase';
+import { RestoreBackupUseCase } from '../modules/backup/application/use-cases/RestoreBackupUseCase';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -45,51 +51,84 @@ function buildDependencies() {
   const familyRepository = new SQLiteFamilyRepository();
   const catalogRepository = new SQLiteCatalogRepository();
   const profileRepository = new SQLiteProfileRepository();
+  const backupRepository = new SQLiteBackupRepository();
   const pdfGenerator = new ExpoPdfGenerator();
   const shareService = new ExpoNativeShareService();
   const imagePicker = new ExpoImagePickerService();
   const preferences: PreferencesPort = new AsyncStoragePreferencesAdapter();
   const auth: AuthPort = new LocalAuthAdapter(preferences);
 
-    const seed = new SeedUseCase(familyRepository, productRepository);
+  const seed = new SeedUseCase(familyRepository, productRepository);
 
-    return {
-      repositories: {
-        products: productRepository,
-        families: familyRepository,
-        catalogs: catalogRepository,
-        profile: profileRepository,
-      },
-      services: {
-        preferences,
-        auth,
-      },
-      useCases: {
-        createProduct: new CreateProductUseCase(productRepository),
-        updateProduct: new UpdateProductUseCase(productRepository),
-        deleteProduct: new DeleteProductUseCase(productRepository),
-        updateStock: new UpdateStockUseCase(productRepository),
-        getProductsByFamily: new GetProductsByFamilyUseCase(productRepository),
-        pickProductImage: new PickProductImageUseCase(imagePicker),
-        createFamily: new CreateFamilyUseCase(familyRepository),
-        updateFamily: new UpdateFamilyUseCase(familyRepository),
-        deleteFamily: new DeleteFamilyUseCase(familyRepository),
-        generateCatalogPdf: new GenerateCatalogPdfUseCase(
-          catalogRepository,
-          familyRepository,
-          productRepository,
-          pdfGenerator,
-          profileRepository,
-        ),
-        shareCatalogPdf: new ShareCatalogPdfUseCase(shareService),
-        deleteCatalog: new DeleteCatalogUseCase(catalogRepository),
-        duplicateCatalog: new DuplicateCatalogUseCase(catalogRepository),
-        getProfile: new GetProfileUseCase(profileRepository),
-        saveProfile: new SaveProfileUseCase(profileRepository),
-        pickProfileLogo: new PickProfileLogoUseCase(imagePicker),
-        seed,
-      },
-    };
+  const createBackupUseCase = new CreateBackupUseCase(
+    backupRepository,
+    familyRepository,
+    productRepository,
+    catalogRepository,
+    profileRepository,
+  );
+
+  const changeDetector = new ChangeDetector(
+    familyRepository,
+    productRepository,
+    catalogRepository,
+    profileRepository,
+  );
+
+  const autoBackupService = new AutoBackupService(
+    createBackupUseCase,
+    changeDetector,
+  );
+
+  return {
+    repositories: {
+      products: productRepository,
+      families: familyRepository,
+      catalogs: catalogRepository,
+      profile: profileRepository,
+      backup: backupRepository,
+    },
+    services: {
+      preferences,
+      auth,
+      autoBackup: changeDetector,
+    },
+    useCases: {
+      createProduct: new CreateProductUseCase(productRepository),
+      updateProduct: new UpdateProductUseCase(productRepository),
+      deleteProduct: new DeleteProductUseCase(productRepository),
+      updateStock: new UpdateStockUseCase(productRepository),
+      getProductsByFamily: new GetProductsByFamilyUseCase(productRepository),
+      pickProductImage: new PickProductImageUseCase(imagePicker),
+      createFamily: new CreateFamilyUseCase(familyRepository),
+      updateFamily: new UpdateFamilyUseCase(familyRepository),
+      deleteFamily: new DeleteFamilyUseCase(familyRepository),
+      generateCatalogPdf: new GenerateCatalogPdfUseCase(
+        catalogRepository,
+        familyRepository,
+        productRepository,
+        pdfGenerator,
+        profileRepository,
+      ),
+      shareCatalogPdf: new ShareCatalogPdfUseCase(shareService),
+      deleteCatalog: new DeleteCatalogUseCase(catalogRepository),
+      duplicateCatalog: new DuplicateCatalogUseCase(catalogRepository),
+      getProfile: new GetProfileUseCase(profileRepository),
+      saveProfile: new SaveProfileUseCase(profileRepository),
+      pickProfileLogo: new PickProfileLogoUseCase(imagePicker),
+      seed,
+      createBackup: createBackupUseCase,
+      listBackups: new ListBackupsUseCase(backupRepository),
+      restoreBackup: new RestoreBackupUseCase(
+        backupRepository,
+        familyRepository,
+        productRepository,
+        catalogRepository,
+        profileRepository,
+      ),
+    },
+    autoBackupService,
+  };
 }
 
 export function DependencyProvider({ children }: PropsWithChildren) {

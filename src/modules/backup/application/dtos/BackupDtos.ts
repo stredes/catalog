@@ -9,8 +9,8 @@ export type CreateBackupInput = z.infer<typeof CreateBackupSchema>;
 
 export const RestoreBackupSchema = z.object({
   backupId: z.string().min(1, 'ID de backup requerido'),
-  confirmRestore: z.literal(true, {
-    errorMap: () => ({ message: 'Debes confirmar la restauración' }),
+  confirmRestore: z.literal(true).refine((val) => val === true, {
+    message: 'Debes confirmar la restauración',
   }),
 });
 

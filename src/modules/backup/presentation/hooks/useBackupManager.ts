@@ -13,7 +13,7 @@ export function useBackupManager() {
 
   const loadBackups = useCallback(async () => {
     setLoading(true);
-    const { backups: data } = await useCases.listBackups.execute({ limit: 50 });
+    const { backups: data } = await useCases.listBackups.execute({ limit: 50, offset: 0 });
     setBackups(data);
     setLoading(false);
   }, [useCases.listBackups]);

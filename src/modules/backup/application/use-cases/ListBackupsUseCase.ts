@@ -5,7 +5,7 @@ import { ListBackupsInput, ListBackupsSchema } from '../dtos/BackupDtos';
 export class ListBackupsUseCase {
   constructor(private readonly backupRepo: BackupRepository) {}
 
-  async execute(input: ListBackupsInput = {}): Promise<{
+  async execute(input: ListBackupsInput = { limit: 20, offset: 0 }): Promise<{
     backups: BackupSnapshot[];
     total: number;
   }> {

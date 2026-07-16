@@ -362,6 +362,28 @@ export function ProfileScreen() {
           </Pressable>
         </Card>
 
+        <Card>
+          <CardHeader title="Seguridad" subtitle="Protege tus datos con copias de seguridad" />
+          <Pressable
+            onPress={() => navigate('Backup')}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingVertical: 12,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="shield-checkmark-outline" size={22} color={colors.success} />
+              <View>
+                <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>Backup</AppText>
+                <AppText variant="bodySmall" color="secondary">Gestionar copias de seguridad</AppText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward-outline" size={18} color={colors.textMuted} />
+          </Pressable>
+        </Card>
+
         <PrimaryButton label="Guardar perfil" icon="save-outline" onPress={form.handleSubmit(saveProfile)} />
 
         {error ? <AppText variant="bodySmall" color="error" style={{ marginTop: 8, fontWeight: '600' } as any}>{error}</AppText> : null}

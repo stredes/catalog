@@ -4,6 +4,7 @@ import { Controller, Resolver, useForm } from 'react-hook-form';
 import { Alert, Animated, Image, PanResponder, Pressable, TextInput, View, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDependencies } from '../../../../bootstrap/dependencies';
+import { useAppNavigation } from '../../../../bootstrap/navigation';
 import { BottomMenu } from '../../../../shared/presentation/components/BottomMenu';
 import {
   AppText,
@@ -28,6 +29,7 @@ import { useProducts } from '../hooks/useProducts';
 import { useFamilies } from '../../../families/presentation/hooks/useFamilies';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCart } from '../../../orders/presentation/hooks/useCart';
 
 const formats: ProductFormat[] = ['unit', 'box', 'pack', 'service'];
 
@@ -122,8 +124,10 @@ function PinchZoomImage({ uri }: { uri: string }) {
 export function ProductsScreen() {
   const colors = useThemeColors();
   const { useCases } = useDependencies();
+  const { navigate } = useAppNavigation();
   const { products, reload } = useProducts();
   const { families } = useFamilies();
+  const { reload: reloadCart, totalItems } = useCart();
   const insets = useSafeAreaInsets();
   const [editing, setEditing] = useState<Product | null>(null);
   const [photoUri, setPhotoUri] = useState<string | undefined>();
@@ -134,6 +138,8 @@ export function ProductsScreen() {
   const [showForm, setShowForm] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'newest'>('newest');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [addToCartProduct, setAddToCartProduct] = useState<Product | null>(null);
+  const [cartQuantity, setCartQuantity] = useState('1');
 
   const form = useForm<ProductInputDto>({
     defaultValues: {
@@ -268,6 +274,40 @@ export function ProductsScreen() {
     await reload();
   }
 
+  function openAddToCart(product: Product) {
+    setAddToCartProduct(product);
+    setCartQuantity('1');
+  }
+
+  async function confirmAddToCart() {
+    if (!addToCartProduct) return;
+    const qty = parseInt(cartQuantity, 10);
+    if (isNaN(qty) || qty <= 0) {
+      setError('Cantidad invalida');
+      return;
+    }
+
+    try {
+      setError('');
+      await useCases.addToCart.execute({
+        productId: addToCartProduct.id,
+        productName: addToCartProduct.name,
+        productCode: addToCartProduct.code,
+        unitPrice: addToCartProduct.price,
+        quantity: qty,
+        format: addToCartProduct.format,
+        subtotal: addToCartProduct.price * qty,
+      });
+      setAddToCartProduct(null);
+      setCartQuantity('1');
+      await reloadCart();
+    } catch (currentError) {
+      setError(
+        currentError instanceof Error ? currentError.message : 'No se pudo agregar al carrito.',
+      );
+    }
+  }
+
   return (
     <>
       <Screen>
@@ -275,6 +315,32 @@ export function ProductsScreen() {
           eyebrow="Productos"
           title="Tu inventario"
           subtitle={products.length > 0 ? `${products.length} productos registrados` : 'Agrega tu primer producto'}
+          action={
+            <Pressable
+              onPress={() => navigate('Cart')}
+              style={{ padding: 8, position: 'relative' }}
+            >
+              <Ionicons name="cart-outline" size={22} color="#FFFFFF" />
+              {totalItems > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: 2,
+                  right: 2,
+                  minWidth: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: colors.error,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 4,
+                }}>
+                  <AppText variant="caption" color="inverse" style={{ fontSize: 9, fontWeight: '700' } as any}>
+                    {totalItems > 99 ? '99+' : totalItems}
+                  </AppText>
+                </View>
+              )}
+            </Pressable>
+          }
         />
 
         {products.length > 0 ? (
@@ -461,9 +527,13 @@ export function ProductsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <PrimaryButton
-                  label="Cerrar"
-                  icon="checkmark-outline"
-                  onPress={() => setSelectedProduct(null)}
+                  label="Al carrito"
+                  icon="cart-outline"
+                  onPress={() => {
+                    const prod = selectedProduct;
+                    setSelectedProduct(null);
+                    openAddToCart(prod);
+                  }}
                 />
               </View>
             </View>
@@ -680,6 +750,96 @@ export function ProductsScreen() {
         </View>
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={{ width: '100%', height: 140, borderRadius: 12, marginTop: 12, backgroundColor: colors.borderDefault }} resizeMode="contain" />
+        ) : null}
+      </BottomSheet>
+
+      <BottomSheet
+        visible={!!addToCartProduct}
+        onClose={() => { setAddToCartProduct(null); setCartQuantity('1'); }}
+        title="Agregar al carrito"
+        stickyFooter={
+          addToCartProduct ? (
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <SecondaryButton
+                  label="Cancelar"
+                  icon="close-outline"
+                  onPress={() => { setAddToCartProduct(null); setCartQuantity('1'); }}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Aceptar"
+                  icon="checkmark-outline"
+                  onPress={confirmAddToCart}
+                />
+              </View>
+            </View>
+          ) : undefined
+        }
+      >
+        {addToCartProduct ? (
+          <View>
+            <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center', marginBottom: 16 }}>
+              {addToCartProduct.photoUri ? (
+                <Image
+                  source={{ uri: addToCartProduct.photoUri }}
+                  style={{ width: 64, height: 64, borderRadius: 12, backgroundColor: colors.borderDefault }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={{ width: 64, height: 64, borderRadius: 12, backgroundColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="image-outline" size={24} color={colors.textMuted} />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>
+                  {addToCartProduct.name}
+                </AppText>
+                <AppText variant="price" color="accent" style={{ marginTop: 4 }}>
+                  {formatMoney(addToCartProduct.price)}
+                </AppText>
+                {addToCartProduct.code ? (
+                  <AppText variant="caption" color="muted">Cod: {addToCartProduct.code}</AppText>
+                ) : null}
+              </View>
+            </View>
+
+            <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 8 }}>
+              Cantidad
+            </AppText>
+            <TextInput
+              keyboardType="numeric"
+              placeholder="1"
+              placeholderTextColor={colors.textMuted}
+              style={{
+                borderRadius: 12,
+                borderWidth: 1.5,
+                borderColor: colors.borderDefault,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                fontSize: 18,
+                fontWeight: '600',
+                color: colors.textPrimary,
+                marginBottom: 12,
+                textAlign: 'center',
+              }}
+              value={cartQuantity}
+              onChangeText={setCartQuantity}
+              autoFocus
+            />
+
+            {cartQuantity && parseInt(cartQuantity, 10) > 0 ? (
+              <Card style={{ padding: 14 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <AppText variant="bodySmall" color="muted">Subtotal</AppText>
+                  <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>
+                    {formatMoney(addToCartProduct.price * parseInt(cartQuantity, 10))}
+                  </AppText>
+                </View>
+              </Card>
+            ) : null}
+          </View>
         ) : null}
       </BottomSheet>
 

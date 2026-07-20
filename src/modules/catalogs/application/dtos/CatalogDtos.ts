@@ -13,6 +13,7 @@ export const catalogSchema = z.object({
     'simple-list',
     'premium-cover',
   ]),
+  purpose: z.enum(['catalog', 'purchase-detail']).optional(),
   productIds: z.array(z.string()).min(1, 'Selecciona al menos un producto'),
   editorialContent: z.custom<EditorialContent>().optional(),
 });

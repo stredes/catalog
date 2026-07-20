@@ -539,9 +539,10 @@ export function FamilyCard({ name, productCount, color, onEdit, onDelete, onPres
 
 // ─── CatalogHistoryItem ────────────────────────────────
 
-export function CatalogHistoryItem({ name, format, date, productCount, onShare, onDuplicate, onDelete }: {
+export function CatalogHistoryItem({ name, format, purpose, date, productCount, onShare, onDuplicate, onDelete }: {
   name: string;
   format: string;
+  purpose?: string;
   date: string;
   productCount: number;
   onShare?: () => void;
@@ -558,15 +559,24 @@ export function CatalogHistoryItem({ name, format, date, productCount, onShare, 
     'premium-cover': 'Premium',
   };
 
+  const isPurchaseDetail = purpose === 'purchase-detail';
+  const iconBg = isPurchaseDetail ? colors.primaryLight : colors.errorLight;
+  const iconColor = isPurchaseDetail ? colors.primary : colors.error;
+  const iconName = isPurchaseDetail ? 'cart-outline' : 'document-text-outline';
+
   return (
     <Card variant="default" style={styles.historyItem}>
-      <View style={[styles.pdfIconWrap, { backgroundColor: colors.errorLight }]}>
-        <Ionicons name="document-text-outline" size={20} color={colors.error} />
+      <View style={[styles.pdfIconWrap, { backgroundColor: iconBg }]}>
+        <Ionicons name={iconName as any} size={20} color={iconColor} />
       </View>
       <View style={{ flex: 1 }}>
         <AppText variant="bodyMedium" color="primary" style={{ fontWeight: fontWeights.semiBold }}>{name}</AppText>
         <View style={styles.historyMeta}>
-          <AppText variant="caption" color="muted">{formatLabels[format] ?? format}</AppText>
+          {isPurchaseDetail ? (
+            <AppText variant="caption" color="accent" style={{ fontWeight: '600' as any }}>COMPRA</AppText>
+          ) : (
+            <AppText variant="caption" color="muted">{formatLabels[format] ?? format}</AppText>
+          )}
           <AppText variant="caption" color="muted" style={{ marginHorizontal: 4 }}>·</AppText>
           <AppText variant="caption" color="muted">{date}</AppText>
           <AppText variant="caption" color="muted" style={{ marginHorizontal: 4 }}>·</AppText>

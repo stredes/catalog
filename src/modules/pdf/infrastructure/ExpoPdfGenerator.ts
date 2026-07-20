@@ -337,7 +337,8 @@ export class ExpoPdfGenerator implements PdfGenerator {
 
     if (isPremium) {
       const businessName = input.profile?.businessName ?? '';
-      parts.push(`<section class="page cover-page"><div class="cover-inner"><p class="cover-sub">Catálogo premium</p><h1 class="cover-title">${escapeHtml(input.catalogName)}</h1>${businessName ? `<p class="cover-business">${escapeHtml(businessName)}</p>` : ''}</div></section>`);
+      const coverLabel = input.purpose === 'purchase-detail' ? 'Detalle de compra' : 'Catálogo premium';
+      parts.push(`<section class="page cover-page"><div class="cover-inner"><p class="cover-sub">${coverLabel}</p><h1 class="cover-title">${escapeHtml(input.catalogName)}</h1>${businessName ? `<p class="cover-business">${escapeHtml(businessName)}</p>` : ''}</div></section>`);
       parts.push('<div class="page-break"></div>');
     }
 
@@ -401,9 +402,10 @@ export class ExpoPdfGenerator implements PdfGenerator {
 
     const profileHtml = this.renderProfile(profile);
 
+    const isPurchaseDetail = input.purpose === 'purchase-detail';
     const productCount = input.products.length;
     const headerHtml = productCount > 0
-      ? `<header class="cat-hdr"><h1>${escapeHtml(input.catalogName)}</h1><p>${productCount} producto${productCount !== 1 ? 's' : ''}</p></header>`
+      ? `<header class="cat-hdr"><h1>${escapeHtml(input.catalogName)}</h1><p>${isPurchaseDetail ? 'Detalle de compra' : `${productCount} producto${productCount !== 1 ? 's' : ''}`}</p></header>`
       : '';
 
     const body = this.renderBody(input, productsForPdf, profileHtml, headerHtml);
@@ -431,14 +433,14 @@ body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:12px;line-he
 .cover-title{font-size:42px;margin:0 0 8px}
 .cover-business{font-size:16px;color:#dbeafe}
 
-.first-page-header{margin-bottom:4mm}
-.brand{border:1px solid #e5e7eb;border-radius:5px;padding:6px;margin-bottom:5px}
-.brand-row{display:flex;align-items:center;gap:10px}
-.brand-logo{border-radius:4px;height:34px;width:34px;object-fit:contain}
+.first-page-header{margin-bottom:6mm}
+.brand{border:1px solid #e5e7eb;border-radius:5px;padding:8px;margin-bottom:8px}
+.brand-row{display:flex;align-items:center;gap:12px}
+.brand-logo{border-radius:4px;height:40px;width:40px;object-fit:contain}
 .brand-logo-placeholder{align-items:center;background:#dbeafe;color:#1d4ed8;display:flex;font-size:10px;font-weight:700;justify-content:center}
-.brand-label{color:#2563eb;font-size:8px;font-weight:700;letter-spacing:1px;margin:0 0 2px;text-transform:uppercase}
+.brand-label{color:#2563eb;font-size:9px;font-weight:700;letter-spacing:1px;margin:0 0 2px;text-transform:uppercase}
 .brand-info{flex:1}
-.brand-info h2{font-size:14px;margin:0}
+.brand-info h2{font-size:18px;margin:0;font-weight:700}
 .brand-details{border-top:1px solid #e5e7eb;display:flex;flex-wrap:wrap;gap:3px 12px;padding-top:4px;margin-top:4px}
 .detail-row{display:flex;align-items:center;gap:4px;font-size:8.5px;color:#475569}
 .detail-icon{font-size:11px;width:16px;text-align:center}
@@ -449,12 +451,12 @@ body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:12px;line-he
 .transfer-row{display:flex;align-items:baseline;gap:4px;font-size:8px;color:#64748b;min-width:31%}
 .transfer-row strong{color:#111827;font-size:8.5px}
 
-.cat-hdr{border-bottom:1px solid #dbeafe;margin-bottom:4px;padding-bottom:4px}
-.cat-hdr h1{margin:0;font-size:16px}
-.cat-hdr p{color:#64748b;margin:1px 0 0;font-size:9px}
-.page-hdr{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid #e5e7eb;margin-bottom:3mm;padding-bottom:2mm}
-.page-hdr h2{font-size:13px}
-.page-hdr p{color:#64748b;font-size:8px}
+.cat-hdr{border-bottom:2px solid #dbeafe;margin-bottom:6px;padding-bottom:6px}
+.cat-hdr h1{margin:0;font-size:22px;font-weight:800;color:#111827}
+.cat-hdr p{color:#64748b;margin:2px 0 0;font-size:11px}
+.page-hdr{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid #e5e7eb;margin-bottom:4mm;padding-bottom:3mm}
+.page-hdr h2{font-size:17px;font-weight:700;color:#111827}
+.page-hdr p{color:#64748b;font-size:9px}
 
 .row{display:flex;flex-wrap:nowrap;gap:${gap}mm;margin-bottom:${gap}mm;page-break-inside:avoid;break-inside:avoid}
 .row:last-child{margin-bottom:0}

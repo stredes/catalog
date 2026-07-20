@@ -20,8 +20,10 @@ import { formatDate } from '../../../../shared/utils/dates';
 import { useCatalogs } from '../../../catalogs/presentation/hooks/useCatalogs';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CatalogPurpose } from '../../../catalogs/domain/entities/Catalog';
 
 type SortOption = 'newest' | 'name';
+type PurposeFilter = 'all' | CatalogPurpose;
 
 export function HistoryScreen() {
   const colors = useThemeColors();
@@ -31,11 +33,16 @@ export function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [purposeFilter, setPurposeFilter] = useState<PurposeFilter>('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const sortedCatalogs = useMemo(() => {
     let result = [...catalogs];
+
+    if (purposeFilter !== 'all') {
+      result = result.filter((c) => c.purpose === purposeFilter);
+    }
 
     if (search) {
       const q = search.toLowerCase();
@@ -101,13 +108,31 @@ export function HistoryScreen() {
       <Screen>
         <Header
           eyebrow="Historial"
-          title="Mis catálogos"
-          subtitle={catalogs.length > 0 ? `${catalogs.length} PDF${catalogs.length !== 1 ? 's' : ''} generados` : 'Tus catálogos aparecerán aquí'}
+          title="Mis documentos"
+          subtitle={catalogs.length > 0 ? `${catalogs.length} documento${catalogs.length !== 1 ? 's' : ''} generado${catalogs.length !== 1 ? 's' : ''}` : 'Tus catálogos y detalles de compra aparecerán aquí'}
         />
 
         {catalogs.length > 0 ? (
           <>
             <SearchBar value={search} onChange={setSearch} placeholder="Buscar catálogos..." />
+
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+              <ChoiceChip
+                label="Todos"
+                selected={purposeFilter === 'all'}
+                onPress={() => setPurposeFilter('all')}
+              />
+              <ChoiceChip
+                label="Catálogos"
+                selected={purposeFilter === 'catalog'}
+                onPress={() => setPurposeFilter('catalog')}
+              />
+              <ChoiceChip
+                label="Detalles de compra"
+                selected={purposeFilter === 'purchase-detail'}
+                onPress={() => setPurposeFilter('purchase-detail')}
+              />
+            </View>
 
             <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
               <ChoiceChip
@@ -131,16 +156,16 @@ export function HistoryScreen() {
         {sortedCatalogs.length === 0 ? (
           <EmptyStateIllustrated
             icon="document-text-outline"
-            title={catalogs.length === 0 ? 'Sin catálogos' : 'Sin resultados'}
+            title={catalogs.length === 0 ? 'Sin documentos' : 'Sin resultados'}
             subtitle={
               catalogs.length === 0
-                ? 'Genera tu primer catálogo PDF para verlo aquí.'
-                : 'Ningún catálogo coincide con tu búsqueda.'
+                ? 'Genera tu primer catálogo o detalle de compra para verlo aquí.'
+                : 'Ningún documento coincide con tu búsqueda.'
             }
             action={
               catalogs.length === 0 ? (
                 <PrimaryButton
-                  label="Crear catálogo"
+                  label="Crear documento"
                   icon="add-circle-outline"
                   onPress={() => navigate('CatalogBuilder')}
                 />
@@ -154,6 +179,7 @@ export function HistoryScreen() {
                 <CatalogHistoryItem
                   name={catalog.name}
                   format={catalog.format}
+                  purpose={catalog.purpose}
                   date={formatDate(catalog.createdAt)}
                   productCount={catalog.productIds.length}
                   onShare={() => share(catalog.id)}
@@ -179,7 +205,7 @@ export function HistoryScreen() {
 
       <FloatingActionButton
         icon="add"
-        label="Catálogo"
+        label="Nuevo"
         onPress={() => navigate('CatalogBuilder')}
         bottom={insets.bottom + 108}
       />

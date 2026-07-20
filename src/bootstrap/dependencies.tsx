@@ -35,6 +35,22 @@ import { PreferencesPort } from '../shared/domain/PreferencesPort';
 import { AsyncStoragePreferencesAdapter } from '../shared/infrastructure/AsyncStoragePreferencesAdapter';
 import { AuthPort } from '../modules/auth/domain/AuthPort';
 import { LocalAuthAdapter } from '../modules/auth/infrastructure/LocalAuthAdapter';
+import { SQLiteOrderRepository } from '../modules/orders/infrastructure/repositories/SQLiteOrderRepository';
+import { AsyncStorageCartRepository } from '../modules/orders/infrastructure/repositories/AsyncStorageCartRepository';
+import {
+  AddToCartUseCase,
+  UpdateCartItemUseCase,
+  RemoveFromCartUseCase,
+  ClearCartUseCase,
+  GetCartItemsUseCase,
+} from '../modules/orders/application/use-cases/CartUseCases';
+import {
+  GenerateOrderUseCase,
+  GetOrdersUseCase,
+  DeleteOrderUseCase,
+} from '../modules/orders/application/use-cases/OrderUseCases';
+import { GenerateOrderPdfUseCase } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
+import { OrderPdfGenerator } from '../modules/orders/infrastructure/OrderPdfGenerator';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -45,11 +61,14 @@ function buildDependencies() {
   const familyRepository = new SQLiteFamilyRepository();
   const catalogRepository = new SQLiteCatalogRepository();
   const profileRepository = new SQLiteProfileRepository();
+  const orderRepository = new SQLiteOrderRepository();
+  const cartRepository = new AsyncStorageCartRepository();
   const pdfGenerator = new ExpoPdfGenerator();
   const shareService = new ExpoNativeShareService();
   const imagePicker = new ExpoImagePickerService();
   const preferences: PreferencesPort = new AsyncStoragePreferencesAdapter();
   const auth: AuthPort = new LocalAuthAdapter(preferences);
+  const orderPdfGenerator = new OrderPdfGenerator();
 
     const seed = new SeedUseCase(familyRepository, productRepository);
 
@@ -59,10 +78,13 @@ function buildDependencies() {
         families: familyRepository,
         catalogs: catalogRepository,
         profile: profileRepository,
+        orders: orderRepository,
+        cart: cartRepository,
       },
       services: {
         preferences,
         auth,
+        share: shareService,
       },
       useCases: {
         createProduct: new CreateProductUseCase(productRepository),
@@ -87,6 +109,15 @@ function buildDependencies() {
         getProfile: new GetProfileUseCase(profileRepository),
         saveProfile: new SaveProfileUseCase(profileRepository),
         pickProfileLogo: new PickProfileLogoUseCase(imagePicker),
+        getCartItems: new GetCartItemsUseCase(cartRepository),
+        addToCart: new AddToCartUseCase(cartRepository),
+        updateCartItem: new UpdateCartItemUseCase(cartRepository),
+        removeFromCart: new RemoveFromCartUseCase(cartRepository),
+        clearCart: new ClearCartUseCase(cartRepository),
+        generateOrder: new GenerateOrderUseCase(orderRepository, cartRepository),
+        getOrders: new GetOrdersUseCase(orderRepository),
+        deleteOrder: new DeleteOrderUseCase(orderRepository),
+        generateOrderPdf: new GenerateOrderPdfUseCase(orderPdfGenerator),
         seed,
       },
     };

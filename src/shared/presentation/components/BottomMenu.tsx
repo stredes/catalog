@@ -17,7 +17,7 @@ type TabItem = {
 const items: TabItem[] = [
   { route: 'Dashboard', label: 'Inicio', icon: 'home-outline', iconActive: 'home' },
   { route: 'Products', label: 'Productos', icon: 'cube-outline', iconActive: 'cube' },
-  { route: 'Families', label: 'Categorias', icon: 'folder-outline', iconActive: 'folder' },
+  { route: 'Families', label: 'Familias', icon: 'folder-outline', iconActive: 'folder' },
   { route: 'Catalogs', label: 'Catalogos', icon: 'document-text-outline', iconActive: 'document-text' },
   { route: 'Profile', label: 'Perfil', icon: 'settings-outline', iconActive: 'settings' },
 ];

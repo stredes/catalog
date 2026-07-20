@@ -30,6 +30,7 @@ export class GenerateCatalogPdfUseCase {
     onProgress?: (progress: PdfGenerationProgress) => void,
   ) {
     const dto = catalogSchema.parse(input);
+    const purpose = dto.purpose ?? 'catalog';
     const familyIds = dto.familyIds ?? (dto.familyId ? [dto.familyId] : []);
     const primaryFamilyId = dto.familyId ?? familyIds[0] ?? '';
 
@@ -57,6 +58,7 @@ export class GenerateCatalogPdfUseCase {
         catalogName: dto.name,
         families: foundFamilies,
         format: dto.format,
+        purpose,
         products: selectedProducts,
         profile,
         editorialContent: dto.editorialContent,
@@ -74,6 +76,7 @@ export class GenerateCatalogPdfUseCase {
       familyId: primaryFamilyId,
       familyIds: familyIds.length > 1 ? familyIds : undefined,
       format: dto.format,
+      purpose,
       productIds: dto.productIds,
       pdfUri,
       createdAt: nowIso(),
@@ -97,6 +100,10 @@ export class ShareCatalogPdfUseCase {
 
   execute(catalog: Catalog) {
     return this.shareService.shareFile(catalog.pdfUri, catalog.name);
+  }
+
+  shareFile(uri: string, title: string, mimeType?: string) {
+    return this.shareService.shareFile(uri, title, mimeType);
   }
 }
 

@@ -16,7 +16,7 @@ import {
   SecondaryButton,
   WizardStep,
 } from '../../../../shared/presentation/components/ui';
-import { Catalog, CatalogFormat } from '../../domain/entities/Catalog';
+import { Catalog, CatalogFormat, CatalogPurpose } from '../../domain/entities/Catalog';
 import { CatalogGenerationStage } from '../../../pdf/domain/PdfGenerator';
 import { useFamilies } from '../../../families/presentation/hooks/useFamilies';
 import { useProducts } from '../../../products/presentation/hooks/useProducts';
@@ -30,7 +30,7 @@ import { EditorialContent, createEmptyEditorialContent } from '../../../editoria
 import { spacing } from '../../../../shared/presentation/theme/spacing';
 import { radius } from '../../../../shared/presentation/theme/radius';
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 const formatPreviews: Record<CatalogFormat, { label: string; desc: string; icon: string; columns: number }> = {
   'grid-2': { label: 'Grilla 2', desc: '2 columnas, ideal para fotos grandes', icon: 'grid-outline', columns: 2 },
@@ -47,6 +47,7 @@ export function CatalogBuilderScreen() {
   const { families } = useFamilies();
   const { products, loading: productsLoading } = useProducts();
   const [step, setStep] = useState(0);
+  const [purpose, setPurpose] = useState<CatalogPurpose>('catalog');
   const [name, setName] = useState('');
   const [format, setFormat] = useState<CatalogFormat>('grid-2');
   const [generated, setGenerated] = useState<Catalog | null>(null);
@@ -79,12 +80,13 @@ export function CatalogBuilderScreen() {
 
   function canGoNext(): boolean {
     switch (step) {
-      case 0: return name.trim().length >= 2;
-      case 1: return sel.canSubmit;
-      case 2: return true;
+      case 0: return true;
+      case 1: return name.trim().length >= 2;
+      case 2: return sel.canSubmit;
       case 3: return true;
       case 4: return true;
       case 5: return true;
+      case 6: return true;
       default: return false;
     }
   }
@@ -105,6 +107,7 @@ export function CatalogBuilderScreen() {
             ? sel.state.selectedFamilyIds
             : undefined,
           format,
+          purpose,
           productIds: sel.selectionResult.selectedProductIds,
           editorialContent,
         },
@@ -140,6 +143,7 @@ export function CatalogBuilderScreen() {
 
   function resetForm() {
     setStep(0);
+    setPurpose('catalog');
     setName('');
     setFormat('grid-2');
     setGenerated(null);
@@ -152,13 +156,62 @@ export function CatalogBuilderScreen() {
     switch (step) {
       case 0:
         return (
-          <WizardStep step={0} total={TOTAL_STEPS} title="Nombre del catálogo">
+          <WizardStep step={0} total={TOTAL_STEPS} title="Tipo de documento">
             <AppText variant="bodyMedium" color="secondary" style={{ marginBottom: 16 }}>
-              Elige un nombre descriptivo para identificar este catálogo fácilmente.
+              Elige que tipo de documento deseas crear.
+            </AppText>
+            {([
+              { key: 'catalog' as CatalogPurpose, label: 'Catálogo', desc: 'Catálogo de productos para clientes', icon: 'document-text-outline' },
+              { key: 'purchase-detail' as CatalogPurpose, label: 'Detalle de compra', desc: 'Solicitud de compra para proveedores', icon: 'cart-outline' },
+            ]).map((option) => (
+              <Pressable
+                key={option.key}
+                onPress={() => setPurpose(option.key)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: 16,
+                  borderRadius: 14,
+                  borderWidth: 2,
+                  borderColor: purpose === option.key ? colors.primary : colors.borderDefault,
+                  backgroundColor: purpose === option.key ? colors.primary + '08' : colors.backgroundSurface,
+                  marginBottom: 12,
+                }}
+              >
+                <View style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 14,
+                  backgroundColor: purpose === option.key ? colors.primary + '18' : colors.borderSubtle,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name={option.icon as any} size={26} color={purpose === option.key ? colors.primary : colors.textMuted} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '700' } as any}>{option.label}</AppText>
+                  <AppText variant="bodySmall" color="muted" style={{ marginTop: 2 }}>{option.desc}</AppText>
+                </View>
+                {purpose === option.key ? (
+                  <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="checkmark" size={16} color={colors.textInverse} />
+                  </View>
+                ) : null}
+              </Pressable>
+            ))}
+          </WizardStep>
+        );
+
+      case 1:
+        return (
+          <WizardStep step={1} total={TOTAL_STEPS} title={purpose === 'purchase-detail' ? 'Nombre del detalle' : 'Nombre del catálogo'}>
+            <AppText variant="bodyMedium" color="secondary" style={{ marginBottom: 16 }}>
+              Elige un nombre descriptivo para identificar este {purpose === 'purchase-detail' ? 'detalle de compra' : 'catálogo'} fácilmente.
             </AppText>
             <Input
               label="Nombre"
-              placeholder="Ej: Catálogo Verano 2026"
+              placeholder={purpose === 'purchase-detail' ? 'Ej: Pedido Proveedor X' : 'Ej: Catálogo Verano 2026'}
               value={name}
               onChangeText={setName}
               error={name.trim().length > 0 && name.trim().length < 2 ? 'Mínimo 2 caracteres' : undefined}
@@ -166,14 +219,14 @@ export function CatalogBuilderScreen() {
           </WizardStep>
         );
 
-      case 1:
+      case 2:
         return renderSelectionStep();
 
-      case 2:
+      case 3:
         return (
-          <WizardStep step={2} total={TOTAL_STEPS} title="Elegir diseño PDF">
+          <WizardStep step={3} total={TOTAL_STEPS} title="Elegir diseño PDF">
             <AppText variant="bodyMedium" color="secondary" style={{ marginBottom: 16 }}>
-              Selecciona el formato visual para tu catálogo. {sel.selectionResult.totalProductsCount} productos incluidos.
+              Selecciona el formato visual para tu {purpose === 'purchase-detail' ? 'detalle de compra' : 'catálogo'}. {sel.selectionResult.totalProductsCount} productos incluidos.
             </AppText>
             {(Object.entries(formatPreviews) as [CatalogFormat, typeof formatPreviews['grid-2']][]).map(([key, fmt]) => (
               <Pressable
@@ -228,25 +281,25 @@ export function CatalogBuilderScreen() {
           </WizardStep>
         );
 
-      case 3:
+      case 4:
         return (
           <EditorialContentScreen
             selectedProductIds={sel.selectionResult.selectedProductIds}
             selectedFamilyIds={sel.state.selectedFamilyIds}
             onContinue={(content) => {
               setEditorialContent(content);
-              setStep(4);
+              setStep(5);
             }}
-            onBack={() => setStep(2)}
+            onBack={() => setStep(3)}
           />
         );
 
-      case 4:
+      case 5:
         return renderPreviewStep();
 
-      case 5:
+      case 6:
         return (
-          <WizardStep step={5} total={TOTAL_STEPS} title={generated ? '¡Catálogo generado!' : 'Generar catálogo'}>
+          <WizardStep step={6} total={TOTAL_STEPS} title={generated ? (purpose === 'purchase-detail' ? '¡Detalle generado!' : '¡Catálogo generado!') : (purpose === 'purchase-detail' ? 'Generar detalle de compra' : 'Generar catálogo')}>
             {generated ? (
               <Card>
                 <View style={{ alignItems: 'center', paddingVertical: 10 }}>
@@ -258,7 +311,7 @@ export function CatalogBuilderScreen() {
                 <View style={{ height: 16 }} />
                 <PrimaryButton label="Compartir PDF" icon="share-social-outline" onPress={shareGenerated} />
                 <View style={{ height: 8 }} />
-                <SecondaryButton label="Crear otro catálogo" icon="add-circle-outline" onPress={resetForm} />
+                <SecondaryButton label={purpose === 'purchase-detail' ? 'Crear otro detalle' : 'Crear otro catálogo'} icon="add-circle-outline" onPress={resetForm} />
               </Card>
             ) : null}
           </WizardStep>
@@ -274,7 +327,7 @@ export function CatalogBuilderScreen() {
     const gap = 10;
 
     return (
-      <WizardStep step={4} total={TOTAL_STEPS} title="Vista previa">
+      <WizardStep step={5} total={TOTAL_STEPS} title="Vista previa">
         <AppText variant="bodyMedium" color="secondary" style={{ marginBottom: 16 }}>
           Revisa cómo se verán los productos en el formato {formatPreviews[format]?.label ?? format}.
         </AppText>
@@ -282,7 +335,7 @@ export function CatalogBuilderScreen() {
         {/* Summary card */}
         <Card style={{ marginBottom: 16, padding: 14 }}>
           <View style={{ gap: 6 }}>
-            <DetailRow label="Catálogo" value={name} colors={colors} />
+            <DetailRow label={purpose === 'purchase-detail' ? 'Detalle' : 'Catálogo'} value={name} colors={colors} />
             <DetailRow label="Familias" value={familyName} colors={colors} />
             <DetailRow label="Formato" value={formatPreviews[format]?.label ?? format} colors={colors} />
             <DetailRow label="Productos" value={`${sel.selectionResult.totalProductsCount} incluidos`} colors={colors} />
@@ -382,7 +435,7 @@ export function CatalogBuilderScreen() {
             <View style={{ gap: 8, alignItems: 'center' }}>
               <ActivityIndicator size="small" color={colors.primary} />
               <AppText variant="bodyMedium" color="primary" weight="semiBold">
-                {progressStage === 'preparing' && 'Preparando catálogo...'}
+                {progressStage === 'preparing' && `Preparando ${purpose === 'purchase-detail' ? 'detalle de compra' : 'catálogo'}...`}
                 {progressStage === 'optimizing-images' && (
                   progressTotal > 0
                     ? `Optimizando imágenes ${progressCurrent} de ${progressTotal}...`
@@ -411,9 +464,9 @@ export function CatalogBuilderScreen() {
           </Card>
         ) : (
           <View style={{ marginTop: 12, gap: 10 }}>
-            <SecondaryButton label="Atrás" onPress={() => setStep(3)} />
+            <SecondaryButton label="Atrás" onPress={() => setStep(4)} />
             <PrimaryButton
-              label="Confirmar y generar PDF"
+              label={purpose === 'purchase-detail' ? 'Confirmar y generar detalle' : 'Confirmar y generar PDF'}
               icon="document-outline"
               onPress={generatePdf}
               disabled={busy}
@@ -427,7 +480,7 @@ export function CatalogBuilderScreen() {
   function renderSelectionStep() {
     if (families.length === 0 && !productsLoading) {
       return (
-        <WizardStep step={1} total={TOTAL_STEPS} title="Selección">
+        <WizardStep step={2} total={TOTAL_STEPS} title="Selección">
           <EmptyStateIllustrated
             icon="folder-open-outline"
             title="Aún no tienes familias creadas."
@@ -439,7 +492,7 @@ export function CatalogBuilderScreen() {
 
     if (products.length === 0 && !productsLoading) {
       return (
-        <WizardStep step={1} total={TOTAL_STEPS} title="Selección">
+        <WizardStep step={2} total={TOTAL_STEPS} title="Selección">
           <EmptyStateIllustrated
             icon="cube-outline"
             title="Aún no tienes productos."
@@ -450,7 +503,7 @@ export function CatalogBuilderScreen() {
     }
 
     return (
-      <WizardStep step={1} total={TOTAL_STEPS} title="Seleccionar contenido">
+      <WizardStep step={2} total={TOTAL_STEPS} title="Seleccionar contenido">
         {/* Tabs */}
         <View style={{
           flexDirection: 'row',
@@ -679,9 +732,9 @@ export function CatalogBuilderScreen() {
     <>
       <Screen>
         <Header
-          eyebrow="Crear catálogo"
-          title="Nuevo PDF"
-          subtitle="Sigue los pasos para generar un catálogo profesional."
+          eyebrow={step === 0 ? 'Crear documento' : (purpose === 'purchase-detail' ? 'Detalle de compra' : 'Crear catálogo')}
+          title={step === 0 ? 'Nuevo documento' : (purpose === 'purchase-detail' ? 'Detalle de compra' : 'Nuevo PDF')}
+          subtitle={step === 0 ? 'Elige que tipo de documento deseas crear.' : (purpose === 'purchase-detail' ? 'Genera un detalle de compra para tu proveedor.' : 'Sigue los pasos para generar un catálogo profesional.')}
         />
 
         {renderStep()}

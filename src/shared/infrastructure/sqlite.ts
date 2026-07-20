@@ -1,4 +1,5 @@
 import { SQLiteDatabase, openDatabaseAsync } from 'expo-sqlite';
+import { Directory, File, Paths } from 'expo-file-system';
 
 let database: SQLiteDatabase | null = null;
 let databasePromise: Promise<SQLiteDatabase> | null = null;
@@ -8,7 +9,8 @@ type DatabaseVersionRow = {
 };
 
 const DATABASE_NAME = 'catalog.db';
-const DATABASE_SCHEMA_VERSION = 6;
+const DATABASE_SCHEMA_VERSION = 7;
+const BACKUP_DIR = new Directory(Paths.document, 'backups');
 
 const migrations: Record<number, string> = {
   1: `
@@ -73,6 +75,18 @@ const migrations: Record<number, string> = {
   6: `
     ALTER TABLE products ADD COLUMN stock INTEGER NOT NULL DEFAULT 0;
   `,
+  7: `
+    CREATE TABLE IF NOT EXISTS orders (
+      id TEXT PRIMARY KEY NOT NULL,
+      clientName TEXT NOT NULL,
+      items TEXT NOT NULL,
+      subtotal REAL NOT NULL,
+      iva REAL NOT NULL,
+      total REAL NOT NULL,
+      notes TEXT,
+      createdAt TEXT NOT NULL
+    );
+  `,
 };
 
 async function getCurrentSchemaVersion(db: SQLiteDatabase) {
@@ -109,8 +123,48 @@ async function migrateDatabase(db: SQLiteDatabase) {
     );
   }
 
+  if (currentVersion < DATABASE_SCHEMA_VERSION && currentVersion > 0) {
+    await autoBackupBeforeMigration(db, currentVersion);
+  }
+
   for (let version = currentVersion + 1; version <= DATABASE_SCHEMA_VERSION; version += 1) {
     await applyMigration(db, version);
+  }
+}
+
+async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: number) {
+  try {
+    BACKUP_DIR.create({ idempotent: true, intermediates: true });
+
+    const [families, products, catalogs, profile, orders, migrations] = await Promise.all([
+      db.getAllAsync('SELECT * FROM families'),
+      db.getAllAsync('SELECT * FROM products'),
+      db.getAllAsync('SELECT * FROM catalogs'),
+      db.getAllAsync('SELECT * FROM profile').catch(() => []),
+      db.getAllAsync('SELECT * FROM orders').catch(() => []),
+      db.getAllAsync('SELECT * FROM schema_migrations'),
+    ]);
+
+    const backupData = {
+      version: '3.0.0',
+      createdAt: new Date().toISOString(),
+      schemaVersion: currentVersion,
+      families,
+      products,
+      catalogs,
+      profile,
+      orders,
+      schemaMigrations: migrations,
+    };
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `auto_backup_v${currentVersion}_to_v${DATABASE_SCHEMA_VERSION}_${timestamp}.json`;
+    const file = new File(BACKUP_DIR, filename);
+
+    file.create({ overwrite: true, intermediates: true });
+    file.write(JSON.stringify(backupData, null, 2));
+  } catch {
+    // Backup failures should not block migration
   }
 }
 

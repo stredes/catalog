@@ -32,6 +32,7 @@ Flujos principales:
 - Compartir con `expo-sharing`
 - Formularios/validacion con `react-hook-form` y `zod`
 - Tests unitarios con Vitest
+- Persistencia carrito con `@react-native-async-storage/async-storage`
 
 Scripts utiles:
 - `npm start`
@@ -50,7 +51,7 @@ Scripts utiles:
   `DependencyProvider`, `StatusBar` y `AppNavigator`.
 - `src/bootstrap/navigation.tsx`: navegacion manual por estado, sin React
   Navigation. Rutas: `Dashboard`, `Products`, `Families`, `Catalogs`,
-  `CatalogBuilder`, `Profile`.
+  `CatalogBuilder`, `Profile`, `Cart`.
 - `src/bootstrap/dependencies.tsx`: composicion de dependencias, repositorios,
   servicios y casos de uso.
 
@@ -70,6 +71,7 @@ src/
     editorial/
     families/
     history/
+    orders/
     pdf/
     products/
     profile/
@@ -94,20 +96,22 @@ nuevas directamente en pantallas si pertenecen a casos de uso o repositorios.
 SQLite:
 - Archivo DB: `catalog.db`
 - Implementacion central: `src/shared/infrastructure/sqlite.ts`
-- Version actual de esquema: `DATABASE_SCHEMA_VERSION = 4`
+- Version actual de esquema: `DATABASE_SCHEMA_VERSION = 7`
 - Migraciones actuales:
   1. `families`, `products`, `catalogs`, `schema_migrations`
   2. `profile`
   3. `catalogs.familyIds`
   4. `products.code`
+  5. `profile` datos bancarios
+  6. `products.stock`
+  7. `orders` (carrito/ordenes de compra)
 
 Tablas principales:
 - `families`: `id`, `name`, `createdAt`, `updatedAt`
-- `products`: `id`, `name`, `code`, `price`, `format`, `photoUri`, `familyId`,
-  `createdAt`, `updatedAt`
-- `catalogs`: `id`, `name`, `familyId`, `familyIds`, `format`, `productIds`,
-  `pdfUri`, `createdAt`
-- `profile`: datos del negocio y `logoUri`
+- `products`: `id`, `name`, `code`, `price`, `format`, `photoUri`, `familyId`, `stock`, `createdAt`, `updatedAt`
+- `catalogs`: `id`, `name`, `familyId`, `familyIds`, `format`, `productIds`, `pdfUri`, `createdAt`
+- `profile`: datos del negocio, `logoUri`, datos bancarios
+- `orders`: `id`, `clientName`, `items` (JSON), `subtotal`, `iva`, `total`, `notes`, `createdAt`
 
 Archivos persistentes:
 - Imagenes: `Paths.document/product-images`
@@ -288,6 +292,33 @@ Archivos:
 Uso:
 - `ShareCatalogPdfUseCase` comparte `catalog.pdfUri` por servicio nativo.
 
+### Orders / Carrito de Compras
+
+Archivos:
+- `src/modules/orders/domain/entities/CartItem.ts`
+- `src/modules/orders/domain/entities/Order.ts`
+- `src/modules/orders/domain/repositories/CartRepository.ts`
+- `src/modules/orders/domain/repositories/OrderRepository.ts`
+- `src/modules/orders/application/dtos/OrderDtos.ts`
+- `src/modules/orders/application/use-cases/CartUseCases.ts`
+- `src/modules/orders/application/use-cases/OrderUseCases.ts`
+- `src/modules/orders/infrastructure/repositories/AsyncStorageCartRepository.ts`
+- `src/modules/orders/infrastructure/repositories/SQLiteOrderRepository.ts`
+- `src/modules/orders/presentation/hooks/useCart.ts`
+- `src/modules/orders/presentation/hooks/useOrders.ts`
+- `src/modules/orders/presentation/screens/CartScreen.tsx`
+
+Flujo:
+- Desde Productos, tocar un producto abre detalle. Boton "Al carrito" abre dialogo
+  de cantidad con aceptar/cancelar y preview de subtotal.
+- El carrito persiste en AsyncStorage (clave `catalog_clean_cart`).
+- Tab "Carrito" en BottomMenu con badge de cantidad.
+- CartScreen muestra items con +/- , totales (subtotal, IVA 19%, total),
+ 输入 nombre del cliente y notas.
+- "Generar orden" guarda en SQLite (tabla `orders`), muestra desglose de texto
+  con datos de empresa (profile), cliente, items, precios y totales.
+- Las ordenes se guardan para historial futuro.
+
 ## UI / tema
 
 Archivos base:
@@ -303,6 +334,7 @@ Notas:
 - Hay modo claro/oscuro via `ThemeContext`.
 - `ThemeContext` propaga `setColorScheme(theme)` hacia componentes UI.
 - Mantener estilos consistentes con los componentes existentes.
+- BottomMenu tiene 5 tabs: Inicio, Productos, Carrito (con badge), Catalogos, Perfil.
 - **UI/UX 2.0 fase 1 (2026-07-14):** se ampliaron tokens del design system
   sin romper compatibilidad: colores semanticos, `motion.ts`, `sizes.ts`,
   `opacity.ts`, `zIndex.ts`, spacing completo, radios alias y tipografia
@@ -345,6 +377,8 @@ Antes de entregar cambios de logica:
   y `npm test` OK (4 archivos, 29 tests).
 - Ultima verificacion PDF Editorial Premium 2.0 (2026-07-14):
   `npx tsc --noEmit` OK y `npm test` OK (4 archivos, 29 tests).
+- Ultima verificacion Orders/Carrito 3.0 (2026-07-20):
+  `npx tsc --noEmit` OK y `npm test` OK (4 archivos, 29 tests).
 
 ## Documentos utiles
 
@@ -373,7 +407,7 @@ Reglas para agentes:
 
 Cambios/observaciones relevantes vistas el 2026-07-09:
 - `package.json` version: `1.0.4`.
-- `app.json` version: `1.0.4`; Android `versionCode`: 5.
+- `app.json` version: `3.0.0`; Android `versionCode`: 6.
 - Build Android estabilizado y APK generado exitosamente (~65 MB).
 - APK versionada generada el 2026-07-14:
   `C:\Users\bodega 1\Desktop\CatalogClean-v1.0.4.apk` (65.4 MB).

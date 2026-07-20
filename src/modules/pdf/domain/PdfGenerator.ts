@@ -1,4 +1,4 @@
-import { CatalogFormat } from '../../catalogs/domain/entities/Catalog';
+import { CatalogFormat, CatalogPurpose } from '../../catalogs/domain/entities/Catalog';
 import { Family } from '../../families/domain/entities/Family';
 import { Product } from '../../products/domain/entities/product';
 import { Profile } from '../../profile/domain/entities/profile';
@@ -7,6 +7,7 @@ import { EditorialContent } from '../../editorial/domain/entities/EditorialConte
 export type PdfCatalogInput = {
   catalogName: string;
   format: CatalogFormat;
+  purpose?: CatalogPurpose;
   families: Family[];
   products: Product[];
   profile?: Profile | null;

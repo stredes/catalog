@@ -9,9 +9,10 @@ import { HistoryScreen } from '../modules/history/presentation/screens/HistorySc
 import { OnboardingScreen } from '../modules/onboarding/presentation/screens/OnboardingScreen';
 import { LoginScreen } from '../modules/auth/presentation/screens/LoginScreen';
 import { RegisterScreen } from '../modules/auth/presentation/screens/RegisterScreen';
+import { CartScreen } from '../modules/orders/presentation/screens/CartScreen';
 import { useDependencies } from './dependencies';
 
-export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile';
+export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart';
 
 const ONBOARDING_KEY = 'catalog_clean_onboarding_completed';
 const USER_KEY = 'catalog_clean_user';
@@ -51,6 +52,8 @@ function renderRoute(route: AppRoute) {
       return <CatalogBuilderScreen />;
     case 'Profile':
       return <ProfileScreen />;
+    case 'Cart':
+      return <CartScreen />;
     case 'Dashboard':
     default:
       return <DashboardScreen />;

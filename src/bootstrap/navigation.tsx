@@ -10,9 +10,10 @@ import { OnboardingScreen } from '../modules/onboarding/presentation/screens/Onb
 import { LoginScreen } from '../modules/auth/presentation/screens/LoginScreen';
 import { RegisterScreen } from '../modules/auth/presentation/screens/RegisterScreen';
 import { CartScreen } from '../modules/orders/presentation/screens/CartScreen';
+import { BackupSettingsScreen } from '../modules/backup/presentation/screens/BackupSettingsScreen';
 import { useDependencies } from './dependencies';
 
-export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart';
+export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'Backup';
 
 const ONBOARDING_KEY = 'catalog_clean_onboarding_completed';
 const USER_KEY = 'catalog_clean_user';
@@ -54,6 +55,8 @@ function renderRoute(route: AppRoute) {
       return <ProfileScreen />;
     case 'Cart':
       return <CartScreen />;
+    case 'Backup':
+      return <BackupSettingsScreen />;
     case 'Dashboard':
     default:
       return <DashboardScreen />;

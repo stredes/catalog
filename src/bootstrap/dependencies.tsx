@@ -51,6 +51,12 @@ import {
 } from '../modules/orders/application/use-cases/OrderUseCases';
 import { GenerateOrderPdfUseCase } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
 import { OrderPdfGenerator } from '../modules/orders/infrastructure/OrderPdfGenerator';
+import { SQLiteBackupRepository } from '../modules/backup/infrastructure/repositories/SQLiteBackupRepository';
+import { ChangeDetector } from '../modules/backup/infrastructure/services/ChangeDetector';
+import { AutoBackupService } from '../modules/backup/infrastructure/services/AutoBackupService';
+import { CreateBackupUseCase } from '../modules/backup/application/use-cases/CreateBackupUseCase';
+import { ListBackupsUseCase } from '../modules/backup/application/use-cases/ListBackupsUseCase';
+import { RestoreBackupUseCase } from '../modules/backup/application/use-cases/RestoreBackupUseCase';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -63,6 +69,7 @@ function buildDependencies() {
   const profileRepository = new SQLiteProfileRepository();
   const orderRepository = new SQLiteOrderRepository();
   const cartRepository = new AsyncStorageCartRepository();
+  const backupRepository = new SQLiteBackupRepository();
   const pdfGenerator = new ExpoPdfGenerator();
   const shareService = new ExpoNativeShareService();
   const imagePicker = new ExpoImagePickerService();
@@ -72,6 +79,26 @@ function buildDependencies() {
 
     const seed = new SeedUseCase(familyRepository, productRepository);
 
+  const createBackupUseCase = new CreateBackupUseCase(
+    backupRepository,
+    familyRepository,
+    productRepository,
+    catalogRepository,
+    profileRepository,
+  );
+
+  const changeDetector = new ChangeDetector(
+    familyRepository,
+    productRepository,
+    catalogRepository,
+    profileRepository,
+  );
+
+  const autoBackupService = new AutoBackupService(
+    createBackupUseCase,
+    changeDetector,
+  );
+
     return {
       repositories: {
         products: productRepository,
@@ -80,11 +107,13 @@ function buildDependencies() {
         profile: profileRepository,
         orders: orderRepository,
         cart: cartRepository,
+        backup: backupRepository,
       },
       services: {
         preferences,
         auth,
         share: shareService,
+        autoBackup: changeDetector,
       },
       useCases: {
         createProduct: new CreateProductUseCase(productRepository),
@@ -118,8 +147,18 @@ function buildDependencies() {
         getOrders: new GetOrdersUseCase(orderRepository),
         deleteOrder: new DeleteOrderUseCase(orderRepository),
         generateOrderPdf: new GenerateOrderPdfUseCase(orderPdfGenerator),
+        createBackup: createBackupUseCase,
+        listBackups: new ListBackupsUseCase(backupRepository),
+        restoreBackup: new RestoreBackupUseCase(
+          backupRepository,
+          familyRepository,
+          productRepository,
+          catalogRepository,
+          profileRepository,
+        ),
         seed,
       },
+      autoBackupService,
     };
 }
 

@@ -9,7 +9,7 @@ type DatabaseVersionRow = {
 };
 
 const DATABASE_NAME = 'catalog.db';
-const DATABASE_SCHEMA_VERSION = 7;
+const DATABASE_SCHEMA_VERSION = 8;
 const BACKUP_DIR = new Directory(Paths.document, 'backups');
 
 const migrations: Record<number, string> = {
@@ -85,6 +85,25 @@ const migrations: Record<number, string> = {
       total REAL NOT NULL,
       notes TEXT,
       createdAt TEXT NOT NULL
+    );
+  `,
+  8: `
+    CREATE TABLE IF NOT EXISTS backup_snapshots (
+      id TEXT PRIMARY KEY NOT NULL,
+      label TEXT NOT NULL,
+      trigger TEXT NOT NULL,
+      familiesCount INTEGER NOT NULL,
+      productsCount INTEGER NOT NULL,
+      catalogsCount INTEGER NOT NULL,
+      hasProfile INTEGER NOT NULL,
+      checksum TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS backup_payloads (
+      snapshotId TEXT PRIMARY KEY NOT NULL,
+      payload TEXT NOT NULL,
+      FOREIGN KEY (snapshotId) REFERENCES backup_snapshots(id) ON DELETE CASCADE
     );
   `,
 };

@@ -5,6 +5,7 @@ import { useDependencies } from '../../../../bootstrap/dependencies';
 import { BottomMenu } from '../../../../shared/presentation/components/BottomMenu';
 import {
   AppText,
+  Button,
   Card,
   CardHeader,
   ChoiceChip,
@@ -118,7 +119,7 @@ export function CatalogBuilderScreen() {
         },
       );
       setGenerated(catalog);
-      setStep(5);
+      setStep(6);
     } catch (currentError) {
       setError(
         currentError instanceof Error ? currentError.message : 'No se pudo generar el catálogo.',
@@ -309,7 +310,7 @@ export function CatalogBuilderScreen() {
                   <AppText variant="caption" color="muted" style={{ marginTop: 2 }}>{sel.selectionResult.totalProductsCount} productos</AppText>
                 </View>
                 <View style={{ height: 16 }} />
-                <PrimaryButton label="Compartir PDF" icon="share-social-outline" onPress={shareGenerated} />
+                <Button label="Compartir PDF" icon="share-social-outline" onPress={shareGenerated} color={colors.warning} fullWidth />
                 <View style={{ height: 8 }} />
                 <SecondaryButton label={purpose === 'purchase-detail' ? 'Crear otro detalle' : 'Crear otro catálogo'} icon="add-circle-outline" onPress={resetForm} />
               </Card>
@@ -739,7 +740,7 @@ export function CatalogBuilderScreen() {
 
         {renderStep()}
 
-        {!generated && step < 3 && (
+        {!generated && step < 4 && (
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
             {step > 0 ? (
               <View style={{ flex: 1 }}>
@@ -760,6 +761,15 @@ export function CatalogBuilderScreen() {
                 <PrimaryButton
                   label="Siguiente"
                   onPress={() => setStep(3)}
+                  disabled={!canGoNext()}
+                />
+              </View>
+            ) : null}
+            {step === 3 ? (
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Siguiente"
+                  onPress={() => setStep(4)}
                   disabled={!canGoNext()}
                 />
               </View>

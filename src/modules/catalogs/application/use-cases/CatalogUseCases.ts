@@ -8,6 +8,7 @@ import { PdfGenerationProgress, PdfGenerator } from '../../../pdf/domain/PdfGene
 import { ProductRepository } from '../../../products/domain/repositories/ProductRepository';
 import { ProfileRepository } from '../../../profile/domain/repositories/ProfileRepository';
 import { NativeShareService } from '../../../sharing/domain/NativeShareService';
+import { AnalyticsPort } from '../../../../shared/domain/AnalyticsPort';
 import { CatalogInputDto, catalogSchema } from '../dtos/CatalogDtos';
 import {
   catalogNoFamilySelectedError,
@@ -23,6 +24,7 @@ export class GenerateCatalogPdfUseCase {
     private readonly products: ProductRepository,
     private readonly pdfGenerator: PdfGenerator,
     private readonly profileRepository: ProfileRepository,
+    private readonly analytics?: AnalyticsPort,
   ) {}
 
   async execute(
@@ -31,12 +33,23 @@ export class GenerateCatalogPdfUseCase {
   ) {
     const dto = catalogSchema.parse(input);
     const purpose = dto.purpose ?? 'catalog';
-    const familyIds = dto.familyIds ?? (dto.familyId ? [dto.familyId] : []);
-    const primaryFamilyId = dto.familyId ?? familyIds[0] ?? '';
+    let familyIds = dto.familyIds ?? (dto.familyId ? [dto.familyId] : []);
+
+    const allProducts = await this.products.findAll();
+    const selectedProducts = allProducts.filter((product) =>
+      dto.productIds.includes(product.id),
+    );
+
+    if (familyIds.length === 0 && selectedProducts.length > 0) {
+      const derived = new Set(selectedProducts.map((p) => p.familyId));
+      familyIds = Array.from(derived);
+    }
 
     if (familyIds.length === 0) {
       throw catalogNoFamilySelectedError();
     }
+
+    const primaryFamilyId = dto.familyId ?? familyIds[0] ?? '';
 
     const foundFamilies: Family[] = [];
 
@@ -47,11 +60,6 @@ export class GenerateCatalogPdfUseCase {
       }
       foundFamilies.push(family);
     }
-
-    const allProducts = await this.products.findAll();
-    const selectedProducts = allProducts.filter((product) =>
-      dto.productIds.includes(product.id),
-    );
     const profile = await this.profileRepository.find();
     const pdfUri = await this.pdfGenerator.generate(
       {
@@ -83,6 +91,17 @@ export class GenerateCatalogPdfUseCase {
     };
 
     await this.catalogs.create(catalog);
+
+    this.analytics?.track({
+      name: 'catalog_generated',
+      properties: {
+        format: dto.format,
+        purpose,
+        productCount: dto.productIds.length,
+        familyCount: familyIds.length,
+      },
+    }).catch(() => {});
+
     return catalog;
   }
 }

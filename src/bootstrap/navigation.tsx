@@ -10,10 +10,12 @@ import { OnboardingScreen } from '../modules/onboarding/presentation/screens/Onb
 import { LoginScreen } from '../modules/auth/presentation/screens/LoginScreen';
 import { RegisterScreen } from '../modules/auth/presentation/screens/RegisterScreen';
 import { CartScreen } from '../modules/orders/presentation/screens/CartScreen';
+import { OrderHistoryScreen } from '../modules/orders/presentation/screens/OrderHistoryScreen';
+import { PurchaseDetailScreen } from '../modules/orders/presentation/screens/PurchaseDetailScreen';
 import { BackupSettingsScreen } from '../modules/backup/presentation/screens/BackupSettingsScreen';
 import { useDependencies } from './dependencies';
 
-export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'Backup';
+export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'OrderHistory' | 'PurchaseDetail' | 'Backup';
 
 const ONBOARDING_KEY = 'catalog_clean_onboarding_completed';
 const USER_KEY = 'catalog_clean_user';
@@ -55,6 +57,10 @@ function renderRoute(route: AppRoute) {
       return <ProfileScreen />;
     case 'Cart':
       return <CartScreen />;
+    case 'OrderHistory':
+      return <OrderHistoryScreen />;
+    case 'PurchaseDetail':
+      return <PurchaseDetailScreen />;
     case 'Backup':
       return <BackupSettingsScreen />;
     case 'Dashboard':

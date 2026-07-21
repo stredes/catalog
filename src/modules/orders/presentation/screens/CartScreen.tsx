@@ -26,7 +26,7 @@ export function CartScreen() {
   const colors = useThemeColors();
   const { useCases } = useDependencies();
   const { navigate } = useAppNavigation();
-  const { items, reload, totalItems, subtotal, iva, total } = useCart();
+  const { items, reload, totalItems, subtotal, total } = useCart();
   const { profile } = useProfile();
   const insets = useSafeAreaInsets();
   const [clientName, setClientName] = useState('');
@@ -146,8 +146,8 @@ export function CartScreen() {
             {items.map((item) => (
               <Card key={item.productId} style={{ marginBottom: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' } as any}>
                       {item.productName}
                     </AppText>
                     {item.productCode ? (
@@ -192,12 +192,8 @@ export function CartScreen() {
 
             <Card variant="elevated" style={{ gap: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <AppText variant="bodyMedium" color="muted">Subtotal sin IVA</AppText>
+                <AppText variant="bodyMedium" color="muted">Subtotal</AppText>
                 <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>{formatMoney(subtotal)}</AppText>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <AppText variant="bodyMedium" color="muted">IVA (19%)</AppText>
-                <AppText variant="bodyMedium" color="primary">{formatMoney(iva)}</AppText>
               </View>
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -286,6 +282,10 @@ export function CartScreen() {
           <>
             <Card style={{ marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <AppText variant="bodyMedium" color="muted">N° Orden</AppText>
+                <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '700' } as any}>N° {String(lastOrder.orderNumber).padStart(4, '0')}</AppText>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                 <AppText variant="bodyMedium" color="muted">Cliente</AppText>
                 <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>{lastOrder.clientName}</AppText>
               </View>
@@ -296,10 +296,6 @@ export function CartScreen() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                 <AppText variant="bodyMedium" color="muted">Subtotal</AppText>
                 <AppText variant="bodyMedium" color="primary">{formatMoney(lastOrder.subtotal)}</AppText>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                <AppText variant="bodyMedium" color="muted">IVA (19%)</AppText>
-                <AppText variant="bodyMedium" color="primary">{formatMoney(lastOrder.iva)}</AppText>
               </View>
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>

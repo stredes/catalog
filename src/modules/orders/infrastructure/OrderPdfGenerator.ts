@@ -15,9 +15,26 @@ function formatMoneyCLP(value: number): string {
   return `$${value.toLocaleString('es-CL')}`;
 }
 
+function formatOrderNumber(num: number): string {
+  return String(num).padStart(4, '0');
+}
+
+async function resolveLogoDataUri(logoUri: string | undefined): Promise<string> {
+  if (!logoUri || logoUri.startsWith('data:')) return logoUri ?? '';
+  try {
+    const file = new File(logoUri);
+    if (!file.exists) return '';
+    const base64 = await file.base64();
+    return `data:image/jpeg;base64,${base64}`;
+  } catch {
+    return '';
+  }
+}
+
 export class OrderPdfGenerator {
   async generate(order: Order, profile: Profile | null): Promise<string> {
-    const html = this.buildHtml(order, profile);
+    const logoDataUri = await resolveLogoDataUri(profile?.logoUri);
+    const html = this.buildHtml(order, profile, logoDataUri);
 
     const file = await Print.printToFileAsync({
       html,
@@ -30,7 +47,7 @@ export class OrderPdfGenerator {
     const source = new File(file.uri);
     const destination = new File(
       pdfDirectory,
-      `orden-${order.clientName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`,
+      `orden-${formatOrderNumber(order.orderNumber)}-${order.clientName.replace(/\s+/g, '-').toLowerCase()}.pdf`,
     );
 
     source.copy(destination);
@@ -42,7 +59,7 @@ export class OrderPdfGenerator {
     return destination.uri;
   }
 
-  private buildHtml(order: Order, profile: Profile | null): string {
+  private buildHtml(order: Order, profile: Profile | null, logoDataUri: string): string {
     const rows = order.items.map((item, index) => `
       <tr>
         <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:13px">${index + 1}</td>
@@ -60,7 +77,7 @@ export class OrderPdfGenerator {
     const profileSection = profile ? `
       <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:24px">
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
-          ${profile.logoUri ? `<img src="${profile.logoUri}" style="width:48px;height:48px;border-radius:8px;object-fit:contain" />` : ''}
+          ${logoDataUri ? `<img src="${logoDataUri}" style="width:56px;height:56px;border-radius:8px;object-fit:contain" />` : ''}
           <div>
             <h2 style="margin:0;font-size:20px;color:#111827">${escapeHtml(profile.businessName)}</h2>
             ${profile.ownerName ? `<div style="font-size:13px;color:#6b7280;margin-top:2px">Responsable: ${escapeHtml(profile.ownerName)}</div>` : ''}
@@ -97,7 +114,7 @@ export class OrderPdfGenerator {
 <body>
   <div style="text-align:center;margin-bottom:8px">
     <h1 style="font-size:24px;font-weight:800;color:#111827;letter-spacing:1px">ORDEN DE COMPRA</h1>
-    <div style="font-size:12px;color:#64748b;margin-top:4px">N° ${escapeHtml(order.id)}</div>
+    <div style="font-size:13px;color:#64748b;margin-top:4px">N° ${formatOrderNumber(order.orderNumber)}</div>
   </div>
 
   <div style="display:flex;justify-content:space-between;margin-bottom:20px;font-size:13px;color:#374151">
@@ -126,12 +143,8 @@ export class OrderPdfGenerator {
   <div style="display:flex;justify-content:flex-end">
     <div style="width:260px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:16px">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;color:#6b7280">
-        <span>Subtotal sin IVA</span>
+        <span>Subtotal</span>
         <span>${formatMoneyCLP(order.subtotal)}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;color:#6b7280">
-        <span>IVA (19%)</span>
-        <span>${formatMoneyCLP(order.iva)}</span>
       </div>
       <div style="border-top:2px solid #dbeafe;padding-top:8px;margin-top:4px">
         <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:800;color:#111827">

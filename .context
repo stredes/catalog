@@ -1,6 +1,6 @@
 # Contexto rapido para agentes IA
 
-Ultima actualizacion: 2026-07-14 (UI/UX 2.0 fase 1 + modulo editorial + APK)
+Ultima actualizacion: 2026-07-21 (v3.1.6 - compra proveedor, pedidos historial, import backup)
 Proyecto: `catalog-clean`
 Raiz: `C:\Users\bodega 1\Desktop\workspace\catalog`
 
@@ -12,11 +12,13 @@ persistente de la app.
 
 Flujos principales:
 - Gestionar familias/categorias.
-- Gestionar productos con precio, formato, codigo opcional, familia e imagen.
-- Configurar perfil del negocio con logo y datos de contacto.
-- Generar catalogos PDF con varios formatos visuales.
+- Gestionar productos con precio, formato, codigo opcional, stock, familia e imagen.
+- Configurar perfil del negocio con logo, datos de contacto y datos bancarios.
+- Generar catálogos PDF con 6 formatos visuales (incluido premium editorial).
 - Contenido editorial: texto profesional auto-generado offline por categoria/producto.
-- Guardar historial de catalogos y compartir PDFs por el share sheet nativo.
+- Carrito de compras con cantidades y generacion de ordenes de compra PDF.
+- Backup y restauracion de datos (2 sistemas: basico y avanzado).
+- Compartir PDFs por share sheet nativo.
 
 ## Stack
 
@@ -25,11 +27,12 @@ Flujos principales:
 - React 19.1.0
 - TypeScript estricto
 - SQLite local con `expo-sqlite`
-- Archivos con `expo-file-system`
+- Archivos con `expo-file-system` (API nueva: `Directory`, `File`, `Paths`)
 - Imagenes con `expo-image-picker` y `expo-image-manipulator@14.0.8` (compatible SDK 54)
 - Fonts con `expo-font`
 - PDF con `expo-print`
 - Compartir con `expo-sharing`
+- Crypto con `expo-crypto` (SHA256 para cache de PDFs)
 - Formularios/validacion con `react-hook-form` y `zod`
 - Tests unitarios con Vitest
 - Persistencia carrito con `@react-native-async-storage/async-storage`
@@ -48,10 +51,11 @@ Scripts utiles:
 - `index.ts`: registra el componente raiz de Expo.
 - `App.tsx`: exporta `AppRoot`.
 - `src/bootstrap/AppRoot.tsx`: monta `SafeAreaProvider`, `ThemeProvider`,
-  `DependencyProvider`, `StatusBar` y `AppNavigator`.
+  `DependencyProvider`, `StatusBar`, `SentryInit` y `AppNavigator`.
 - `src/bootstrap/navigation.tsx`: navegacion manual por estado, sin React
-  Navigation. Rutas: `Dashboard`, `Products`, `Families`, `Catalogs`,
-  `CatalogBuilder`, `Profile`, `Cart`.
+  Navigation. Rutas: `Login`, `Register`, `Onboarding`, `Dashboard`, `Products`,
+  `Families`, `Catalogs`, `CatalogBuilder`, `Profile`, `Cart`, `OrderHistory`,
+  `PurchaseDetail`, `Backup`.
 - `src/bootstrap/dependencies.tsx`: composicion de dependencias, repositorios,
   servicios y casos de uso.
 
@@ -63,22 +67,26 @@ La app esta organizada por modulos y capas:
 src/
   bootstrap/
   shared/
-    infrastructure/
-    presentation/
-    utils/
+    domain/           # ErrorReporter, AnalyticsPort
+    infrastructure/   # sqlite.ts, SentryErrorReporter, SqliteAnalyticsRepository
+    presentation/     # ThemeContext, ui.tsx, BottomMenu, FormInput, etc.
+    utils/            # ids, dates, formatMoneyCLP
   modules/
-    catalogs/
-    editorial/
-    families/
-    history/
-    orders/
-    pdf/
-    products/
-    profile/
-    sharing/
+    auth/             # Login, Register (local AsyncStorage)
+    backup/           # Backup avanzado (SQLite snapshots+payloads)
+    catalogs/         # Catalog builder, dashboard, selection
+    editorial/        # Contenido editorial premium
+    families/         # CRUD familias
+    history/          # Historial de catalogos
+    onboarding/       # Onboarding 3 pasos
+    orders/           # Carrito + ordenes de compra
+    pdf/              # Generacion PDF + templates editorial
+    products/         # CRUD productos
+    profile/          # Perfil del negocio
+    sharing/          # Servicio nativo de share
 ```
 
-Patron local:
+ Patron local:
 - `domain/entities`: tipos del dominio.
 - `domain/repositories`: contratos.
 - `application/dtos`: schemas Zod y tipos de entrada.
@@ -96,33 +104,66 @@ nuevas directamente en pantallas si pertenecen a casos de uso o repositorios.
 SQLite:
 - Archivo DB: `catalog.db`
 - Implementacion central: `src/shared/infrastructure/sqlite.ts`
-- Version actual de esquema: `DATABASE_SCHEMA_VERSION = 7`
-- Migraciones actuales:
+- Version actual de esquema: `DATABASE_SCHEMA_VERSION = 10`
+- Migraciones:
   1. `families`, `products`, `catalogs`, `schema_migrations`
   2. `profile`
   3. `catalogs.familyIds`
   4. `products.code`
-  5. `profile` datos bancarios
+  5. `profile` datos bancarios (bankName, bankAccountType, bankAccountNumber)
   6. `products.stock`
   7. `orders` (carrito/ordenes de compra)
+  8. `backup_snapshots`, `backup_payloads`
+  9. `analytics_events` (con indices)
+  10. `orders.orderNumber` (numeracion progresiva de pedidos)
 
 Tablas principales:
 - `families`: `id`, `name`, `createdAt`, `updatedAt`
 - `products`: `id`, `name`, `code`, `price`, `format`, `photoUri`, `familyId`, `stock`, `createdAt`, `updatedAt`
-- `catalogs`: `id`, `name`, `familyId`, `familyIds`, `format`, `productIds`, `pdfUri`, `createdAt`
+- `catalogs`: `id`, `name`, `familyId`, `familyIds`, `format`, `purpose`, `productIds`, `pdfUri`, `createdAt`
 - `profile`: datos del negocio, `logoUri`, datos bancarios
-- `orders`: `id`, `clientName`, `items` (JSON), `subtotal`, `iva`, `total`, `notes`, `createdAt`
+- `orders`: `id`, `clientName`, `items` (JSON), `subtotal`, `iva=0`, `total`, `notes`, `createdAt`
+- `backup_snapshots`: metadata de backups
+- `backup_payloads`: payload completo JSON
+- `analytics_events`: `id`, `name`, `data` (JSON), `createdAt`
 
 Archivos persistentes:
 - Imagenes: `Paths.document/product-images`
-- PDFs: `Paths.document/catalog-pdfs`
+- PDFs catalogos: `Paths.document/catalog-pdfs`
+- PDFs ordenes: `Paths.document/order-pdfs`
+- Backups: directorio de backups
 
 Notas:
 - `SQLiteCatalogRepository.delete` borra el PDF fisico solo si ningun otro
   catalogo referencia la misma `pdfUri`.
-- `DuplicateCatalogUseCase` hoy duplica metadata y conserva la misma `pdfUri`;
-  no crea un PDF nuevo.
+- `DuplicateCatalogUseCase` duplica metadata y conserva la misma `pdfUri`.
 - `SQLiteProductRepository.delete` no borra la imagen fisica del producto.
+- Carrito persiste en AsyncStorage (clave `catalog_clean_cart`), NO en SQLite.
+- IVA hardcoded en 0 (productos ya incluyen IVA).
+
+## BottomMenu (5 tabs)
+
+| Tab | Ruta | Icono |
+|-----|------|-------|
+| Inicio | `Dashboard` | home |
+| Productos | `Products` | cube |
+| Familias | `Families` | folder |
+| Catalogos | `Catalogs` | document-text |
+| Perfil | `Profile` | settings |
+
+- Cart NO esta en BottomMenu; se accede desde icono carrito en ProductsScreen.
+- PurchaseDetail se accede desde tile "Compra proveedor" en Dashboard.
+- Backup se accede desde ProfileScreen.
+- UI usa `LiquidGlassContainer` con efecto frosted glass.
+
+## Navegacion
+
+Rutas: `Login | Register | Onboarding | Dashboard | Products | Families |
+Catalogs | CatalogBuilder | Profile | Cart | OrderHistory | PurchaseDetail | Backup`
+
+Navegacion manual por `useState` (sin React Navigation).
+- `NavigationContext` con `activeRoute` y `navigate(route)`.
+- Init siempre va a `Dashboard` (auth check bypassed actualmente).
 
 ## Modulos clave
 
@@ -136,8 +177,8 @@ Archivos:
 - `src/modules/families/presentation/hooks/useFamilies.ts`
 - `src/modules/families/presentation/screens/FamiliesScreen.tsx`
 
-Validacion:
-- Nombre requerido, minimo 2 caracteres.
+Validacion: nombre requerido, minimo 2 caracteres.
+Eliminacion en cascade: borrar familia tambien borra sus productos.
 
 ### Products
 
@@ -150,17 +191,13 @@ Archivos:
 - `src/modules/products/presentation/hooks/useProducts.ts`
 - `src/modules/products/presentation/screens/ProductsScreen.tsx`
 
-Validacion:
-- `name`: minimo 2 caracteres
-- `code`: opcional
-- `price`: numero positivo
-- `format`: `unit`, `box`, `pack`, `service`
-- `familyId`: requerido
-- `photoUri`: opcional
+Campos: `name` (min 2), `code` (opcional), `price` (positivo),
+`format` (unit/box/pack/service), `familyId` (requerido), `photoUri` (opcional),
+`stock` (entero, default 0).
 
-Imagenes:
-- `ExpoImagePickerService` pide permisos de camara o galeria.
-- Copia imagen a `product-images` con `expo-file-system`.
+Features: toggle grilla/lista, busqueda, filtro por familia, 3 ordenes,
+FAB, badge de carrito, bottom sheet detalle con pinch-zoom, +/- stock,
+agregar al carrito con cantidad.
 
 ### Catalogs / History
 
@@ -176,30 +213,26 @@ Archivos:
 - `src/modules/catalogs/presentation/hooks/useCatalogSelection.ts`
 - `src/modules/catalogs/presentation/components/*`
 
-Wizard del builder (6 pasos):
-- 0: Nombre del catálogo
-- 1: Selección de familias/productos
-- 2: Formato PDF
-- 3: Contenido editorial (EditorialContentScreen)
-- 4: Vista previa
-- 5: Generar/Éxito
+Wizard del builder (7 pasos):
+- 0: Tipo de documento (Catalogo / Detalle de compra)
+- 1: Nombre
+- 2: Seleccion de familias/productos
+- 3: Formato PDF
+- 4: Contenido editorial (EditorialContentScreen)
+- 5: Vista previa
+- 6: Generar/Exito (con boton compartir)
 
-Formatos de catalogo:
-- `grid-2`
-- `grid-3`
-- `grid-4x5`
-- `grid-3x7`
-- `simple-list`
-- `premium-cover`
+Dashboard quick actions (5 tiles): Nuevo producto, Nueva categoria, Historial, Pedidos, Compra proveedor
 
-Nota: los ScrollView de seleccion de familias y productos en
-`CatalogBuilderScreen.tsx` usan `nestedScrollEnabled` para poder scrollear
-dentro del ScrollView padre de la pantalla.
+Tipos de documento (`CatalogPurpose`):
+- `'catalog'` - Catalogo de productos para clientes
+- `'purchase-detail'` - Solicitud de compra para proveedores (actualmente solo Labeling)
 
-Validacion:
-- Nombre minimo 2 caracteres.
-- Al menos una familia.
-- Al menos un producto.
+Formatos de catalogo (`CatalogFormat`):
+- `grid-2`, `grid-3`, `grid-4x5`, `grid-3x7`, `simple-list`, `premium-cover`
+
+HistoryScreen: listado con busqueda, filtro por proposito, orden, compartir,
+duplicar, eliminar. Empty states. FAB para crear.
 
 ### Editorial (Contenido)
 
@@ -209,64 +242,61 @@ Archivos:
 - `src/modules/editorial/application/dtos/EditorialContentDtos.ts`
 - `src/modules/editorial/application/use-cases/EditorialContentUseCases.ts`
 - `src/modules/editorial/presentation/hooks/useEditorialContent.ts`
-- `src/modules/editorial/presentation/components/EditorialTextArea.tsx`
-- `src/modules/editorial/presentation/components/GenerateButton.tsx`
-- `src/modules/editorial/presentation/components/CategoryEditorialCard.tsx`
-- `src/modules/editorial/presentation/components/ProductEditorialCard.tsx`
+- `src/modules/editorial/presentation/components/*`
 - `src/modules/editorial/presentation/screens/EditorialContentScreen.tsx`
 
-Flujo:
-- Paso 3 del wizard de CatalogBuilder (de 6 pasos totales).
-- 3 modos: `basic` (sin editorial), `auto` (generado offline), `custom` (manual).
-- `ContentGenerator` usa templates variados con hash determinístico por ID de
-  producto/familia. 80+ templates por tipo de texto, anti-repetición.
-- Campos por producto: description, benefits, highlights, uses, specifications,
-  quote, notes, savedForFuture.
-- Campos de catálogo: title, subtitle, welcomeMessage, introduction.
-- Campos About Us: description, history, mission, vision, values.
-- Cada campo tiene su botón ✨ Generar individual.
-- Checkbox "Guardar para futuros catálogos" por producto.
-- El contenido editorial NO modifica los productos originales; pertenece al
-  catálogo en construcción.
-- Pantalla usa FlatList para virtualizar la lista de productos.
-- No persiste en SQLite (estado en memoria del hook). El contenido se pasa
-  al generador PDF cuando se integre.
+3 modos: `basic`, `auto` (offline con 80+ templates), `custom`.
+Campos por producto: description, benefits, highlights, uses, specifications, quote, notes.
+Campos de catalogo: title, subtitle, welcomeMessage, introduction.
+Seccion About Us: description, history, mission, vision, values.
+Generacion individual por campo y por seccion.
+Estado en memoria (no persiste en SQLite).
 
 ### PDF
 
 Archivos:
-- `src/modules/pdf/domain/PdfGenerator.ts`
-- `src/modules/pdf/infrastructure/ExpoPdfGenerator.ts`
-- `src/modules/pdf/infrastructure/ExpoCatalogImageOptimizer.ts`
-- `src/modules/pdf/templates/editorial/*`
+- `src/modules/pdf/domain/PdfGenerator.ts` - interfaz + tipos
+- `src/modules/pdf/infrastructure/ExpoPdfGenerator.ts` - generador principal
+- `src/modules/pdf/infrastructure/ExpoCatalogImageOptimizer.ts` - optimizador
+- `src/modules/pdf/infrastructure/PdfCacheService.ts` - cache SHA256
+- `src/modules/pdf/templates/editorial/*` - template premium
 
 Notas:
-- `ExpoPdfGenerator` arma HTML y usa `Print.printToFileAsync`.
-- Convierte imagenes locales a data URI mediante `CatalogImageResolver`.
-- Copia PDF temporal a `Paths.document/catalog-pdfs`.
-- Existe `escapeHtml` en el generador actual. Si un reporte dice que falta
-  sanitizar HTML, revisar si el reporte esta desactualizado.
-- **Bug conocido (fix 2026-07-08):** catalogos con >18 productos se generaban en
-  blanco. Causa: formatos sin `rows` explicito (grid-2, grid-3, simple-list,
-  premium-cover) ponian todos los productos en una sola pagina HTML sin saltos de
-  pagina; el Android Print API no manejaba el overflow. Fix: `layoutFor` calcula
-  `rows` automaticamente segun `photoHeight` + `availableHeight`, y se agrego
-  `size: A4` al `@page` CSS. Ver `layoutFor()` en `ExpoPdfGenerator.ts`.
-- **Rediseño PDF (2026-07-09):** se reescribió el generador HTML/CSS. Layout
-  cambiado de CSS Grid a Flexbox rows con `flex-wrap: wrap`. Cada tarjeta tiene
-  `break-inside: avoid` para evitar cortes entre páginas. Alturas fijas para
-  imágenes y cards. Header compacto. Optimización de imágenes con `ExpoCatalogImageOptimizer`
-  (resizes a 480px, JPEG 0.65 quality, cache). El HTML generado es más compacto.
-- **WhatsApp:** el icono de WhatsApp ya se incluye junto al telefono en el PDF
-  via SVG inline (`whatsappSvg`), con enlace `https://wa.me/<numero>`.
-- **Familias en PDF:** no se renderizan nombres de familia en los productos del
-  PDF. Solo aparecen: nombre, codigo, formato y precio.
-- **Plantilla editorial premium (2026-07-14):** el formato `premium-cover`
-  usa `src/modules/pdf/templates/editorial`. Incluye tokens (`Colors`,
-  `Spacing`, `Typography`, `Grid`), componentes reutilizables y paginas
-  independientes: portada, tabla de contenidos, sobre nosotros, categoria,
-  destacado, comparativa, galeria y contacto. Los demas formatos siguen usando
-  el renderer compacto de `ExpoPdfGenerator.ts`.
+- `ExpoPdfGenerator` arma HTML inline y usa `Print.printToFileAsync`.
+- Lazy image loading: procesamiento por lotes (IMAGE_BATCH_SIZE=5).
+- Cache SHA256: reutiliza PDF si mismo nombre+formato+productos.
+- Conversión de imagenes a data URI via `CatalogImageResolver`.
+- Escape HTML implementado en `escapeHtml()`.
+- WhatsApp SVG inline junto al telefono.
+- `premium-cover` usa `src/modules/pdf/templates/editorial` con tokens
+  (Colors, Spacing, Typography, Grid) y layouts independientes.
+
+### Orders / Carrito de Compras
+
+Archivos:
+- `src/modules/orders/domain/entities/CartItem.ts` - productId, productName, productCode, unitPrice, quantity, format, subtotal
+- `src/modules/orders/domain/entities/Order.ts` - id, clientName, items[], subtotal, iva=0, total, notes, createdAt
+- `src/modules/orders/domain/repositories/CartRepository.ts`
+- `src/modules/orders/domain/repositories/OrderRepository.ts`
+- `src/modules/orders/application/dtos/OrderDtos.ts`
+- `src/modules/orders/application/use-cases/CartUseCases.ts` - addToCart, updateQuantity, removeFromCart, clearCart
+- `src/modules/orders/application/use-cases/OrderUseCases.ts` - generateOrder, getOrders, deleteOrder, formatOrderAsText
+- `src/modules/orders/application/use-cases/GenerateOrderPdfUseCase.ts`
+- `src/modules/orders/infrastructure/OrderPdfGenerator.ts` - PDF orden de compra
+- `src/modules/orders/infrastructure/repositories/AsyncStorageCartRepository.ts`
+- `src/modules/orders/infrastructure/repositories/SQLiteOrderRepository.ts`
+- `src/modules/orders/presentation/hooks/useCart.ts`
+- `src/modules/orders/presentation/hooks/useOrders.ts`
+- `src/modules/orders/presentation/screens/CartScreen.tsx`
+- `src/modules/orders/presentation/screens/OrderHistoryScreen.tsx`
+- `src/modules/orders/presentation/screens/PurchaseDetailScreen.tsx`
+
+Flujo:
+- Desde Productos, tocar producto abre detalle. Boton "Al carrito" con cantidad.
+- Carrito en AsyncStorage. Badge en ProductsScreen.
+- CartScreen: items con +/-, eliminar, subtotal/total, nombre cliente, notas.
+- "Generar orden" → guarda en SQLite, genera PDF, muestra desglose.
+- IVA siempre en 0 (productos ya incluyen IVA).
 
 ### Profile
 
@@ -278,46 +308,48 @@ Archivos:
 - `src/modules/profile/presentation/hooks/useProfile.ts`
 - `src/modules/profile/presentation/screens/ProfileScreen.tsx`
 
-Validacion:
-- `businessName`: minimo 2 caracteres.
-- `email`: email valido o string vacio.
-- Campos restantes opcionales.
+Campos: businessName (min 2), ownerName, phone, email, address, website,
+logoUri, bankName, bankAccountType, bankAccountNumber.
+Toggle tema claro/oscuro. Backup basico inline. Logout.
+
+### Backup (2 sistemas)
+
+**Sistema 1 - Basico** (ProfileScreen):
+- Exporta todas las tablas a JSON timestamped.
+- Listar, restaurar, eliminar, compartir.
+
+**Sistema 2 - Avanzado** (BackupSettingsScreen):
+- `src/modules/backup/domain/entities/Backup.ts`
+- `src/modules/backup/domain/repositories/BackupRepository.ts`
+- `src/modules/backup/infrastructure/repositories/SQLiteBackupRepository.ts`
+- `src/modules/backup/application/use-cases/BackupUseCases.ts`
+- `src/modules/backup/infrastructure/DatabaseBackupService.ts`
+- `src/modules/backup/presentation/screens/BackupSettingsScreen.tsx`
+- Backup con etiqueta, auto-backup, 4 triggers, deteccion de cambios,
+  monitoreo periodico (5 min), pre-eliminacion, max 10 backups.
+
+### Analytics
+
+- `src/shared/domain/AnalyticsPort.ts` - interfaz
+- `src/shared/infrastructure/SqliteAnalyticsRepository.ts` - SQLite-backed
+- Tabla `analytics_events` (migration v9)
+- Evento actual: `catalog_generated` (format, purpose, productCount, familyCount)
+
+### Crash Reporting (Sentry)
+
+- `src/shared/domain/ErrorReporter.ts` - interfaz + NoopErrorReporter
+- `src/shared/infrastructure/SentryErrorReporter.ts` - lazy dynamic import
+- `src/types/sentry.d.ts` - declaracion de tipos
+- `@sentry/react-native` NO instalado; type declaration existe
+- Inicializado en `AppRoot.tsx` via componente `SentryInit`
+- Graceful fallback si Sentry no disponible
 
 ### Sharing
 
-Archivos:
 - `src/modules/sharing/domain/NativeShareService.ts`
 - `src/modules/sharing/infrastructure/ExpoNativeShareService.ts`
-
-Uso:
-- `ShareCatalogPdfUseCase` comparte `catalog.pdfUri` por servicio nativo.
-
-### Orders / Carrito de Compras
-
-Archivos:
-- `src/modules/orders/domain/entities/CartItem.ts`
-- `src/modules/orders/domain/entities/Order.ts`
-- `src/modules/orders/domain/repositories/CartRepository.ts`
-- `src/modules/orders/domain/repositories/OrderRepository.ts`
-- `src/modules/orders/application/dtos/OrderDtos.ts`
-- `src/modules/orders/application/use-cases/CartUseCases.ts`
-- `src/modules/orders/application/use-cases/OrderUseCases.ts`
-- `src/modules/orders/infrastructure/repositories/AsyncStorageCartRepository.ts`
-- `src/modules/orders/infrastructure/repositories/SQLiteOrderRepository.ts`
-- `src/modules/orders/presentation/hooks/useCart.ts`
-- `src/modules/orders/presentation/hooks/useOrders.ts`
-- `src/modules/orders/presentation/screens/CartScreen.tsx`
-
-Flujo:
-- Desde Productos, tocar un producto abre detalle. Boton "Al carrito" abre dialogo
-  de cantidad con aceptar/cancelar y preview de subtotal.
-- El carrito persiste en AsyncStorage (clave `catalog_clean_cart`).
-- Tab "Carrito" en BottomMenu con badge de cantidad.
-- CartScreen muestra items con +/- , totales (subtotal, IVA 19%, total),
- 输入 nombre del cliente y notas.
-- "Generar orden" guarda en SQLite (tabla `orders`), muestra desglose de texto
-  con datos de empresa (profile), cliente, items, precios y totales.
-- Las ordenes se guardan para historial futuro.
+- `ShareCatalogPdfUseCase.execute(catalog)` - comparte PDF de catalogo
+- `ShareCatalogPdfUseCase.shareFile(uri, title, mimeType?)` - comparte archivo generico
 
 ## UI / tema
 
@@ -331,30 +363,16 @@ Archivos base:
 - `src/shared/presentation/components/LiquidGlassContainer.tsx`
 
 Notas:
-- Hay modo claro/oscuro via `ThemeContext`.
+- Modo claro/oscuro via `ThemeContext`.
 - `ThemeContext` propaga `setColorScheme(theme)` hacia componentes UI.
-- Mantener estilos consistentes con los componentes existentes.
-- BottomMenu tiene 5 tabs: Inicio, Productos, Carrito (con badge), Catalogos, Perfil.
-- **UI/UX 2.0 fase 1 (2026-07-14):** se ampliaron tokens del design system
-  sin romper compatibilidad: colores semanticos, `motion.ts`, `sizes.ts`,
-  `opacity.ts`, `zIndex.ts`, spacing completo, radios alias y tipografia
-  semantica sin letter spacing negativo. `ui.tsx` agrega aliases/componentes
-  compatibles (`AppScreen`, `GhostButton`, `IconButton`, `StatusBadge`,
-  `LoadingState`, `ErrorState`, `SkeletonCard`, `SearchField`, etc.).
-  `BottomMenu.tsx` fue limpiado visualmente con roles accesibles y labels
-  ASCII. `DashboardScreen.tsx` fue redisenado como inicio editorial premium
-  con saludo, negocio, CTA principal, metricas reales, acciones rapidas y
-  catalogos recientes. No se cambio la logica de PDF, SQLite ni repositorios.
-- **PDF Editorial Premium 2.0 (2026-07-14):** `premium-cover` ahora usa un
-  motor editorial automatico en `src/modules/pdf/templates/editorial/index.ts`.
-  Compone portada dividida, bienvenida con indice dinamico, sobre nosotros
-  condicional, aperturas de categoria alternadas, producto premium, layouts de
-  6/4/2 productos, galeria, comparativa editorial y contraportada/contacto.
-  Los estilos viven en `Layouts/A4Layout.ts`, usan tokens en `Colors.ts` y
-  `Typography.ts`, A4 fijo y Flexbox para compatibilidad con Android Print.
-  El contenido editorial opcional del wizard ahora viaja por
-  `CatalogInputDto -> GenerateCatalogPdfUseCase -> PdfCatalogInput` y se
-  renderiza sin mostrar campos vacios/null/undefined.
+- BottomMenu usa `LiquidGlassContainer` con efecto frosted glass.
+- Animaciones spring en tabs y botones.
+- Componentes: AppText, Card, PrimaryButton, SecondaryButton, GhostButton,
+  IconButton, SearchBar, ChoiceChip, BottomSheet, FloatingActionButton,
+  WizardStep, MetricCard, StatusBadge, EmptyState, ConfirmDialog, etc.
+- ProductSelectionCard: seleccion con toggle, soporta quantity para purchase-detail.
+- ProductCard, FamilyCard, HistoryItem, RecentProductCard: text overflow fix
+  con `numberOfLines={1}` y `minWidth: 0`.
 
 ## Tests
 
@@ -368,114 +386,68 @@ Tests existentes:
 - `src/modules/products/application/use-cases/ProductUseCases.test.ts`
 - `src/modules/catalogs/application/use-cases/CatalogUseCases.test.ts`
 - `src/modules/catalogs/domain/services/getCatalogSelectedProducts.test.ts`
-- Fakes: `src/__tests__/fakes.ts`
+- `src/modules/backup/__tests__/AutoBackupService.test.ts` (1 fallo pre-existente)
+- `src/__tests__/e2e-flow.test.ts` (3 tests E2E)
+- Fakes: `src/__tests__/fakes.ts` (InMemoryOrderRepository, InMemoryCartRepository, FakeOrderPdfGenerator, etc.)
+
+Total: 38/39 tests pasan (1 fallo pre-existente en AutoBackupService).
 
 Antes de entregar cambios de logica:
 - Correr `npm test`.
 - Si toca tipos/TSX, correr `npx tsc --noEmit`.
-- Ultima verificacion UI/UX 2.0 fase 1 (2026-07-14): `npx tsc --noEmit` OK
-  y `npm test` OK (4 archivos, 29 tests).
-- Ultima verificacion PDF Editorial Premium 2.0 (2026-07-14):
-  `npx tsc --noEmit` OK y `npm test` OK (4 archivos, 29 tests).
-- Ultima verificacion Orders/Carrito 3.0 (2026-07-20):
-  `npx tsc --noEmit` OK y `npm test` OK (4 archivos, 29 tests).
+
+## APK
+
+- Version: 3.1.6, versionCode: 13
+- APK: `C:\Users\bodega 1\Desktop\CatalogClean-v3.1.6.apk` (~67 MB)
+- Build: `android\gradlew.bat -p android assembleRelease`
+- JAVA_HOME: `.build-tools\jdk17\jdk-17.0.19+10`
+- ANDROID_HOME: `.build-tools\android-sdk`
+
+Build notas:
+- `node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt`
+  requiere parche manual despues de `npm install`: agregar `c++_shared` a
+  `target_link_libraries`.
 
 ## Documentos utiles
 
 - `docs/WORKFLOWS_AND_HU.md`: flujos e historias de usuario.
 - `docs/PRODUCTION_READINESS_AUDIT.md`: auditoria de brechas para produccion.
+- `docs/release-checklist.md`: checklist de release.
 - `CATALOG_CLEAN_APP_STORE_REPORT.md`: metadata/checklist App Store.
-
-Ojo: algunos documentos pueden estar un poco desfasados frente al codigo actual.
-Por ejemplo, el reporte de produccion menciona sanitizacion HTML pendiente, pero
-`ExpoPdfGenerator.ts` ya contiene `escapeHtml`.
 
 ## Estado actual del repo
 
-El working tree esta muy sucio y no debe asumirse que los cambios son del agente
-actual. Hay muchos archivos agregados/modificados/eliminados y una carpeta local
-pesada `.build-tools` con Android SDK/JDK.
-
-Reglas para agentes:
-- No revertir cambios existentes sin instruccion explicita.
-- Evitar inspeccionar masivamente `.build-tools`, `node_modules`, `dist`,
-  `.expo` y `android` salvo que el trabajo lo requiera.
-- Para estado legible usar:
-  `git status --short -- . ':!node_modules' ':!.build-tools' ':!android' ':!dist' ':!.expo'`
-- Para listar archivos fuente usar:
-  `rg --files src docs assets -g '!node_modules' -g '!.build-tools' -g '!dist' -g '!.expo'`
-
-Cambios/observaciones relevantes vistas el 2026-07-09:
-- `package.json` version: `1.0.4`.
-- `app.json` version: `3.0.0`; Android `versionCode`: 6.
-- Build Android estabilizado y APK generado exitosamente (~65 MB).
-- APK versionada generada el 2026-07-14:
-  `C:\Users\bodega 1\Desktop\CatalogClean-v1.0.4.apk` (65.4 MB).
-  Comando usado: `android\gradlew.bat -p android assembleRelease` con
-  `JAVA_HOME=.build-tools\jdk17\jdk-17.0.19+10` y
-  `ANDROID_HOME=.build-tools\android-sdk`.
-- Fix crash `NoClassDefFoundError: AnyTypeCache`: `expo-image-manipulator` 
-  bajado de 57.0.2 a 14.0.8 (compatible SDK 54).
-- `expo-font` agregado como peer dependency resuelta.
-- `app.json` actualizado con `expo-font` en plugins, versionCode 5.
-- `node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt`
-  parchado: se agrego `c++_shared` a `target_link_libraries`. Se pierde en
-  `npm install` y requiere re-parche manual.
-- Rediseño de `ExpoPdfGenerator.ts`: layout CSS Grid → Flexbox rows, alturas fijas,
-  `break-inside: avoid`, header compacto.
-- Verificado: el icono de WhatsApp ya esta implementado junto al telefono en el
-  PDF.
-- Verificado: las familias no se mencionan en los productos del PDF del catalogo.
-- `app.json` contiene textos de permisos con mojibake visible
-  (`galerÃ­a`, `cÃ¡mara`). Revisar encoding antes de release.
-- `app.json` no muestra `ios.bundleIdentifier` aunque el reporte App Store lo
-  recomienda.
-- `CATALOG_CLEAN_APP_STORE_REPORT.md` tambien tiene mojibake.
-- Hay carpeta `backup/` marcada como eliminada en git.
-- **Módulo editorial (2026-07-14):** nuevo módulo `src/modules/editorial/` con
-  10 archivos. Wizard del builder ampliado de 5 a 6 pasos. Paso 3 = EditorialContentScreen.
-  3 modos (basic/auto/custom). ContentGenerator offline con 80+ templates.
-  Productos con 7 campos editables + checkbox "guardar para futuro".
-  FlatList para virtualización. Estado en memoria (no persiste en SQLite).
+Working tree puede tener cambios pendientes. Para estado legible:
+- `git status --short -- . ':!node_modules' ':!.build-tools' ':!android' ':!dist' ':!.expo'`
+- `rg --files src docs assets -g '!node_modules' -g '!.build-tools' -g '!dist' -g '!.expo'`
 
 ## Pendientes conocidos
 
-Prioridad alta / produccion:
-- ~~Estabilizar build Android y generar APK instalable probado.~~ HECHO
-- ~~Unificar versiones entre `package.json` y `app.json`.~~ HECHO (ambas 1.0.4, versionCode 5)
-- Probar APK en dispositivo fisico: crear producto con foto, generar PDF,
-  compartir desde recien generado e historial. Verificar que el fix de
-  `expo-image-manipulator` resuelve el crash `NoClassDefFoundError: AnyTypeCache`.
-- Revisar encoding/mojibake en `app.json` y docs.
-- Definir bundle/package final (`com.anonymous.catalogclean` probablemente no es
-  definitivo para tiendas).
-- Agregar `ios.bundleIdentifier`, permisos Info.plist y metadata si se apunta a
-  App Store.
+### Completados recientemente (2026-07-21)
+- ~~E2E test~~ (3 tests en e2e-flow.test.ts)
+- ~~Sentry crash reporting~~ (lazy load, graceful fallback)
+- ~~Analytics SQLite~~ (analytics_events table, catalog_generated event)
+- ~~Lazy image loading~~ (batches de 5 en ExpoPdfGenerator)
+- ~~PDF cache SHA256~~ (PdfCacheService integrado)
+- ~~IVA removido de carrito/ordenes~~ (productos ya incluyen IVA)
+- ~~Navegacion wizard paso 3~~ (Back/Next buttons agregados)
+- ~~Text overflow en product cards~~ (numberOfLines + minWidth fix)
+- ~~BottomMenu restaurado~~ (5 tabs: Inicio, Productos, Familias, Catalogos, Perfil)
+- ~~Cart icon en ProductsScreen~~ (badge de cantidad)
+- ~~Backup module~~ (merge desde remoto)
+- ~~Order History~~ (OrderHistoryScreen, busqueda, eliminar, N° pedidos)
+- ~~Progressive order numbers~~ (N° 0001, N° 0002..., migration v10)
+- ~~Import backup from file~~ (expo-document-picker, restaurar con imagenes)
+- ~~Purchase Detail~~ (compra proveedor: seleccion productos, cantidades, PDF)
 
-Mejoras funcionales:
-- Continuar rediseno UI/UX 2.0 por fases: Productos, Categorias, Historial,
-  Perfil, Wizard, Editorial, Preview y Resultado. La fase 1 solo cubrio
-  design system base, componentes compartidos, barra inferior y Dashboard.
-- Refresco de datos al volver a pantallas.
-- Limpieza de imagenes huerfanas al borrar/editar productos.
-- Decidir si duplicar catalogo debe copiar PDF o solo metadata.
-- Validar existencia de PDF antes de compartir.
-- Manejar errores visibles en eliminaciones.
-- Prevenir nombres duplicados si negocio lo requiere.
-- Preview visual antes de generar PDF si no esta completo en UI actual.
-
-Cobertura:
-- Agregar tests de repositorios SQLite.
-- Agregar tests para generacion HTML/PDF por formato (especialmente
-  paginacion multi-pagina con >18 productos).
-- Agregar pruebas de hooks/pantallas si se introduce complejidad de UI.
-
-Build Android notas:
-- `node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt`
-  requiere parche manual despues de `npm install`: agregar `c++_shared` a
-  `target_link_libraries`. Sin esto, el build falla con error de linking.
-- Android SDK local: `.build-tools/android-sdk` (no commiteado).
-- JDK 17 local: `.build-tools/jdk17.zip` (extraer antes de build).
+### Pendientes activos
+- Fallo pre-existente: `AutoBackupService.test.ts` "no crea backup si no hay cambios"
+- Auth siempre redirige a Dashboard (bypass de login)
+- Dos sistemas de backup redundantes
+- `savedForFuture` flag sin UI
+- Mojibake en `app.json` y docs
+- Bundle ID por definir (`com.anonymous.catalogclean`)
 
 ## Como actualizar este archivo
 

@@ -90,18 +90,19 @@ export function ProductSelectionCard({
         </View>
       )}
 
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
         <AppText
           variant="bodyMedium"
           color={excluded ? 'muted' : 'primary'}
           weight="semiBold"
+          numberOfLines={1}
           style={{
             textDecorationLine: excluded ? 'line-through' : 'none',
           }}
         >
           {name}
         </AppText>
-        <AppText variant="bodySmall" color="muted">
+        <AppText variant="bodySmall" color="muted" numberOfLines={1}>
           {familyName} · {format}
         </AppText>
       </View>

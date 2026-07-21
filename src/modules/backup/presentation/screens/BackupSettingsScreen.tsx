@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
 import {
   AppText,
@@ -18,6 +19,7 @@ import {
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { BackupSnapshot } from '../../domain/entities/BackupSnapshot';
 import { useBackupManager } from '../hooks/useBackupManager';
+import { restoreBackup as restoreBackupFromFile } from '../../../../shared/infrastructure/DatabaseBackupService';
 
 const TRIGGER_LABELS: Record<string, string> = {
   manual: 'Manual',
@@ -44,12 +46,58 @@ export function BackupSettingsScreen() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [backupLabel, setBackupLabel] = useState('');
   const [selectedBackup, setSelectedBackup] = useState<BackupSnapshot | null>(null);
+  const [importing, setImporting] = useState(false);
 
   async function handleCreateBackup() {
     const label = backupLabel.trim() || `Backup manual - ${new Date().toLocaleString('es-CL')}`;
     await createManualBackup(label);
     setBackupLabel('');
     setShowCreateForm(false);
+  }
+
+  async function handleImportBackup() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const fileUri = result.assets[0].uri;
+      const fileName = result.assets[0].name;
+
+      Alert.alert(
+        'Importar backup',
+        `Se reemplazaran TODOS los datos actuales con los del archivo:\n\n${fileName}\n\nEsta accion no se puede deshacer.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Importar',
+            style: 'destructive',
+            onPress: async () => {
+              setImporting(true);
+              try {
+                const counts = await restoreBackupFromFile(fileUri);
+                Alert.alert(
+                  'Backup importado',
+                  `Restaurado exitosamente:\n• ${counts.families} familias\n• ${counts.products} productos\n• ${counts.catalogs} catálogos\n• ${counts.orders} pedidos\n• ${counts.images} imágenes`,
+                );
+              } catch (err) {
+                Alert.alert(
+                  'Error',
+                  err instanceof Error ? err.message : 'No se pudo importar el backup. Verifica que el archivo sea válido.',
+                );
+              } finally {
+                setImporting(false);
+              }
+            },
+          },
+        ],
+      );
+    } catch (err) {
+      Alert.alert('Error', 'No se pudo abrir el archivo.');
+    }
   }
 
   function formatBackupDate(iso: string): string {
@@ -130,6 +178,13 @@ export function BackupSettingsScreen() {
           icon="add-circle-outline"
           disabled={creating}
           onPress={() => setShowCreateForm(true)}
+        />
+
+        <PrimaryButton
+          label={importing ? 'Importando...' : 'Importar backup desde archivo'}
+          icon="document-outline"
+          disabled={importing}
+          onPress={handleImportBackup}
         />
 
         <Section

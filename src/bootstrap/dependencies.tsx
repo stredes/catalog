@@ -57,6 +57,10 @@ import { AutoBackupService } from '../modules/backup/infrastructure/services/Aut
 import { CreateBackupUseCase } from '../modules/backup/application/use-cases/CreateBackupUseCase';
 import { ListBackupsUseCase } from '../modules/backup/application/use-cases/ListBackupsUseCase';
 import { RestoreBackupUseCase } from '../modules/backup/application/use-cases/RestoreBackupUseCase';
+import { SqliteAnalyticsRepository } from '../shared/infrastructure/SqliteAnalyticsRepository';
+import { AnalyticsPort } from '../shared/domain/AnalyticsPort';
+import { SentryErrorReporter } from '../shared/infrastructure/SentryErrorReporter';
+import { ErrorReporter } from '../shared/domain/ErrorReporter';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -76,6 +80,8 @@ function buildDependencies() {
   const preferences: PreferencesPort = new AsyncStoragePreferencesAdapter();
   const auth: AuthPort = new LocalAuthAdapter(preferences);
   const orderPdfGenerator = new OrderPdfGenerator();
+  const analytics: AnalyticsPort = new SqliteAnalyticsRepository();
+  const errorReporter: ErrorReporter = new SentryErrorReporter();
 
     const seed = new SeedUseCase(familyRepository, productRepository);
 
@@ -114,6 +120,8 @@ function buildDependencies() {
         auth,
         share: shareService,
         autoBackup: changeDetector,
+        analytics,
+        errorReporter,
       },
       useCases: {
         createProduct: new CreateProductUseCase(productRepository),
@@ -131,6 +139,7 @@ function buildDependencies() {
           productRepository,
           pdfGenerator,
           profileRepository,
+          analytics,
         ),
         shareCatalogPdf: new ShareCatalogPdfUseCase(shareService),
         deleteCatalog: new DeleteCatalogUseCase(catalogRepository),

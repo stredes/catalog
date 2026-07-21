@@ -6,8 +6,6 @@ import { Profile } from '../../../profile/domain/entities/profile';
 import { createId } from '../../../../shared/utils/ids';
 import { nowIso } from '../../../../shared/utils/dates';
 
-const IVA_RATE = 0.19;
-
 export class GenerateOrderUseCase {
   constructor(
     private orderRepository: OrderRepository,
@@ -22,16 +20,18 @@ export class GenerateOrderUseCase {
     }
 
     const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-    const iva = Math.round(subtotal * IVA_RATE);
-    const total = subtotal + iva;
+
+    const existingOrders = await this.orderRepository.findAll();
+    const orderNumber = existingOrders.length + 1;
 
     const order: Order = {
       id: createId('order'),
+      orderNumber,
       clientName,
       items,
       subtotal,
-      iva,
-      total,
+      iva: 0,
+      total: subtotal,
       notes,
       createdAt: nowIso(),
     };
@@ -84,7 +84,7 @@ export function formatOrderAsText(order: Order, profile: Profile | null): string
   lines.push('');
   lines.push(`  Cliente: ${order.clientName}`);
   lines.push(`  Fecha:   ${new Date(order.createdAt).toLocaleString('es-CL')}`);
-  lines.push(`  N° Orden: ${order.id}`);
+  lines.push(`  N° Orden: ${String(order.orderNumber).padStart(4, '0')}`);
   lines.push('');
   lines.push('───────────────────────────────────────');
 
@@ -96,9 +96,8 @@ export function formatOrderAsText(order: Order, profile: Profile | null): string
   });
 
   lines.push('───────────────────────────────────────');
-  lines.push(`  Subtotal sin IVA:  $${order.subtotal.toLocaleString('es-CL')}`);
-  lines.push(`  IVA (19%):         $${order.iva.toLocaleString('es-CL')}`);
-  lines.push(`  TOTAL:             $${order.total.toLocaleString('es-CL')}`);
+  lines.push(`  Subtotal:  $${order.subtotal.toLocaleString('es-CL')}`);
+  lines.push(`  TOTAL:     $${order.total.toLocaleString('es-CL')}`);
   lines.push('───────────────────────────────────────');
 
   if (order.notes) {

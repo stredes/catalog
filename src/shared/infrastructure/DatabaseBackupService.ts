@@ -1,8 +1,9 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { SQLiteDatabase } from 'expo-sqlite';
-import { getDatabase } from './sqlite';
+import { DATABASE_SCHEMA_VERSION, getDatabase } from './sqlite';
 
 const BACKUP_DIR = new Directory(Paths.document, 'backups');
+const IMAGES_DIR = new Directory(Paths.document, 'product-images');
 
 type BackupData = {
   version: string;
@@ -12,12 +13,54 @@ type BackupData = {
   products: Array<{ id: string; name: string; code: string | null; price: number; format: string; photoUri: string | null; familyId: string; stock: number; createdAt: string; updatedAt: string }>;
   catalogs: Array<{ id: string; name: string; familyId: string; familyIds: string | null; format: string; productIds: string; pdfUri: string; createdAt: string }>;
   profile: Array<{ id: string; businessName: string; ownerName: string | null; phone: string | null; email: string | null; address: string | null; website: string | null; logoUri: string | null; bankName: string | null; bankAccountType: string | null; bankAccountNumber: string | null; updatedAt: string }>;
-  orders: Array<{ id: string; clientName: string; items: string; subtotal: number; iva: number; total: number; notes: string | null; createdAt: string }>;
+  orders: Array<{ id: string; orderNumber: number; clientName: string; items: string; subtotal: number; iva: number; total: number; notes: string | null; createdAt: string }>;
   schemaMigrations: Array<{ version: number; appliedAt: string }>;
+  images: Record<string, string>;
 };
 
 function ensureBackupDir() {
   BACKUP_DIR.create({ idempotent: true, intermediates: true });
+}
+
+async function fileToBase64DataUri(filePath: string): Promise<string | null> {
+  try {
+    const file = new File(filePath);
+    if (!file.exists) return null;
+    const base64 = await file.base64();
+    const ext = filePath.split('.').pop()?.toLowerCase() ?? 'jpeg';
+    const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+    return `data:${mime};base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
+async function collectImages(
+  products: Array<{ photoUri: string | null }>,
+  profile: Array<{ logoUri: string | null }>,
+): Promise<Record<string, string>> {
+  const images: Record<string, string> = {};
+  const paths = new Set<string>();
+
+  for (const p of products) {
+    if (p.photoUri && !p.photoUri.startsWith('data:') && p.photoUri.startsWith('file:')) {
+      paths.add(p.photoUri);
+    }
+  }
+  for (const p of profile) {
+    if (p.logoUri && !p.logoUri.startsWith('data:') && p.logoUri.startsWith('file:')) {
+      paths.add(p.logoUri);
+    }
+  }
+
+  for (const uri of paths) {
+    const dataUri = await fileToBase64DataUri(uri);
+    if (dataUri) {
+      images[uri] = dataUri;
+    }
+  }
+
+  return images;
 }
 
 async function exportData(db: SQLiteDatabase): Promise<BackupData> {
@@ -26,13 +69,15 @@ async function exportData(db: SQLiteDatabase): Promise<BackupData> {
     db.getAllAsync<{ id: string; name: string; code: string | null; price: number; format: string; photoUri: string | null; familyId: string; stock: number; createdAt: string; updatedAt: string }>('SELECT * FROM products'),
     db.getAllAsync<{ id: string; name: string; familyId: string; familyIds: string | null; format: string; productIds: string; pdfUri: string; createdAt: string }>('SELECT * FROM catalogs'),
     db.getAllAsync<{ id: string; businessName: string; ownerName: string | null; phone: string | null; email: string | null; address: string | null; website: string | null; logoUri: string | null; bankName: string | null; bankAccountType: string | null; bankAccountNumber: string | null; updatedAt: string }>('SELECT * FROM profile'),
-    db.getAllAsync<{ id: string; clientName: string; items: string; subtotal: number; iva: number; total: number; notes: string | null; createdAt: string }>('SELECT * FROM orders'),
+    db.getAllAsync<{ id: string; orderNumber: number; clientName: string; items: string; subtotal: number; iva: number; total: number; notes: string | null; createdAt: string }>('SELECT * FROM orders'),
     db.getAllAsync<{ version: number; appliedAt: string }>('SELECT * FROM schema_migrations ORDER BY version'),
     db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'),
   ]);
 
+  const images = await collectImages(products, profile);
+
   return {
-    version: '3.0.0',
+    version: '3.1.6',
     createdAt: new Date().toISOString(),
     schemaVersion: versionRow?.user_version ?? 0,
     families,
@@ -41,6 +86,7 @@ async function exportData(db: SQLiteDatabase): Promise<BackupData> {
     profile,
     orders,
     schemaMigrations,
+    images,
   };
 }
 
@@ -81,71 +127,254 @@ export async function getBackupList(): Promise<Array<{ name: string; path: strin
   return backups.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function restoreBackup(filepath: string): Promise<{ families: number; products: number; catalogs: number; orders: number }> {
-  const file = new File(filepath);
-  const content = await file.text();
+async function restoreImages(images: Record<string, string> | undefined): Promise<number> {
+  if (!images || Object.keys(images).length === 0) return 0;
 
-  const data: BackupData = JSON.parse(content);
-  const db = await getDatabase();
+  IMAGES_DIR.create({ idempotent: true, intermediates: true });
+  let restored = 0;
 
-  let counts = { families: 0, products: 0, catalogs: 0, orders: 0 };
+  for (const [originalPath, dataUri] of Object.entries(images)) {
+    try {
+      const filename = originalPath.split('/').pop();
+      if (!filename) continue;
 
+      const dest = new File(IMAGES_DIR, filename);
+      dest.create({ overwrite: true, intermediates: true });
+
+      const base64Data = dataUri.replace(/^data:image\/[^;]+;base64,/, '');
+      dest.write(base64Data);
+
+      restored++;
+    } catch {
+      // Skip failed images
+    }
+  }
+
+  return restored;
+}
+
+async function ensureAllTablesExist(db: SQLiteDatabase) {
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS schema_migrations (
+    version INTEGER PRIMARY KEY NOT NULL,
+    appliedAt TEXT NOT NULL
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS families (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS products (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    code TEXT,
+    price REAL NOT NULL,
+    format TEXT NOT NULL,
+    photoUri TEXT,
+    familyId TEXT NOT NULL,
+    stock INTEGER NOT NULL DEFAULT 0,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL,
+    FOREIGN KEY (familyId) REFERENCES families(id) ON DELETE CASCADE
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS catalogs (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    familyId TEXT NOT NULL,
+    familyIds TEXT,
+    format TEXT NOT NULL,
+    productIds TEXT NOT NULL,
+    pdfUri TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS profile (
+    id TEXT PRIMARY KEY NOT NULL,
+    businessName TEXT NOT NULL,
+    ownerName TEXT,
+    phone TEXT,
+    email TEXT,
+    address TEXT,
+    website TEXT,
+    logoUri TEXT,
+    bankName TEXT,
+    bankAccountType TEXT,
+    bankAccountNumber TEXT,
+    updatedAt TEXT NOT NULL
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS orders (
+    id TEXT PRIMARY KEY NOT NULL,
+    clientName TEXT NOT NULL,
+    items TEXT NOT NULL,
+    subtotal REAL NOT NULL,
+    iva REAL NOT NULL,
+    total REAL NOT NULL,
+    notes TEXT,
+    createdAt TEXT NOT NULL,
+    orderNumber INTEGER NOT NULL DEFAULT 0
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS backup_snapshots (
+    id TEXT PRIMARY KEY NOT NULL,
+    label TEXT NOT NULL,
+    trigger TEXT NOT NULL,
+    familiesCount INTEGER NOT NULL,
+    productsCount INTEGER NOT NULL,
+    catalogsCount INTEGER NOT NULL,
+    hasProfile INTEGER NOT NULL,
+    checksum TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS backup_payloads (
+    snapshotId TEXT PRIMARY KEY NOT NULL,
+    payload TEXT NOT NULL,
+    FOREIGN KEY (snapshotId) REFERENCES backup_snapshots(id) ON DELETE CASCADE
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS analytics_events (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    properties TEXT,
+    createdAt TEXT NOT NULL
+  )`);
+}
+
+async function clearAllTables(db: SQLiteDatabase) {
+  const tables = [
+    'backup_payloads',
+    'backup_snapshots',
+    'analytics_events',
+    'schema_migrations',
+    'orders',
+    'catalogs',
+    'products',
+    'families',
+    'profile',
+  ];
+  for (const table of tables) {
+    try {
+      await db.runAsync(`DELETE FROM ${table}`);
+    } catch {
+      // Table may not exist in older schemas, ignore
+    }
+  }
+}
+
+async function insertFamilies(db: SQLiteDatabase, families: BackupData['families']) {
+  if (families.length === 0) return;
   await db.withExclusiveTransactionAsync(async (txn) => {
-    await txn.execAsync('DELETE FROM orders');
-    await txn.execAsync('DELETE FROM catalogs');
-    await txn.execAsync('DELETE FROM products');
-    await txn.execAsync('DELETE FROM families');
-    await txn.execAsync('DELETE FROM profile');
-    await txn.execAsync('DELETE FROM schema_migrations');
-
-    for (const f of data.families) {
+    for (const f of families) {
       await txn.runAsync(
-        'INSERT INTO families (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
+        'INSERT OR REPLACE INTO families (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
         f.id, f.name, f.createdAt, f.updatedAt,
       );
-      counts.families++;
     }
+  });
+}
 
-    for (const p of data.products) {
-      await txn.runAsync(
-        'INSERT INTO products (id, name, code, price, format, photoUri, familyId, stock, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        p.id, p.name, p.code, p.price, p.format, p.photoUri, p.familyId, p.stock, p.createdAt, p.updatedAt,
-      );
-      counts.products++;
-    }
+async function insertProducts(db: SQLiteDatabase, products: BackupData['products']) {
+  if (products.length === 0) return;
+  const BATCH = 50;
+  for (let i = 0; i < products.length; i += BATCH) {
+    const batch = products.slice(i, i + BATCH);
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      for (const p of batch) {
+        await txn.runAsync(
+          'INSERT OR REPLACE INTO products (id, name, code, price, format, photoUri, familyId, stock, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          p.id, p.name, p.code, p.price, p.format, p.photoUri, p.familyId, p.stock, p.createdAt, p.updatedAt,
+        );
+      }
+    });
+  }
+}
 
-    for (const c of data.catalogs) {
+async function insertCatalogs(db: SQLiteDatabase, catalogs: BackupData['catalogs']) {
+  if (catalogs.length === 0) return;
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const c of catalogs) {
       await txn.runAsync(
-        'INSERT INTO catalogs (id, name, familyId, familyIds, format, productIds, pdfUri, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT OR REPLACE INTO catalogs (id, name, familyId, familyIds, format, productIds, pdfUri, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         c.id, c.name, c.familyId, c.familyIds, c.format, c.productIds, c.pdfUri, c.createdAt,
       );
-      counts.catalogs++;
     }
+  });
+}
 
-    for (const o of data.orders) {
+async function insertOrders(db: SQLiteDatabase, orders: BackupData['orders']) {
+  if (orders.length === 0) return;
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const o of orders) {
       await txn.runAsync(
-        'INSERT INTO orders (id, clientName, items, subtotal, iva, total, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        o.id, o.clientName, o.items, o.subtotal, o.iva, o.total, o.notes, o.createdAt,
+        'INSERT OR REPLACE INTO orders (id, orderNumber, clientName, items, subtotal, iva, total, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        o.id, (o as any).orderNumber ?? 0, o.clientName, o.items, o.subtotal, o.iva, o.total, o.notes, o.createdAt,
       );
-      counts.orders++;
     }
+  });
+}
 
-    for (const p of data.profile) {
+async function insertProfile(db: SQLiteDatabase, profile: BackupData['profile']) {
+  if (profile.length === 0) return;
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const p of profile) {
       await txn.runAsync(
-        'INSERT INTO profile (id, businessName, ownerName, phone, email, address, website, logoUri, bankName, bankAccountType, bankAccountNumber, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT OR REPLACE INTO profile (id, businessName, ownerName, phone, email, address, website, logoUri, bankName, bankAccountType, bankAccountNumber, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         p.id, p.businessName, p.ownerName, p.phone, p.email, p.address, p.website, p.logoUri, p.bankName, p.bankAccountType, p.bankAccountNumber, p.updatedAt,
       );
     }
-
-    for (const m of data.schemaMigrations) {
-      await txn.runAsync(
-        'INSERT INTO schema_migrations (version, appliedAt) VALUES (?, ?)',
-        m.version, m.appliedAt,
-      );
-    }
-
-    await txn.execAsync(`PRAGMA user_version = ${data.schemaVersion}`);
   });
+}
+
+export async function restoreBackup(filepath: string): Promise<{ families: number; products: number; catalogs: number; orders: number; images: number }> {
+  const file = new File(filepath);
+  if (!file.exists) {
+    throw new Error('El archivo de backup no existe.');
+  }
+  const content = await file.text();
+  if (!content || content.trim().length === 0) {
+    throw new Error('El archivo de backup está vacío.');
+  }
+
+  let data: BackupData;
+  try {
+    data = JSON.parse(content);
+  } catch {
+    throw new Error('El archivo no es un backup válido (JSON inválido).');
+  }
+
+  if (!data.families && !data.products && !data.catalogs && !data.orders) {
+    throw new Error('El archivo no contiene datos de backup reconocidos.');
+  }
+
+  const db = await getDatabase();
+  let counts = { families: 0, products: 0, catalogs: 0, orders: 0, images: 0 };
+
+  await ensureAllTablesExist(db);
+  await clearAllTables(db);
+
+  if (data.families?.length) {
+    await insertFamilies(db, data.families);
+    counts.families = data.families.length;
+  }
+
+  if (data.products?.length) {
+    await insertProducts(db, data.products);
+    counts.products = data.products.length;
+  }
+
+  if (data.catalogs?.length) {
+    await insertCatalogs(db, data.catalogs);
+    counts.catalogs = data.catalogs.length;
+  }
+
+  if (data.orders?.length) {
+    await insertOrders(db, data.orders);
+    counts.orders = data.orders.length;
+  }
+
+  if (data.profile?.length) {
+    await insertProfile(db, data.profile);
+  }
+
+  await db.execAsync(`PRAGMA user_version = ${DATABASE_SCHEMA_VERSION}`);
+
+  counts.images = await restoreImages(data.images);
 
   return counts;
 }

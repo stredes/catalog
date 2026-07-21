@@ -4,6 +4,7 @@ import { OrderRepository } from '../../domain/repositories/OrderRepository';
 
 type OrderRow = {
   id: string;
+  orderNumber: number;
   clientName: string;
   items: string;
   subtotal: number;
@@ -16,6 +17,7 @@ type OrderRow = {
 function rowToOrder(row: OrderRow): Order {
   return {
     id: row.id,
+    orderNumber: row.orderNumber,
     clientName: row.clientName,
     items: JSON.parse(row.items),
     subtotal: row.subtotal,
@@ -30,9 +32,10 @@ export class SQLiteOrderRepository implements OrderRepository {
   async save(order: Order): Promise<void> {
     const db = await getDatabase();
     await db.runAsync(
-      `INSERT INTO orders (id, clientName, items, subtotal, iva, total, notes, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO orders (id, orderNumber, clientName, items, subtotal, iva, total, notes, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       order.id,
+      order.orderNumber,
       order.clientName,
       JSON.stringify(order.items),
       order.subtotal,

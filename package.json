@@ -1,6 +1,6 @@
 {
   "name": "catalog-clean",
-  "version": "3.0.0",
+  "version": "3.1.6",
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -11,6 +11,7 @@
     "expo-auth-session": "~7.0.11",
     "expo-blur": "~15.0.8",
     "expo-crypto": "~15.0.9",
+    "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.23",
     "expo-font": "~14.0.12",
     "expo-image-manipulator": "~14.0.8",

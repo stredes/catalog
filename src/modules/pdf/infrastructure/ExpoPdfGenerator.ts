@@ -11,8 +11,9 @@ import { PdfCatalogInput, PdfGenerationProgress, PdfGenerator } from '../domain/
 import { CatalogImageOptimizer } from '../domain/CatalogImageOptimizer';
 import { ExpoCatalogImageOptimizer } from './ExpoCatalogImageOptimizer';
 import { buildEditorialCatalogHtml } from '../templates/editorial';
+import { PdfCacheService } from './PdfCacheService';
 
-const IMAGE_CONCURRENCY = 2;
+const IMAGE_BATCH_SIZE = 5;
 
 const MAX_DIMENSIONS: Record<CatalogFormat, number> = {
   'grid-2': 480,
@@ -112,9 +113,11 @@ type PrintableProfile = NonNullable<PdfCatalogInput['profile']> & {
 
 export class ExpoPdfGenerator implements PdfGenerator {
   private readonly imageOptimizer: CatalogImageOptimizer;
+  private readonly cache: PdfCacheService;
 
-  constructor(imageOptimizer?: CatalogImageOptimizer) {
+  constructor(imageOptimizer?: CatalogImageOptimizer, cache?: PdfCacheService) {
     this.imageOptimizer = imageOptimizer ?? new ExpoCatalogImageOptimizer();
+    this.cache = cache ?? new PdfCacheService();
   }
 
   async generate(
@@ -127,6 +130,22 @@ export class ExpoPdfGenerator implements PdfGenerator {
 
     try {
       emit('preparing', { message: 'Preparando catálogo...' });
+
+      const familyIds = input.families.map((f) => f.id);
+      const productIds = input.products.map((p) => p.id);
+
+      const cached = await this.cache.findCached(
+        input.catalogName,
+        input.format,
+        input.purpose,
+        productIds,
+        familyIds,
+      );
+
+      if (cached) {
+        emit('completed', { message: 'Catálogo listo (cache).' });
+        return cached.uri;
+      }
 
       const maxDimension = MAX_DIMENSIONS[input.format] ?? 480;
 
@@ -177,6 +196,15 @@ export class ExpoPdfGenerator implements PdfGenerator {
         );
       }
 
+      await this.cache.saveToCache(
+        destination.uri,
+        input.catalogName,
+        input.format,
+        input.purpose,
+        productIds,
+        familyIds,
+      );
+
       emit('completed', { message: 'Catálogo listo.' });
 
       return destination.uri;
@@ -206,30 +234,44 @@ export class ExpoPdfGenerator implements PdfGenerator {
     onProgress: (current: number, total: number) => void,
   ): Promise<PrintableProduct[]> {
     const total = products.length;
+    const results: PrintableProduct[] = new Array(total);
 
-    const results = await processWithConcurrency(
-      products,
-      IMAGE_CONCURRENCY,
-      async (product, index) => {
-        let pdfImageSrc: string | null | undefined;
+    for (let batchStart = 0; batchStart < total; batchStart += IMAGE_BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + IMAGE_BATCH_SIZE, total);
+      const batch = products.slice(batchStart, batchEnd);
 
-        if (product.photoUri) {
-          const optimized = await this.imageOptimizer.optimizeForPdf(
-            product.photoUri,
-            product.id,
-            maxDimension,
-          );
-          pdfImageSrc = optimized?.uri ?? null;
-        }
+      const batchResults = await processWithConcurrency(
+        batch,
+        IMAGE_BATCH_SIZE,
+        async (product, localIndex) => {
+          let pdfImageSrc: string | null | undefined;
 
-        onProgress(index + 1, total);
+          if (product.photoUri) {
+            const optimized = await this.imageOptimizer.optimizeForPdf(
+              product.photoUri,
+              product.id,
+              maxDimension,
+            );
+            pdfImageSrc = optimized?.uri ?? null;
+          }
 
-        return {
-          ...product,
-          pdfImageSrc,
-        };
-      },
-    );
+          onProgress(batchStart + localIndex + 1, total);
+
+          return {
+            ...product,
+            pdfImageSrc,
+          };
+        },
+      );
+
+      for (let i = 0; i < batchResults.length; i++) {
+        results[batchStart + i] = batchResults[i];
+      }
+
+      if (batchEnd < total) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
 
     return results;
   }
@@ -434,13 +476,13 @@ body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:12px;line-he
 .cover-business{font-size:16px;color:#dbeafe}
 
 .first-page-header{margin-bottom:6mm}
-.brand{border:1px solid #e5e7eb;border-radius:5px;padding:8px;margin-bottom:8px}
+.brand{border:1px solid #e5e7eb;border-radius:5px;padding:10px;margin-bottom:10px}
 .brand-row{display:flex;align-items:center;gap:12px}
-.brand-logo{border-radius:4px;height:40px;width:40px;object-fit:contain}
-.brand-logo-placeholder{align-items:center;background:#dbeafe;color:#1d4ed8;display:flex;font-size:10px;font-weight:700;justify-content:center}
+.brand-logo{border-radius:4px;height:48px;width:48px;object-fit:contain}
+.brand-logo-placeholder{align-items:center;background:#dbeafe;color:#1d4ed8;display:flex;font-size:12px;font-weight:700;justify-content:center}
 .brand-label{color:#2563eb;font-size:9px;font-weight:700;letter-spacing:1px;margin:0 0 2px;text-transform:uppercase}
 .brand-info{flex:1}
-.brand-info h2{font-size:18px;margin:0;font-weight:700}
+.brand-info h2{font-size:22px;margin:0;font-weight:700}
 .brand-details{border-top:1px solid #e5e7eb;display:flex;flex-wrap:wrap;gap:3px 12px;padding-top:4px;margin-top:4px}
 .detail-row{display:flex;align-items:center;gap:4px;font-size:8.5px;color:#475569}
 .detail-icon{font-size:11px;width:16px;text-align:center}
@@ -451,12 +493,12 @@ body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:12px;line-he
 .transfer-row{display:flex;align-items:baseline;gap:4px;font-size:8px;color:#64748b;min-width:31%}
 .transfer-row strong{color:#111827;font-size:8.5px}
 
-.cat-hdr{border-bottom:2px solid #dbeafe;margin-bottom:6px;padding-bottom:6px}
-.cat-hdr h1{margin:0;font-size:22px;font-weight:800;color:#111827}
-.cat-hdr p{color:#64748b;margin:2px 0 0;font-size:11px}
+.cat-hdr{border-bottom:2px solid #dbeafe;margin-bottom:8px;padding-bottom:8px}
+.cat-hdr h1{margin:0;font-size:30px;font-weight:800;color:#111827}
+.cat-hdr p{color:#64748b;margin:3px 0 0;font-size:13px}
 .page-hdr{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid #e5e7eb;margin-bottom:4mm;padding-bottom:3mm}
-.page-hdr h2{font-size:17px;font-weight:700;color:#111827}
-.page-hdr p{color:#64748b;font-size:9px}
+.page-hdr h2{font-size:22px;font-weight:700;color:#111827}
+.page-hdr p{color:#64748b;font-size:11px}
 
 .row{display:flex;flex-wrap:nowrap;gap:${gap}mm;margin-bottom:${gap}mm;page-break-inside:avoid;break-inside:avoid}
 .row:last-child{margin-bottom:0}

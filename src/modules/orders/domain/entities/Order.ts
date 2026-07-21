@@ -2,6 +2,7 @@ import { CartItem } from './CartItem';
 
 export type Order = {
   id: string;
+  orderNumber: number;
   clientName: string;
   items: CartItem[];
   subtotal: number;

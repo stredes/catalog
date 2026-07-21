@@ -11,6 +11,11 @@ import { ProfileRepository } from '../modules/profile/domain/repositories/Profil
 import { NativeShareService } from '../modules/sharing/domain/NativeShareService';
 import { BackupSnapshot, BackupPayload } from '../modules/backup/domain/entities/BackupSnapshot';
 import { BackupRepository } from '../modules/backup/domain/repositories/BackupRepository';
+import { Order } from '../modules/orders/domain/entities/Order';
+import { OrderRepository } from '../modules/orders/domain/repositories/OrderRepository';
+import { CartItem } from '../modules/orders/domain/entities/CartItem';
+import { CartRepository } from '../modules/orders/domain/repositories/CartRepository';
+import { OrderPdfGeneratorPort } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
 
 export class InMemoryFamilyRepository implements FamilyRepository {
   families = new Map<string, Family>();
@@ -241,4 +246,52 @@ export function makeBackupSnapshot(overrides: Partial<BackupSnapshot> = {}): Bac
     createdAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
   };
+}
+
+export class InMemoryOrderRepository implements OrderRepository {
+  orders = new Map<string, Order>();
+
+  async save(order: Order): Promise<void> {
+    this.orders.set(order.id, order);
+  }
+
+  async findAll(): Promise<Order[]> {
+    return [...this.orders.values()].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }
+
+  async findById(id: string): Promise<Order | null> {
+    return this.orders.get(id) ?? null;
+  }
+
+  async delete(id: string): Promise<void> {
+    this.orders.delete(id);
+  }
+}
+
+export class InMemoryCartRepository implements CartRepository {
+  private items: CartItem[] = [];
+
+  async getItems(): Promise<CartItem[]> {
+    return [...this.items];
+  }
+
+  async saveItems(items: CartItem[]): Promise<void> {
+    this.items = [...items];
+  }
+
+  async clear(): Promise<void> {
+    this.items = [];
+  }
+}
+
+export class FakeOrderPdfGenerator implements OrderPdfGeneratorPort {
+  lastCall: { order: Order; profile: Profile | null } | null = null;
+  nextUri = 'file:///order-pdfs/order.pdf';
+
+  async generate(order: Order, profile: Profile | null): Promise<string> {
+    this.lastCall = { order, profile };
+    return this.nextUri;
+  }
 }

@@ -515,8 +515,8 @@ export function FamilyCard({ name, productCount, color, onEdit, onDelete, onPres
           <View style={[styles.familyIcon, { backgroundColor: cardColor + '18' }]}>
             <Ionicons name="folder-outline" size={24} color={cardColor} />
           </View>
-          <View style={{ flex: 1 }}>
-          <AppText variant="bodyMedium" color="primary">{name}</AppText>
+          <View style={{ flex: 1, minWidth: 0 }}>
+          <AppText variant="bodyMedium" color="primary" numberOfLines={1}>{name}</AppText>
             <AppText variant="bodySmall" color="muted">{productCount} productos</AppText>
           </View>
           <View style={styles.rowActions}>
@@ -569,8 +569,8 @@ export function CatalogHistoryItem({ name, format, purpose, date, productCount, 
       <View style={[styles.pdfIconWrap, { backgroundColor: iconBg }]}>
         <Ionicons name={iconName as any} size={20} color={iconColor} />
       </View>
-      <View style={{ flex: 1 }}>
-        <AppText variant="bodyMedium" color="primary" style={{ fontWeight: fontWeights.semiBold }}>{name}</AppText>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: fontWeights.semiBold }}>{name}</AppText>
         <View style={styles.historyMeta}>
           {isPurchaseDetail ? (
             <AppText variant="caption" color="accent" style={{ fontWeight: '600' as any }}>COMPRA</AppText>
@@ -616,8 +616,8 @@ export function RecentProductCard({ name, format, price, onPress }: {
   return (
     <Card variant="default" style={{ marginBottom: spacing.sm }} onPress={onPress}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flex: 1 }}>
-            <AppText variant="bodyMedium" color="primary">{name}</AppText>
+        <View style={{ flex: 1, minWidth: 0 }}>
+            <AppText variant="bodyMedium" color="primary" numberOfLines={1}>{name}</AppText>
           <AppText variant="bodySmall" color="muted">{format}</AppText>
         </View>
         <AppText variant="price" color="accent">{price}</AppText>

@@ -19,8 +19,7 @@ export function useCart() {
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
-  const iva = Math.round(subtotal * 0.19);
-  const total = subtotal + iva;
+  const total = subtotal;
 
-  return { items, loading, reload: loadItems, totalItems, subtotal, iva, total };
+  return { items, loading, reload: loadItems, totalItems, subtotal, total };
 }

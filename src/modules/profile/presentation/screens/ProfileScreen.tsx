@@ -220,7 +220,7 @@ export function ProfileScreen() {
               setRestoreTarget(null);
               Alert.alert(
                 'Backup restaurado',
-                `Familias: ${counts.families}\nProductos: ${counts.products}\nCatalogos: ${counts.catalogs}\nOrdenes: ${counts.orders}`,
+                `Familias: ${counts.families}\nProductos: ${counts.products}\nCatalogos: ${counts.catalogs}\nOrdenes: ${counts.orders}\nImagenes: ${counts.images}`,
               );
               await reload();
               await reloadProfile();

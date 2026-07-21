@@ -159,7 +159,8 @@ export function DashboardScreen() {
           <QuickTile icon="cube-outline" label="Nuevo producto" onPress={() => navigate('Products')} />
           <QuickTile icon="folder-outline" label="Nueva categoria" onPress={() => navigate('Families')} />
           <QuickTile icon="document-text-outline" label="Historial" onPress={() => navigate('Catalogs')} />
-          <QuickTile icon="person-circle-outline" label="Perfil" onPress={() => navigate('Profile')} />
+          <QuickTile icon="receipt-outline" label="Pedidos" onPress={() => navigate('OrderHistory')} />
+          <QuickTile icon="cart-outline" label="Compra proveedor" onPress={() => navigate('PurchaseDetail')} />
         </View>
 
         <View style={styles.sectionHeader}>

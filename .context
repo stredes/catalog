@@ -1,6 +1,6 @@
 # Contexto rapido para agentes IA
 
-Ultima actualizacion: 2026-07-21 (v3.1.6 - compra proveedor, pedidos historial, import backup)
+Ultima actualizacion: 2026-07-22 (v3.1.8 - package name fix, backup/restore mejorado con orders, version sync)
 Proyecto: `catalog-clean`
 Raiz: `C:\Users\bodega 1\Desktop\workspace\catalog`
 
@@ -325,8 +325,11 @@ Toggle tema claro/oscuro. Backup basico inline. Logout.
 - `src/modules/backup/application/use-cases/BackupUseCases.ts`
 - `src/modules/backup/infrastructure/DatabaseBackupService.ts`
 - `src/modules/backup/presentation/screens/BackupSettingsScreen.tsx`
-- Backup con etiqueta, auto-backup, 4 triggers, deteccion de cambios,
-  monitoreo periodico (5 min), pre-eliminacion, max 10 backups.
+  - Backup con etiqueta, auto-backup, 4 triggers, deteccion de cambios,
+    monitoreo periodico (5 min), pre-eliminacion, max 10 backups.
+  - Backup incluye orders (v3.1.8).
+  - BackupPayload type: families, products, catalogs, profile, orders.
+  - BackupSnapshot type: incluye ordersCount.
 
 ### Analytics
 
@@ -398,8 +401,8 @@ Antes de entregar cambios de logica:
 
 ## APK
 
-- Version: 3.1.6, versionCode: 13
-- APK: `C:\Users\bodega 1\Desktop\CatalogClean-v3.1.6.apk` (~67 MB)
+- Version: 3.1.8, versionCode: 15
+- APK: `C:\Users\bodega 1\Desktop\CatalogClean-v3.1.8.apk` (~67 MB)
 - Build: `android\gradlew.bat -p android assembleRelease`
 - JAVA_HOME: `.build-tools\jdk17\jdk-17.0.19+10`
 - ANDROID_HOME: `.build-tools\android-sdk`
@@ -424,6 +427,16 @@ Working tree puede tener cambios pendientes. Para estado legible:
 
 ## Pendientes conocidos
 
+### Completados recientemente (2026-07-22)
+- ~~Package name fix~~ (com.anonymous.catalogclean, mantiene compatibilidad con instalacion existente del cliente)
+- ~~Backup/restore mejorado con orders~~ (CreateBackupUseCase y RestoreBackupUseCase ahora incluyen orders)
+- ~~Version sync~~ (DatabaseBackupService y sqlite.ts usan version 3.1.8, schemaVersion desde DATABASE_SCHEMA_VERSION)
+- ~~BackupSnapshot ordersCount~~ (campo ordersCount agregado a entidades y repositorio, con fallback para DBs viejas)
+- ~~RestoreBackupUseCase: orders~~ (restoreOrders con parseo de items JSON, skip invalid orders)
+- ~~SQLiteBackupRepository: try/catch ordersCount~~ (fallback INSERT sin ordersCount si DB vieja)
+- ~~migrate-backup.js~~ (script para migrar backups schemaVersion 9 → 10, paquete old → new)
+- ~~Backup/restore scripts~~ (backup.sh y restore.sh alineados a com.anonymous.catalogclean)
+
 ### Completados recientemente (2026-07-21)
 - ~~E2E test~~ (3 tests en e2e-flow.test.ts)
 - ~~Sentry crash reporting~~ (lazy load, graceful fallback)
@@ -447,7 +460,7 @@ Working tree puede tener cambios pendientes. Para estado legible:
 - Dos sistemas de backup redundantes
 - `savedForFuture` flag sin UI
 - Mojibake en `app.json` y docs
-- Bundle ID por definir (`com.anonymous.catalogclean`)
+- Bundle ID: `com.anonymous.catalogclean` (intencional para mantener compat con instalacion existente del cliente)
 
 ## Como actualizar este archivo
 

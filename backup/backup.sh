@@ -14,12 +14,12 @@
 #   - Exportacion de familias y productos a JSON
 #
 # Requisitos: adb conectado, app instalada en el dispositivo.
-# Paquete Android: com.catalogclean.app
+# Paquete Android: com.anonymous.catalogclean
 # ============================================================
 set -euo pipefail
 
 # --- Config ---
-PACKAGE="com.catalogclean.app"
+PACKAGE="com.anonymous.catalogclean"
 DB_NAME="catalog.db"
 
 # Rutas internas de la app (Android)

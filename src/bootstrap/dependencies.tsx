@@ -91,6 +91,7 @@ function buildDependencies() {
     productRepository,
     catalogRepository,
     profileRepository,
+    orderRepository,
   );
 
   const changeDetector = new ChangeDetector(
@@ -164,6 +165,7 @@ function buildDependencies() {
           productRepository,
           catalogRepository,
           profileRepository,
+          orderRepository,
         ),
         seed,
       },

@@ -9,6 +9,7 @@ type SnapshotRow = {
   familiesCount: number;
   productsCount: number;
   catalogsCount: number;
+  ordersCount?: number;
   hasProfile: number;
   checksum: string;
   createdAt: string;
@@ -26,19 +27,36 @@ export class SQLiteBackupRepository implements BackupRepository {
     const db = await getDatabase();
 
     await db.withExclusiveTransactionAsync(async (transaction) => {
-      await transaction.runAsync(
-        `INSERT INTO backup_snapshots (id, label, trigger, familiesCount, productsCount, catalogsCount, hasProfile, checksum, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        snapshot.id,
-        snapshot.label,
-        snapshot.trigger,
-        snapshot.familiesCount,
-        snapshot.productsCount,
-        snapshot.catalogsCount,
-        snapshot.hasProfile ? 1 : 0,
-        snapshot.checksum,
-        snapshot.createdAt,
-      );
+      try {
+        await transaction.runAsync(
+          `INSERT INTO backup_snapshots (id, label, trigger, familiesCount, productsCount, catalogsCount, ordersCount, hasProfile, checksum, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          snapshot.id,
+          snapshot.label,
+          snapshot.trigger,
+          snapshot.familiesCount,
+          snapshot.productsCount,
+          snapshot.catalogsCount,
+          snapshot.ordersCount ?? 0,
+          snapshot.hasProfile ? 1 : 0,
+          snapshot.checksum,
+          snapshot.createdAt,
+        );
+      } catch {
+        await transaction.runAsync(
+          `INSERT INTO backup_snapshots (id, label, trigger, familiesCount, productsCount, catalogsCount, hasProfile, checksum, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          snapshot.id,
+          snapshot.label,
+          snapshot.trigger,
+          snapshot.familiesCount,
+          snapshot.productsCount,
+          snapshot.catalogsCount,
+          snapshot.hasProfile ? 1 : 0,
+          snapshot.checksum,
+          snapshot.createdAt,
+        );
+      }
 
       await transaction.runAsync(
         'INSERT INTO backup_payloads (snapshotId, payload) VALUES (?, ?)',
@@ -132,6 +150,7 @@ export class SQLiteBackupRepository implements BackupRepository {
       familiesCount: row.familiesCount,
       productsCount: row.productsCount,
       catalogsCount: row.catalogsCount,
+      ordersCount: row.ordersCount ?? 0,
       hasProfile: row.hasProfile === 1,
       checksum: row.checksum,
       filePath: '',

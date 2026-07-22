@@ -2,6 +2,7 @@ import { Family } from '../../../families/domain/entities/Family';
 import { Product } from '../../../products/domain/entities/product';
 import { Catalog } from '../../../catalogs/domain/entities/Catalog';
 import { Profile } from '../../../profile/domain/entities/profile';
+import { Order } from '../../../orders/domain/entities/Order';
 
 export type BackupTrigger = 'manual' | 'auto-before-delete' | 'auto-periodic' | 'auto-before-seed';
 
@@ -12,6 +13,7 @@ export type BackupSnapshot = {
   familiesCount: number;
   productsCount: number;
   catalogsCount: number;
+  ordersCount: number;
   hasProfile: boolean;
   checksum: string;
   filePath: string;
@@ -25,4 +27,5 @@ export type BackupPayload = {
   products: Product[];
   catalogs: Catalog[];
   profile: Profile | null;
+  orders: Order[];
 };

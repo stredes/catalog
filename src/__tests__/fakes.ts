@@ -240,6 +240,7 @@ export function makeBackupSnapshot(overrides: Partial<BackupSnapshot> = {}): Bac
     familiesCount: 1,
     productsCount: 1,
     catalogsCount: 0,
+    ordersCount: 0,
     hasProfile: true,
     checksum: 'abc123',
     filePath: '',

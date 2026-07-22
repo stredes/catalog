@@ -77,7 +77,7 @@ async function exportData(db: SQLiteDatabase): Promise<BackupData> {
   const images = await collectImages(products, profile);
 
   return {
-    version: '3.1.6',
+    version: '3.1.7',
     createdAt: new Date().toISOString(),
     schemaVersion: versionRow?.user_version ?? 0,
     families,

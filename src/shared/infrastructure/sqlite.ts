@@ -241,7 +241,7 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
     const migrations = await db.getAllAsync('SELECT * FROM schema_migrations').catch(() => []);
 
     const backupData = {
-      version: '3.1.6',
+      version: '3.1.7',
       createdAt: new Date().toISOString(),
       schemaVersion: currentVersion,
       families,

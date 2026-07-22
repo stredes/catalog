@@ -68,10 +68,10 @@ export function OrderHistoryScreen() {
       setError('');
       const profile = await useCases.getProfile.execute();
       const uri = await useCases.generateOrderPdf.execute(order, profile);
-      await useCases.shareCatalogPdf.shareFile(uri, `Orden - ${order.clientName}`);
+      await useCases.shareCatalogPdf.shareFile(uri, `Pedido - ${order.clientName}`);
     } catch (currentError) {
       setError(
-        currentError instanceof Error ? currentError.message : 'No se pudo compartir la orden.',
+        currentError instanceof Error ? currentError.message : 'No se pudo compartir el pedido.',
       );
     }
   }

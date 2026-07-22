@@ -5,9 +5,9 @@ import { EditorialProduct } from '../types';
 export function renderEditorialProductCard(product: EditorialProduct, tone: 'light' | 'compact' = 'light') {
   const features = [
     product.format,
-    product.stock > 0 ? `Stock ${product.stock}` : 'Bajo pedido',
-    product.code ? `Codigo ${product.code}` : 'SKU pendiente',
-  ];
+    product.stock > 0 ? `Stock ${product.stock}` : '',
+    product.code ? `Codigo ${product.code}` : '',
+  ].filter(Boolean);
 
   return `<article class="product-card product-card-${tone}">
     ${

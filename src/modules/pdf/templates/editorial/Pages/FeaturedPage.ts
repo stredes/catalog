@@ -23,7 +23,7 @@ export function renderFeaturedPage(pageNumber: number, product?: EditorialProduc
           <li><span>Codigo</span><strong>${escapeHtml(product?.code || 'COD-000')}</strong></li>
           <li><span>Formato</span><strong>${escapeHtml(product?.format || 'unit')}</strong></li>
           <li><span>Precio</span><strong>${product ? formatMoney(product.price) : '$0'}</strong></li>
-          <li><span>Disponibilidad</span><strong>${product && product.stock > 0 ? 'En stock' : 'A pedido'}</strong></li>
+          ${product && product.stock > 0 ? `<li><span>Disponibilidad</span><strong>En stock</strong></li>` : ''}
         </ul>
       </aside>
     </div>`,

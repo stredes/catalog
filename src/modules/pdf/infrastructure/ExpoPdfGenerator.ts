@@ -455,16 +455,16 @@ export class ExpoPdfGenerator implements PdfGenerator {
     const imgH = layout.imageHeightMm;
     const cardH = layout.cardHeightMm;
     const cardPad = compact ? 2 : 3;
-    const nameSize = compact ? '9px' : '10.5px';
-    const priceSize = compact ? '10px' : '12px';
-    const codeSize = compact ? '7px' : '8px';
-    const fmtSize = compact ? '6.5px' : '7.5px';
+    const nameSize = compact ? '10px' : '12px';
+    const priceSize = compact ? '11px' : '13px';
+    const codeSize = compact ? '8px' : '9px';
+    const fmtSize = compact ? '7px' : '8.5px';
     const gap = compact ? 2 : 3;
 
     return `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>
-@page{size:A4;margin:10mm}
+@page{size:A4;margin:8mm}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:12px;line-height:1.2;background:#fff}
+body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:13px;line-height:1.2;background:#fff}
 
 .page-break{page-break-after:always;break-after:page;height:0}
 .page{page-break-inside:avoid;break-inside:avoid}
@@ -479,26 +479,26 @@ body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:12px;line-he
 .brand{border:1px solid #e5e7eb;border-radius:5px;padding:10px;margin-bottom:10px}
 .brand-row{display:flex;align-items:center;gap:12px}
 .brand-logo{border-radius:4px;height:48px;width:48px;object-fit:contain}
-.brand-logo-placeholder{align-items:center;background:#dbeafe;color:#1d4ed8;display:flex;font-size:12px;font-weight:700;justify-content:center}
-.brand-label{color:#2563eb;font-size:9px;font-weight:700;letter-spacing:1px;margin:0 0 2px;text-transform:uppercase}
+.brand-logo-placeholder{align-items:center;background:#dbeafe;color:#1d4ed8;display:flex;font-size:14px;font-weight:700;justify-content:center}
+.brand-label{color:#2563eb;font-size:13px;font-weight:700;letter-spacing:1px;margin:0 0 2px;text-transform:uppercase}
 .brand-info{flex:1}
-.brand-info h2{font-size:22px;margin:0;font-weight:700}
-.brand-details{border-top:1px solid #e5e7eb;display:flex;flex-wrap:wrap;gap:3px 12px;padding-top:4px;margin-top:4px}
-.detail-row{display:flex;align-items:center;gap:4px;font-size:8.5px;color:#475569}
-.detail-icon{font-size:11px;width:16px;text-align:center}
+.brand-info h2{font-size:30px;margin:0;font-weight:700}
+.brand-details{border-top:1px solid #e5e7eb;display:flex;flex-wrap:wrap;gap:5px 16px;padding-top:6px;margin-top:6px}
+.detail-row{display:flex;align-items:center;gap:5px;font-size:12px;color:#475569}
+.detail-icon{font-size:14px;width:20px;text-align:center}
 .wa-link{text-decoration:none;display:inline-flex;align-items:center}
-.transfer-box{background:#f8fafc;border:1px solid #dbeafe;border-radius:4px;margin-top:5px;padding:5px}
-.transfer-title{color:#1d4ed8;font-size:8px;font-weight:800;letter-spacing:.8px;margin-bottom:4px;text-transform:uppercase}
-.transfer-grid{display:flex;flex-wrap:wrap;gap:3px 10px}
-.transfer-row{display:flex;align-items:baseline;gap:4px;font-size:8px;color:#64748b;min-width:31%}
-.transfer-row strong{color:#111827;font-size:8.5px}
+.transfer-box{background:#f8fafc;border:1px solid #dbeafe;border-radius:4px;margin-top:6px;padding:8px}
+.transfer-title{color:#1d4ed8;font-size:12px;font-weight:800;letter-spacing:.8px;margin-bottom:5px;text-transform:uppercase}
+.transfer-grid{display:flex;flex-wrap:wrap;gap:4px 14px}
+.transfer-row{display:flex;align-items:baseline;gap:5px;font-size:12px;color:#64748b;min-width:31%}
+.transfer-row strong{color:#111827;font-size:12.5px}
 
 .cat-hdr{border-bottom:2px solid #dbeafe;margin-bottom:8px;padding-bottom:8px}
-.cat-hdr h1{margin:0;font-size:30px;font-weight:800;color:#111827}
-.cat-hdr p{color:#64748b;margin:3px 0 0;font-size:13px}
+.cat-hdr h1{margin:0;font-size:38px;font-weight:800;color:#111827}
+.cat-hdr p{color:#64748b;margin:3px 0 0;font-size:17px}
 .page-hdr{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid #e5e7eb;margin-bottom:4mm;padding-bottom:3mm}
-.page-hdr h2{font-size:22px;font-weight:700;color:#111827}
-.page-hdr p{color:#64748b;font-size:11px}
+.page-hdr h2{font-size:26px;font-weight:700;color:#111827}
+.page-hdr p{color:#64748b;font-size:13px}
 
 .row{display:flex;flex-wrap:nowrap;gap:${gap}mm;margin-bottom:${gap}mm;page-break-inside:avoid;break-inside:avoid}
 .row:last-child{margin-bottom:0}

@@ -1,6 +1,6 @@
 # Contexto rapido para agentes IA
 
-Ultima actualizacion: 2026-07-22 (v3.1.8 - package name fix, backup/restore mejorado con orders, version sync)
+Ultima actualizacion: 2026-07-22 (v3.1.8 - font sizes aumentados, renombrar orden→pedido, stock 0 oculto en PDFs, namespace fix, APK build)
 Proyecto: `catalog-clean`
 Raiz: `C:\Users\bodega 1\Desktop\workspace\catalog`
 
@@ -16,7 +16,7 @@ Flujos principales:
 - Configurar perfil del negocio con logo, datos de contacto y datos bancarios.
 - Generar catálogos PDF con 6 formatos visuales (incluido premium editorial).
 - Contenido editorial: texto profesional auto-generado offline por categoria/producto.
-- Carrito de compras con cantidades y generacion de ordenes de compra PDF.
+- Carrito de compras con cantidades y generacion de pedidos PDF.
 - Backup y restauracion de datos (2 sistemas: basico y avanzado).
 - Compartir PDFs por share sheet nativo.
 
@@ -79,7 +79,7 @@ src/
     families/         # CRUD familias
     history/          # Historial de catalogos
     onboarding/       # Onboarding 3 pasos
-    orders/           # Carrito + ordenes de compra
+    orders/           # Carrito + pedidos
     pdf/              # Generacion PDF + templates editorial
     products/         # CRUD productos
     profile/          # Perfil del negocio
@@ -112,7 +112,7 @@ SQLite:
   4. `products.code`
   5. `profile` datos bancarios (bankName, bankAccountType, bankAccountNumber)
   6. `products.stock`
-  7. `orders` (carrito/ordenes de compra)
+  7. `orders` (carrito/pedidos)
   8. `backup_snapshots`, `backup_payloads`
   9. `analytics_events` (con indices)
   10. `orders.orderNumber` (numeracion progresiva de pedidos)
@@ -130,7 +130,7 @@ Tablas principales:
 Archivos persistentes:
 - Imagenes: `Paths.document/product-images`
 - PDFs catalogos: `Paths.document/catalog-pdfs`
-- PDFs ordenes: `Paths.document/order-pdfs`
+- PDFs pedidos: `Paths.document/order-pdfs`
 - Backups: directorio de backups
 
 Notas:
@@ -282,7 +282,7 @@ Archivos:
 - `src/modules/orders/application/use-cases/CartUseCases.ts` - addToCart, updateQuantity, removeFromCart, clearCart
 - `src/modules/orders/application/use-cases/OrderUseCases.ts` - generateOrder, getOrders, deleteOrder, formatOrderAsText
 - `src/modules/orders/application/use-cases/GenerateOrderPdfUseCase.ts`
-- `src/modules/orders/infrastructure/OrderPdfGenerator.ts` - PDF orden de compra
+- `src/modules/orders/infrastructure/OrderPdfGenerator.ts` - PDF pedido
 - `src/modules/orders/infrastructure/repositories/AsyncStorageCartRepository.ts`
 - `src/modules/orders/infrastructure/repositories/SQLiteOrderRepository.ts`
 - `src/modules/orders/presentation/hooks/useCart.ts`
@@ -295,7 +295,7 @@ Flujo:
 - Desde Productos, tocar producto abre detalle. Boton "Al carrito" con cantidad.
 - Carrito en AsyncStorage. Badge en ProductsScreen.
 - CartScreen: items con +/-, eliminar, subtotal/total, nombre cliente, notas.
-- "Generar orden" → guarda en SQLite, genera PDF, muestra desglose.
+- "Generar pedido" → guarda en SQLite, genera PDF, muestra desglose.
 - IVA siempre en 0 (productos ya incluyen IVA).
 
 ### Profile
@@ -403,6 +403,7 @@ Antes de entregar cambios de logica:
 
 - Version: 3.1.8, versionCode: 15
 - APK: `C:\Users\bodega 1\Desktop\CatalogClean-v3.1.8.apk` (~67 MB)
+- Package: `com.anonymous.catalogclean`
 - Build: `android\gradlew.bat -p android assembleRelease`
 - JAVA_HOME: `.build-tools\jdk17\jdk-17.0.19+10`
 - ANDROID_HOME: `.build-tools\android-sdk`
@@ -411,6 +412,9 @@ Build notas:
 - `node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt`
   requiere parche manual despues de `npm install`: agregar `c++_shared` a
   `target_link_libraries`.
+- `namespace` en `build.gradle` alineado a `applicationId` (`com.anonymous.catalogclean`).
+  Directorio Java: `android/app/src/main/java/com/anonymous/catalogclean/`.
+  Antes tenia `com.catalogclean.app` como namespace, causaba icono fantasma en launcher.
 
 ## Documentos utiles
 
@@ -428,6 +432,7 @@ Working tree puede tener cambios pendientes. Para estado legible:
 ## Pendientes conocidos
 
 ### Completados recientemente (2026-07-22)
+- ~~Namespace fix~~ (build.gradle namespace alineado a applicationId, Java files movidos a com/anonymous/catalogclean/)
 - ~~Package name fix~~ (com.anonymous.catalogclean, mantiene compatibilidad con instalacion existente del cliente)
 - ~~Backup/restore mejorado con orders~~ (CreateBackupUseCase y RestoreBackupUseCase ahora incluyen orders)
 - ~~Version sync~~ (DatabaseBackupService y sqlite.ts usan version 3.1.8, schemaVersion desde DATABASE_SCHEMA_VERSION)
@@ -436,6 +441,10 @@ Working tree puede tener cambios pendientes. Para estado legible:
 - ~~SQLiteBackupRepository: try/catch ordersCount~~ (fallback INSERT sin ordersCount si DB vieja)
 - ~~migrate-backup.js~~ (script para migrar backups schemaVersion 9 → 10, paquete old → new)
 - ~~Backup/restore scripts~~ (backup.sh y restore.sh alineados a com.anonymous.catalogclean)
+- ~~Renombrar "orden" a "pedido"~~ (UI, PDF, filenames, messages)
+- ~~Stock 0 oculto en PDFs~~ (editorial templates, featured page)
+- ~~Header PDF mas grande~~ (brand-info, detail-row, transfer-box, cat-hdr, page-hdr)
+- ~~Build APK v3.1.8~~ (CatalogClean-v3.1.8.apk en Desktop)
 
 ### Completados recientemente (2026-07-21)
 - ~~E2E test~~ (3 tests en e2e-flow.test.ts)
@@ -460,7 +469,7 @@ Working tree puede tener cambios pendientes. Para estado legible:
 - Dos sistemas de backup redundantes
 - `savedForFuture` flag sin UI
 - Mojibake en `app.json` y docs
-- Bundle ID: `com.anonymous.catalogclean` (intencional para mantener compat con instalacion existente del cliente)
+- versionCode/Name en build.gradle hardcodeados (14/3.1.7) vs app.json (15/3.1.8)
 
 ## Como actualizar este archivo
 

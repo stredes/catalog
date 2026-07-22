@@ -51,11 +51,11 @@ function productDescription(input: PdfCatalogInput, product: EditorialProduct) {
 
 function productSpecs(input: PdfCatalogInput, product: EditorialProduct) {
   const editorial = productEditorial(input, product.id);
-  const specs = [
-    ['Codigo', product.code || 'COD-000'],
+  const specs: [string, string][] = [
+    ['Codigo', product.code || ''],
     ['Formato', product.format],
-    ['Stock', product.stock > 0 ? `${product.stock}` : 'A pedido'],
-    ['Notas', clean(editorial?.specifications) || clean(editorial?.uses) || 'Personalizable'],
+    ['Stock', product.stock > 0 ? `${product.stock}` : ''],
+    ['Notas', clean(editorial?.specifications) || clean(editorial?.uses) || ''],
   ];
 
   return specs

@@ -47,13 +47,13 @@ export class OrderPdfGenerator {
     const source = new File(file.uri);
     const destination = new File(
       pdfDirectory,
-      `orden-${formatOrderNumber(order.orderNumber)}-${order.clientName.replace(/\s+/g, '-').toLowerCase()}.pdf`,
+      `pedido-${formatOrderNumber(order.orderNumber)}-${order.clientName.replace(/\s+/g, '-').toLowerCase()}.pdf`,
     );
 
     source.copy(destination);
 
     if (!destination.exists || destination.size === 0) {
-      throw new Error('El PDF de la orden esta vacio.');
+      throw new Error('El PDF del pedido esta vacio.');
     }
 
     return destination.uri;
@@ -113,7 +113,7 @@ export class OrderPdfGenerator {
 </head>
 <body>
   <div style="text-align:center;margin-bottom:8px">
-    <h1 style="font-size:24px;font-weight:800;color:#111827;letter-spacing:1px">ORDEN DE COMPRA</h1>
+    <h1 style="font-size:24px;font-weight:800;color:#111827;letter-spacing:1px">PEDIDO</h1>
     <div style="font-size:13px;color:#64748b;margin-top:4px">N° ${formatOrderNumber(order.orderNumber)}</div>
   </div>
 

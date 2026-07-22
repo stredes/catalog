@@ -79,12 +79,12 @@ export function formatOrderAsText(order: Order, profile: Profile | null): string
     lines.push('');
   }
 
-  lines.push('  ORDEN DE COMPRA');
+  lines.push('  PEDIDO');
   lines.push('═══════════════════════════════════════');
   lines.push('');
   lines.push(`  Cliente: ${order.clientName}`);
   lines.push(`  Fecha:   ${new Date(order.createdAt).toLocaleString('es-CL')}`);
-  lines.push(`  N° Orden: ${String(order.orderNumber).padStart(4, '0')}`);
+  lines.push(`  N° Pedido: ${String(order.orderNumber).padStart(4, '0')}`);
   lines.push('');
   lines.push('───────────────────────────────────────');
 

@@ -96,7 +96,7 @@ export function CartScreen() {
       }
     } catch (currentError) {
       setError(
-        currentError instanceof Error ? currentError.message : 'No se pudo generar la orden.',
+        currentError instanceof Error ? currentError.message : 'No se pudo generar el pedido.',
       );
     }
   }
@@ -104,7 +104,7 @@ export function CartScreen() {
   async function handleSharePdf() {
     if (!pdfUri || !lastOrder) return;
     try {
-      await useCases.shareCatalogPdf.shareFile(pdfUri, `Orden - ${lastOrder.clientName}`);
+      await useCases.shareCatalogPdf.shareFile(pdfUri, `Pedido - ${lastOrder.clientName}`);
     } catch (currentError) {
       setError(
         currentError instanceof Error ? currentError.message : 'No se pudo compartir el PDF.',
@@ -245,7 +245,7 @@ export function CartScreen() {
             ) : null}
 
             <PrimaryButton
-              label="Generar orden de compra"
+              label="Generar pedido"
               icon="document-text-outline"
               onPress={generateOrder}
             />
@@ -256,7 +256,7 @@ export function CartScreen() {
       <BottomSheet
         visible={showBreakdown}
         onClose={() => setShowBreakdown(false)}
-        title="Orden generada"
+        title="Pedido generado"
         stickyFooter={
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}>
@@ -282,7 +282,7 @@ export function CartScreen() {
           <>
             <Card style={{ marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                <AppText variant="bodyMedium" color="muted">N° Orden</AppText>
+                <AppText variant="bodyMedium" color="muted">N° Pedido</AppText>
                 <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '700' } as any}>N° {String(lastOrder.orderNumber).padStart(4, '0')}</AppText>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -323,7 +323,7 @@ export function CartScreen() {
                 <>
                   <Ionicons name="alert-circle-outline" size={32} color={colors.error} style={{ marginBottom: 8 }} />
                   <AppText variant="bodyMedium" color="error" style={{ fontWeight: '600' } as any}>No se pudo generar el PDF</AppText>
-                  <AppText variant="caption" color="muted" style={{ marginTop: 4, textAlign: 'center' }}>La orden se creo pero el PDF no se pudo generar</AppText>
+                  <AppText variant="caption" color="muted" style={{ marginTop: 4, textAlign: 'center' }}>El pedido se creó pero el PDF no se pudo generar</AppText>
                 </>
               )}
             </Card>

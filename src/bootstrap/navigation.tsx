@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { DashboardScreen } from '../modules/catalogs/presentation/screens/DashboardScreen';
 import { CatalogBuilderScreen } from '../modules/catalogs/presentation/screens/CatalogBuilderScreen';
@@ -12,17 +12,19 @@ import { RegisterScreen } from '../modules/auth/presentation/screens/RegisterScr
 import { CartScreen } from '../modules/orders/presentation/screens/CartScreen';
 import { OrderHistoryScreen } from '../modules/orders/presentation/screens/OrderHistoryScreen';
 import { PurchaseDetailScreen } from '../modules/orders/presentation/screens/PurchaseDetailScreen';
+import { EditOrderScreen } from '../modules/orders/presentation/screens/EditOrderScreen';
 import { BackupSettingsScreen } from '../modules/backup/presentation/screens/BackupSettingsScreen';
 import { useDependencies } from './dependencies';
 
-export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'OrderHistory' | 'PurchaseDetail' | 'Backup';
+export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'OrderHistory' | 'PurchaseDetail' | 'EditOrder' | 'Backup';
 
 const ONBOARDING_KEY = 'catalog_clean_onboarding_completed';
 const USER_KEY = 'catalog_clean_user';
 
 type NavigationContextValue = {
   activeRoute: AppRoute;
-  navigate: (route: AppRoute) => void;
+  navigate: (route: AppRoute, params?: Record<string, string>) => void;
+  routeParams: Record<string, string>;
 };
 
 const NavigationContext = createContext<NavigationContextValue | null>(null);
@@ -61,6 +63,8 @@ function renderRoute(route: AppRoute) {
       return <OrderHistoryScreen />;
     case 'PurchaseDetail':
       return <PurchaseDetailScreen />;
+    case 'EditOrder':
+      return <EditOrderScreen />;
     case 'Backup':
       return <BackupSettingsScreen />;
     case 'Dashboard':
@@ -73,6 +77,7 @@ export function AppNavigator() {
   const { services } = useDependencies();
   const [ready, setReady] = useState(false);
   const [activeRoute, setActiveRoute] = useState<AppRoute>('Login');
+  const [routeParams, setRouteParams] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function init() {
@@ -82,9 +87,14 @@ export function AppNavigator() {
     init();
   }, []);
 
+  const navigate = useCallback((route: AppRoute, params?: Record<string, string>) => {
+    setRouteParams(params ?? {});
+    setActiveRoute(route);
+  }, []);
+
   const navigation = useMemo(
-    () => ({ activeRoute, navigate: setActiveRoute }),
-    [activeRoute],
+    () => ({ activeRoute, navigate, routeParams }),
+    [activeRoute, navigate, routeParams],
   );
 
   if (!ready) {

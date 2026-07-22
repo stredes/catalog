@@ -46,6 +46,20 @@ export class SQLiteOrderRepository implements OrderRepository {
     );
   }
 
+  async update(order: Order): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      `UPDATE orders SET clientName = ?, items = ?, subtotal = ?, iva = ?, total = ?, notes = ? WHERE id = ?`,
+      order.clientName,
+      JSON.stringify(order.items),
+      order.subtotal,
+      order.iva,
+      order.total,
+      order.notes ?? null,
+      order.id,
+    );
+  }
+
   async findAll(): Promise<Order[]> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<OrderRow>(

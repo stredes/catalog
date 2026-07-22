@@ -256,6 +256,10 @@ export class InMemoryOrderRepository implements OrderRepository {
     this.orders.set(order.id, order);
   }
 
+  async update(order: Order): Promise<void> {
+    this.orders.set(order.id, order);
+  }
+
   async findAll(): Promise<Order[]> {
     return [...this.orders.values()].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),

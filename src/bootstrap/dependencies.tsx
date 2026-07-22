@@ -48,6 +48,7 @@ import {
   GenerateOrderUseCase,
   GetOrdersUseCase,
   DeleteOrderUseCase,
+  UpdateOrderUseCase,
 } from '../modules/orders/application/use-cases/OrderUseCases';
 import { GenerateOrderPdfUseCase } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
 import { OrderPdfGenerator } from '../modules/orders/infrastructure/OrderPdfGenerator';
@@ -156,6 +157,7 @@ function buildDependencies() {
         generateOrder: new GenerateOrderUseCase(orderRepository, cartRepository),
         getOrders: new GetOrdersUseCase(orderRepository),
         deleteOrder: new DeleteOrderUseCase(orderRepository),
+        updateOrder: new UpdateOrderUseCase(orderRepository),
         generateOrderPdf: new GenerateOrderPdfUseCase(orderPdfGenerator),
         createBackup: createBackupUseCase,
         listBackups: new ListBackupsUseCase(backupRepository),

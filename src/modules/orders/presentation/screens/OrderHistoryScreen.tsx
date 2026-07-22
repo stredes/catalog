@@ -247,6 +247,13 @@ export function OrderHistoryScreen() {
 
                       <View style={styles.actionRow}>
                         <Pressable
+                          onPress={() => navigate('EditOrder', { orderId: order.id })}
+                          style={[styles.actionButton, { backgroundColor: colors.primarySoft }]}
+                        >
+                          <Ionicons name="create-outline" size={16} color={colors.primary} />
+                          <AppText variant="caption" color="accent">Editar</AppText>
+                        </Pressable>
+                        <Pressable
                           onPress={() => shareOrder(order)}
                           style={[styles.actionButton, { backgroundColor: colors.primarySoft }]}
                         >

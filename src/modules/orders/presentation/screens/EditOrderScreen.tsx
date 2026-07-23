@@ -18,7 +18,7 @@ import { formatMoney } from '../../../../shared/utils/money';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Order } from '../../domain/entities/Order';
-import { CartItem } from '../../domain/entities/CartItem';
+import { CartItem, calculateSubtotal } from '../../domain/entities/CartItem';
 
 const EDIT_ORDER_STORAGE_KEY = 'catalog_clean_edit_order_items';
 const EDIT_ORDER_CLIENT_KEY = 'catalog_clean_edit_order_client';
@@ -98,7 +98,11 @@ export function EditOrderScreen() {
             if (existing >= 0) {
               const old = merged[existing];
               const newQty = old.quantity + ci.quantity;
-              merged[existing] = { ...old, quantity: newQty, subtotal: old.unitPrice * newQty };
+              merged[existing] = {
+                ...old,
+                quantity: newQty,
+                subtotal: calculateSubtotal(old.unitPrice, newQty, old.discountType, old.discountValue),
+              };
             } else {
               merged.push(ci);
             }
@@ -121,7 +125,7 @@ export function EditOrderScreen() {
         return {
           ...item,
           quantity: newQty,
-          subtotal: item.unitPrice * newQty,
+          subtotal: calculateSubtotal(item.unitPrice, newQty, item.discountType, item.discountValue),
         };
       }),
     );

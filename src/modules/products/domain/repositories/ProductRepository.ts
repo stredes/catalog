@@ -8,4 +8,5 @@ export interface ProductRepository {
   findAll(): Promise<Product[]>;
   findById(id: string): Promise<Product | null>;
   findByFamily(familyId: string): Promise<Product[]>;
+  findBySupplier(supplierId: string): Promise<Product[]>;
 }

@@ -14,6 +14,7 @@ import {
   Screen,
   SecondaryButton,
   Divider,
+  ChoiceChip,
 } from '../../../../shared/presentation/components/ui';
 import { formatMoney } from '../../../../shared/utils/money';
 import { useCart } from '../hooks/useCart';
@@ -21,6 +22,7 @@ import { useProfile } from '../../../profile/presentation/hooks/useProfile';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Order } from '../../domain/entities/Order';
+import { DiscountType } from '../../domain/entities/CartItem';
 
 export function CartScreen() {
   const colors = useThemeColors();
@@ -36,6 +38,24 @@ export function CartScreen() {
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState('');
+  const [editingDiscount, setEditingDiscount] = useState<string | null>(null);
+  const [discountType, setDiscountType] = useState<DiscountType>('none');
+  const [discountValue, setDiscountValue] = useState('');
+
+  function openDiscountEditor(item: { productId: string; discountType: DiscountType; discountValue: number }) {
+    setEditingDiscount(item.productId);
+    setDiscountType(item.discountType);
+    setDiscountValue(item.discountValue > 0 ? String(item.discountValue) : '');
+  }
+
+  function saveDiscount() {
+    if (!editingDiscount) return;
+    const val = parseFloat(discountValue) || 0;
+    void useCases.updateCartItemDiscount.execute(editingDiscount, discountType, val).then(() => {
+      reload();
+      setEditingDiscount(null);
+    });
+  }
 
   function updateQuantity(productId: string, currentQty: number, delta: number) {
     const newQty = currentQty + delta;
@@ -156,6 +176,17 @@ export function CartScreen() {
                     <AppText variant="bodySmall" color="muted" style={{ marginTop: 2 }}>
                       {item.format} - {formatMoney(item.unitPrice)} c/u
                     </AppText>
+                    {item.discountType !== 'none' && item.discountValue > 0 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                        <View style={{ backgroundColor: colors.success + '18', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                          <AppText variant="caption" color="success" style={{ fontWeight: '600' } as any}>
+                            {item.discountType === 'currency'
+                              ? `-${formatMoney(item.discountValue)}`
+                              : `-${item.discountValue}%`}
+                          </AppText>
+                        </View>
+                      </View>
+                    ) : null}
                   </View>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 0 }}>
@@ -180,9 +211,19 @@ export function CartScreen() {
 
                   <View style={{ alignItems: 'flex-end', minWidth: 80 }}>
                     <AppText variant="price" color="accent">{formatMoney(item.subtotal)}</AppText>
-                    <Pressable onPress={() => removeItem(item.productId)} style={{ marginTop: 4 }}>
-                      <Ionicons name="close-circle-outline" size={18} color={colors.error} />
-                    </Pressable>
+                    {item.discountType !== 'none' && item.discountValue > 0 ? (
+                      <AppText variant="caption" color="muted" style={{ textDecorationLine: 'line-through' }}>
+                        {formatMoney(item.unitPrice * item.quantity)}
+                      </AppText>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <Pressable onPress={() => openDiscountEditor(item)}>
+                        <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
+                      </Pressable>
+                      <Pressable onPress={() => removeItem(item.productId)}>
+                        <Ionicons name="close-circle-outline" size={18} color={colors.error} />
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
               </Card>
@@ -248,6 +289,13 @@ export function CartScreen() {
               label="Generar pedido"
               icon="document-text-outline"
               onPress={generateOrder}
+            />
+
+            <SecondaryButton
+              label="Ver historial de pedidos"
+              icon="receipt-outline"
+              onPress={() => navigate('OrderHistory')}
+              fullWidth
             />
           </>
         )}
@@ -329,6 +377,65 @@ export function CartScreen() {
             </Card>
           </>
         )}
+      </BottomSheet>
+
+      <BottomSheet
+        visible={!!editingDiscount}
+        onClose={() => setEditingDiscount(null)}
+        title="Editar descuento"
+        stickyFooter={
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton label="Cancelar" icon="close-outline" onPress={() => setEditingDiscount(null)} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <PrimaryButton label="Guardar" icon="checkmark-outline" onPress={saveDiscount} />
+            </View>
+          </View>
+        }
+      >
+        {editingDiscount ? (
+          <View style={{ gap: 12 }}>
+            <AppText variant="labelMedium" color="secondary">Tipo de descuento</AppText>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(['none', 'currency', 'percentage'] as DiscountType[]).map((t) => (
+                <ChoiceChip
+                  key={t}
+                  label={t === 'none' ? 'Sin descuento' : t === 'currency' ? 'Monto fijo' : 'Porcentaje'}
+                  selected={discountType === t}
+                  onPress={() => {
+                    setDiscountType(t);
+                    if (t === 'none') setDiscountValue('');
+                  }}
+                />
+              ))}
+            </View>
+            {discountType !== 'none' && (
+              <>
+                <AppText variant="labelMedium" color="secondary">
+                  {discountType === 'currency' ? 'Monto del descuento' : 'Porcentaje de descuento'}
+                </AppText>
+                <TextInput
+                  placeholder={discountType === 'currency' ? 'Ej: 500' : 'Ej: 10'}
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  style={{
+                    borderRadius: 12,
+                    borderWidth: 1.5,
+                    borderColor: colors.borderDefault,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    fontSize: 15,
+                    fontWeight: '500',
+                    color: colors.textPrimary,
+                  }}
+                  value={discountValue}
+                  onChangeText={setDiscountValue}
+                />
+              </>
+            )}
+          </View>
+        ) : null}
       </BottomSheet>
 
       <BottomMenu />

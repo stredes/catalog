@@ -30,7 +30,6 @@ import { ProfileInputDto, profileSchema, CHILEAN_BANKS, BANK_ACCOUNT_TYPES } fro
 import { useProfile } from '../hooks/useProfile';
 import { useTheme, useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { User } from '../../../auth/domain/AuthPort';
-import { createBackup, getBackupList, restoreBackup, deleteBackup } from '../../../../shared/infrastructure/DatabaseBackupService';
 
 const USER_KEY = 'catalog_clean_user';
 
@@ -49,15 +48,11 @@ export function ProfileScreen() {
   const [user, setUser] = useState<User | null>(null);
   const [showBankPicker, setShowBankPicker] = useState(false);
   const [showAccountTypePicker, setShowAccountTypePicker] = useState(false);
-  const [backups, setBackups] = useState<Array<{ name: string; path: string; size: number; createdAt: string }>>([]);
-  const [backupLoading, setBackupLoading] = useState(false);
-  const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
 
   useEffect(() => {
     services.preferences.getString(USER_KEY).then((data) => {
       if (data) setUser(JSON.parse(data));
     });
-    loadBackups();
   }, []);
 
   const form = useForm<ProfileInputDto>({
@@ -177,96 +172,6 @@ export function ProfileScreen() {
     { label: 'Familias', value: String(families.length), icon: 'folder-outline' },
     { label: 'Catálogos', value: String(catalogs.length), icon: 'document-text-outline' },
   ], [products, families, catalogs]);
-
-  async function handleCreateBackup() {
-    try {
-      setBackupLoading(true);
-      setError('');
-      const path = await createBackup();
-      Alert.alert('Backup creado', `Guardado en:\n${path.split('/').pop()}`);
-      await loadBackups();
-    } catch (currentError) {
-      setError(
-        currentError instanceof Error ? currentError.message : 'No se pudo crear el backup.',
-      );
-    } finally {
-      setBackupLoading(false);
-    }
-  }
-
-  async function loadBackups() {
-    try {
-      const list = await getBackupList();
-      setBackups(list);
-    } catch {
-      setBackups([]);
-    }
-  }
-
-  async function handleRestoreBackup(filepath: string) {
-    Alert.alert(
-      'Restaurar backup',
-      'Se reemplazaran TODOS los datos actuales con los del backup. Esta accion no se puede deshacer.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Restaurar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setBackupLoading(true);
-              setError('');
-              const counts = await restoreBackup(filepath);
-              setRestoreTarget(null);
-              Alert.alert(
-                'Backup restaurado',
-                `Familias: ${counts.families}\nProductos: ${counts.products}\nCatalogos: ${counts.catalogs}\nPedidos: ${counts.orders}\nImagenes: ${counts.images}`,
-              );
-              await reload();
-              await reloadProfile();
-            } catch (currentError) {
-              setError(
-                currentError instanceof Error ? currentError.message : 'No se pudo restaurar el backup.',
-              );
-            } finally {
-              setBackupLoading(false);
-            }
-          },
-        },
-      ],
-    );
-  }
-
-  async function handleDeleteBackup(filepath: string, name: string) {
-    Alert.alert('Eliminar backup', `Eliminar "${name}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteBackup(filepath);
-          await loadBackups();
-        },
-      },
-    ]);
-  }
-
-  async function handleShareBackup(filepath: string, name: string) {
-    try {
-      setError('');
-      await useCases.shareCatalogPdf.shareFile(filepath, `Backup: ${name}`, 'application/json');
-    } catch (currentError) {
-      setError(
-        currentError instanceof Error ? currentError.message : 'No se pudo compartir el backup.',
-      );
-    }
-  }
-
-  function formatFileSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
 
   return (
     <>
@@ -494,147 +399,6 @@ export function ProfileScreen() {
               </View>
             ))}
           </View>
-        </Card>
-
-        <Card>
-          <CardHeader title="Backup y Restore" subtitle="Copia de seguridad de todos tus datos" />
-          <AppText variant="bodySmall" color="muted" style={{ marginBottom: 12 }}>
-            Se crea un backup automatico antes de cada migracion de esquema.
-          </AppText>
-          <PrimaryButton
-            label={backupLoading ? 'Creando backup...' : 'Crear nuevo backup'}
-            icon="cloud-upload-outline"
-            onPress={handleCreateBackup}
-            disabled={backupLoading}
-          />
-        </Card>
-
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <View>
-              <AppText variant="labelLarge" color="primary" style={{ fontWeight: '700' } as any}>
-                Backups guardados
-              </AppText>
-              <AppText variant="caption" color="muted">
-                {backups.length === 0 ? 'No hay copias' : `${backups.length} copia${backups.length !== 1 ? 's' : ''}`}
-              </AppText>
-            </View>
-            {backups.length > 0 && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="cloud-done-outline" size={14} color={colors.success} />
-                <AppText variant="caption" color="success">Seguro</AppText>
-              </View>
-            )}
-          </View>
-
-          {backups.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: 28, paddingHorizontal: 16 }}>
-              <View style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: colors.primaryLight,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 12,
-              }}>
-                <Ionicons name="cloud-outline" size={28} color={colors.primary} />
-              </View>
-              <AppText variant="bodyMedium" color="secondary" style={{ fontWeight: '600', marginBottom: 4 } as any}>
-                Sin backups aun
-              </AppText>
-              <AppText variant="caption" color="muted" style={{ textAlign: 'center' }}>
-                Crea tu primer backup para proteger tus datos
-              </AppText>
-            </View>
-          ) : (
-            backups.map((b) => (
-              <View
-                key={b.path}
-                style={{
-                  backgroundColor: colors.backgroundSurface,
-                  borderRadius: 12,
-                  padding: 14,
-                  marginBottom: 10,
-                  borderWidth: 1,
-                  borderColor: colors.borderDefault,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-                  <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    backgroundColor: colors.primaryLight,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <Ionicons name="document-text-outline" size={20} color={colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '700', marginBottom: 2 } as any}>
-                      {b.name.replace('.json', '')}
-                    </AppText>
-                    <AppText variant="caption" color="muted">
-                      {formatFileSize(b.size)} &middot; {formatDate(b.createdAt)}
-                    </AppText>
-                  </View>
-                </View>
-
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-                  <Pressable
-                    onPress={() => handleRestoreBackup(b.path)}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      backgroundColor: colors.primaryLight,
-                      opacity: pressed ? 0.7 : 1,
-                    })}
-                  >
-                    <Ionicons name="arrow-undo-outline" size={16} color={colors.primary} />
-                    <AppText variant="caption" color="accent" style={{ fontWeight: '600' }}>Restaurar</AppText>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => handleShareBackup(b.path, b.name)}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      backgroundColor: colors.primaryLight,
-                      opacity: pressed ? 0.7 : 1,
-                    })}
-                  >
-                    <Ionicons name="share-outline" size={16} color={colors.primary} />
-                    <AppText variant="caption" color="accent" style={{ fontWeight: '600' }}>Compartir</AppText>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => handleDeleteBackup(b.path, b.name)}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingHorizontal: 12,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      backgroundColor: '#FEE2E2',
-                      opacity: pressed ? 0.7 : 1,
-                    })}
-                  >
-                    <Ionicons name="trash-outline" size={16} color={colors.error} />
-                  </Pressable>
-                </View>
-              </View>
-            ))
-          )}
         </Card>
 
         <Section title="Historial de catálogos">

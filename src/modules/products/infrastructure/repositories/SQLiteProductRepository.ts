@@ -7,8 +7,8 @@ export class SQLiteProductRepository implements ProductRepository {
     const db = await getDatabase();
     await db.runAsync(
       `INSERT INTO products
-       (id, name, code, price, stock, format, photoUri, familyId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, name, code, price, stock, format, photoUri, familyId, supplierId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       product.id,
       product.name,
       product.code ?? null,
@@ -17,6 +17,7 @@ export class SQLiteProductRepository implements ProductRepository {
       product.format,
       product.photoUri ?? null,
       product.familyId,
+      product.supplierId ?? null,
       product.createdAt,
       product.updatedAt,
     );
@@ -26,7 +27,7 @@ export class SQLiteProductRepository implements ProductRepository {
     const db = await getDatabase();
     await db.runAsync(
       `UPDATE products
-       SET name = ?, code = ?, price = ?, stock = ?, format = ?, photoUri = ?, familyId = ?, updatedAt = ?
+       SET name = ?, code = ?, price = ?, stock = ?, format = ?, photoUri = ?, familyId = ?, supplierId = ?, updatedAt = ?
        WHERE id = ?`,
       product.name,
       product.code ?? null,
@@ -35,6 +36,7 @@ export class SQLiteProductRepository implements ProductRepository {
       product.format,
       product.photoUri ?? null,
       product.familyId,
+      product.supplierId ?? null,
       product.updatedAt,
       product.id,
     );
@@ -70,6 +72,14 @@ export class SQLiteProductRepository implements ProductRepository {
     return db.getAllAsync<Product>(
       'SELECT * FROM products WHERE familyId = ? ORDER BY createdAt DESC',
       familyId,
+    );
+  }
+
+  async findBySupplier(supplierId: string) {
+    const db = await getDatabase();
+    return db.getAllAsync<Product>(
+      'SELECT * FROM products WHERE supplierId = ? ORDER BY createdAt DESC',
+      supplierId,
     );
   }
 }

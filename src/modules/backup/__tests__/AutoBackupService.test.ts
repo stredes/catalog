@@ -9,6 +9,7 @@ import {
   InMemoryCatalogRepository,
   InMemoryProfileRepository,
   InMemoryOrderRepository,
+  InMemorySupplierRepository,
   makeFamily,
   makeProduct,
 } from '../../../__tests__/fakes';
@@ -20,6 +21,7 @@ describe('AutoBackupService', () => {
   let catalogRepo: InMemoryCatalogRepository;
   let profileRepo: InMemoryProfileRepository;
   let orderRepo: InMemoryOrderRepository;
+  let supplierRepo: InMemorySupplierRepository;
   let createBackup: CreateBackupUseCase;
   let changeDetector: ChangeDetector;
   let service: AutoBackupService;
@@ -31,6 +33,7 @@ describe('AutoBackupService', () => {
     catalogRepo = new InMemoryCatalogRepository();
     profileRepo = new InMemoryProfileRepository();
     orderRepo = new InMemoryOrderRepository();
+    supplierRepo = new InMemorySupplierRepository();
 
     createBackup = new CreateBackupUseCase(
       backupRepo,
@@ -39,6 +42,7 @@ describe('AutoBackupService', () => {
       catalogRepo,
       profileRepo,
       orderRepo,
+      supplierRepo,
     );
 
     changeDetector = new ChangeDetector(

@@ -19,7 +19,7 @@ import {
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { BackupSnapshot } from '../../domain/entities/BackupSnapshot';
 import { useBackupManager } from '../hooks/useBackupManager';
-import { restoreBackup as restoreBackupFromFile } from '../../../../shared/infrastructure/DatabaseBackupService';
+import { importBackupFromFile } from '../../infrastructure/services/FileImportService';
 
 const TRIGGER_LABELS: Record<string, string> = {
   manual: 'Manual',
@@ -40,6 +40,7 @@ export function BackupSettingsScreen() {
     createManualBackup,
     restoreBackup,
     deleteBackup,
+    shareBackup,
     toggleAutoBackup,
   } = useBackupManager();
 
@@ -78,7 +79,7 @@ export function BackupSettingsScreen() {
             onPress: async () => {
               setImporting(true);
               try {
-                const counts = await restoreBackupFromFile(fileUri);
+                const counts = await importBackupFromFile(fileUri);
                 Alert.alert(
                   'Backup importado',
                   `Restaurado exitosamente:\n• ${counts.families} familias\n• ${counts.products} productos\n• ${counts.catalogs} catálogos\n• ${counts.orders} pedidos\n• ${counts.images} imágenes`,
@@ -270,6 +271,21 @@ export function BackupSettingsScreen() {
                       </AppText>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 4 }}>
+                      <Pressable
+                        onPress={() => shareBackup(backup)}
+                        style={[
+                          {
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            backgroundColor: colors.primaryLight,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          },
+                        ]}
+                      >
+                        <Ionicons name="share-outline" size={16} color={colors.primary} />
+                      </Pressable>
                       <Pressable
                         onPress={() => restoreBackup(backup)}
                         disabled={restoring === backup.id}

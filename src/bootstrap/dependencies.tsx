@@ -37,18 +37,30 @@ import { AuthPort } from '../modules/auth/domain/AuthPort';
 import { LocalAuthAdapter } from '../modules/auth/infrastructure/LocalAuthAdapter';
 import { SQLiteOrderRepository } from '../modules/orders/infrastructure/repositories/SQLiteOrderRepository';
 import { AsyncStorageCartRepository } from '../modules/orders/infrastructure/repositories/AsyncStorageCartRepository';
+import { AsyncStoragePurchaseCartRepository } from '../modules/orders/infrastructure/repositories/AsyncStoragePurchaseCartRepository';
 import {
   AddToCartUseCase,
   UpdateCartItemUseCase,
+  UpdateCartItemDiscountUseCase,
   RemoveFromCartUseCase,
   ClearCartUseCase,
   GetCartItemsUseCase,
 } from '../modules/orders/application/use-cases/CartUseCases';
 import {
+  GetPurchaseCartItemsUseCase,
+  AddToPurchaseCartUseCase,
+  UpdatePurchaseCartItemUseCase,
+  UpdatePurchaseCartItemDiscountUseCase,
+  RemoveFromPurchaseCartUseCase,
+  ClearPurchaseCartUseCase,
+} from '../modules/orders/application/use-cases/PurchaseCartUseCases';
+import {
   GenerateOrderUseCase,
   GetOrdersUseCase,
   DeleteOrderUseCase,
   UpdateOrderUseCase,
+  ToggleOrderStatusUseCase,
+  RecordPaymentUseCase,
 } from '../modules/orders/application/use-cases/OrderUseCases';
 import { GenerateOrderPdfUseCase } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
 import { OrderPdfGenerator } from '../modules/orders/infrastructure/OrderPdfGenerator';
@@ -58,10 +70,17 @@ import { AutoBackupService } from '../modules/backup/infrastructure/services/Aut
 import { CreateBackupUseCase } from '../modules/backup/application/use-cases/CreateBackupUseCase';
 import { ListBackupsUseCase } from '../modules/backup/application/use-cases/ListBackupsUseCase';
 import { RestoreBackupUseCase } from '../modules/backup/application/use-cases/RestoreBackupUseCase';
+import { collectBackupImages, restoreBackupImages } from '../modules/backup/infrastructure/services/BackupImageCollector';
 import { SqliteAnalyticsRepository } from '../shared/infrastructure/SqliteAnalyticsRepository';
 import { AnalyticsPort } from '../shared/domain/AnalyticsPort';
 import { SentryErrorReporter } from '../shared/infrastructure/SentryErrorReporter';
 import { ErrorReporter } from '../shared/domain/ErrorReporter';
+import {
+  CreateSupplierUseCase,
+  UpdateSupplierUseCase,
+  DeleteSupplierUseCase,
+} from '../modules/suppliers/application/use-cases/SupplierUseCases';
+import { SQLiteSupplierRepository } from '../modules/suppliers/infrastructure/repositories/SQLiteSupplierRepository';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -74,7 +93,9 @@ function buildDependencies() {
   const profileRepository = new SQLiteProfileRepository();
   const orderRepository = new SQLiteOrderRepository();
   const cartRepository = new AsyncStorageCartRepository();
+  const purchaseCartRepository = new AsyncStoragePurchaseCartRepository();
   const backupRepository = new SQLiteBackupRepository();
+  const supplierRepository = new SQLiteSupplierRepository();
   const pdfGenerator = new ExpoPdfGenerator();
   const shareService = new ExpoNativeShareService();
   const imagePicker = new ExpoImagePickerService();
@@ -93,6 +114,8 @@ function buildDependencies() {
     catalogRepository,
     profileRepository,
     orderRepository,
+    supplierRepository,
+    collectBackupImages,
   );
 
   const changeDetector = new ChangeDetector(
@@ -115,7 +138,9 @@ function buildDependencies() {
         profile: profileRepository,
         orders: orderRepository,
         cart: cartRepository,
+        purchaseCart: purchaseCartRepository,
         backup: backupRepository,
+        suppliers: supplierRepository,
       },
       services: {
         preferences,
@@ -153,11 +178,20 @@ function buildDependencies() {
         addToCart: new AddToCartUseCase(cartRepository),
         updateCartItem: new UpdateCartItemUseCase(cartRepository),
         removeFromCart: new RemoveFromCartUseCase(cartRepository),
+        updateCartItemDiscount: new UpdateCartItemDiscountUseCase(cartRepository),
         clearCart: new ClearCartUseCase(cartRepository),
-        generateOrder: new GenerateOrderUseCase(orderRepository, cartRepository),
+        getPurchaseCartItems: new GetPurchaseCartItemsUseCase(purchaseCartRepository),
+        addToPurchaseCart: new AddToPurchaseCartUseCase(purchaseCartRepository),
+        updatePurchaseCartItem: new UpdatePurchaseCartItemUseCase(purchaseCartRepository),
+        updatePurchaseCartItemDiscount: new UpdatePurchaseCartItemDiscountUseCase(purchaseCartRepository),
+        removeFromPurchaseCart: new RemoveFromPurchaseCartUseCase(purchaseCartRepository),
+        clearPurchaseCart: new ClearPurchaseCartUseCase(purchaseCartRepository),
+        generateOrder: new GenerateOrderUseCase(orderRepository, cartRepository, productRepository),
         getOrders: new GetOrdersUseCase(orderRepository),
         deleteOrder: new DeleteOrderUseCase(orderRepository),
         updateOrder: new UpdateOrderUseCase(orderRepository),
+        toggleOrderStatus: new ToggleOrderStatusUseCase(orderRepository),
+        recordPayment: new RecordPaymentUseCase(orderRepository),
         generateOrderPdf: new GenerateOrderPdfUseCase(orderPdfGenerator),
         createBackup: createBackupUseCase,
         listBackups: new ListBackupsUseCase(backupRepository),
@@ -168,8 +202,13 @@ function buildDependencies() {
           catalogRepository,
           profileRepository,
           orderRepository,
+          supplierRepository,
+          restoreBackupImages,
         ),
         seed,
+        createSupplier: new CreateSupplierUseCase(supplierRepository),
+        updateSupplier: new UpdateSupplierUseCase(supplierRepository),
+        deleteSupplier: new DeleteSupplierUseCase(supplierRepository),
       },
       autoBackupService,
     };

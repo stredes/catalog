@@ -53,7 +53,7 @@ export class ChangeDetector implements ChangeTrackerPort {
     return familyLoss >= threshold || productLoss >= threshold;
   }
 
-  private computeChecksum(counts: TableCounts): string {
+  computeChecksum(counts: TableCounts): string {
     const raw = JSON.stringify(counts);
     let hash = 0;
     for (let i = 0; i < raw.length; i++) {

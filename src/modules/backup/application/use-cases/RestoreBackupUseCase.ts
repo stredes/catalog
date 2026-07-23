@@ -3,11 +3,19 @@ import { ProductRepository } from '../../../products/domain/repositories/Product
 import { CatalogRepository } from '../../../catalogs/domain/repositories/CatalogRepository';
 import { ProfileRepository } from '../../../profile/domain/repositories/ProfileRepository';
 import { OrderRepository } from '../../../orders/domain/repositories/OrderRepository';
+import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
 import { BackupRepository } from '../../domain/repositories/BackupRepository';
 import { RestoreBackupInput, RestoreBackupSchema } from '../dtos/BackupDtos';
 import { AppError } from '../../../../shared/errors/AppError';
+import { BackupImageMap } from '../../domain/entities/BackupSnapshot';
+
+export type ImageRestorer = (images: BackupImageMap | undefined) => Promise<number>;
+
+const noopImageRestorer: ImageRestorer = async () => 0;
 
 export class RestoreBackupUseCase {
+  private readonly restoreImages: ImageRestorer;
+
   constructor(
     private readonly backupRepo: BackupRepository,
     private readonly familyRepo: FamilyRepository,
@@ -15,14 +23,20 @@ export class RestoreBackupUseCase {
     private readonly catalogRepo: CatalogRepository,
     private readonly profileRepo: ProfileRepository,
     private readonly orderRepo: OrderRepository,
-  ) {}
+    private readonly supplierRepo: SupplierRepository,
+    restoreImages?: ImageRestorer,
+  ) {
+    this.restoreImages = restoreImages ?? noopImageRestorer;
+  }
 
   async execute(input: RestoreBackupInput): Promise<{
     familiesRestored: number;
     productsRestored: number;
     catalogsRestored: number;
     ordersRestored: number;
+    suppliersRestored: number;
     profileRestored: boolean;
+    imagesRestored: number;
   }> {
     const validated = RestoreBackupSchema.parse(input);
 
@@ -38,6 +52,7 @@ export class RestoreBackupUseCase {
 
     await this.clearAllData();
 
+    await this.restoreSuppliers((payload as any).suppliers ?? []);
     await this.restoreFamilies(payload.families);
     await this.restoreProducts(payload.products);
     await this.restoreCatalogs(payload.catalogs);
@@ -47,22 +62,26 @@ export class RestoreBackupUseCase {
     }
 
     const ordersRestored = await this.restoreOrders((payload as any).orders ?? []);
+    const imagesRestored = await this.restoreImages(payload.images);
 
     return {
       familiesRestored: payload.families.length,
       productsRestored: payload.products.length,
       catalogsRestored: payload.catalogs.length,
       ordersRestored,
+      suppliersRestored: (payload as any).suppliers?.length ?? 0,
       profileRestored: payload.profile !== null,
+      imagesRestored,
     };
   }
 
   private async clearAllData(): Promise<void> {
-    const [existingProducts, existingFamilies, existingCatalogs, existingOrders] = await Promise.all([
+    const [existingProducts, existingFamilies, existingCatalogs, existingOrders, existingSuppliers] = await Promise.all([
       this.productRepo.findAll(),
       this.familyRepo.findAll(),
       this.catalogRepo.findAll(),
       this.orderRepo.findAll(),
+      this.supplierRepo.findAll(),
     ]);
 
     for (const product of existingProducts) {
@@ -77,6 +96,28 @@ export class RestoreBackupUseCase {
     for (const order of existingOrders) {
       await this.orderRepo.delete(order.id);
     }
+    for (const supplier of existingSuppliers) {
+      await this.supplierRepo.delete(supplier.id);
+    }
+  }
+
+  private async restoreSuppliers(suppliers: any[]): Promise<void> {
+    for (const supplier of suppliers) {
+      try {
+        await this.supplierRepo.create({
+          id: supplier.id,
+          name: supplier.name,
+          phone: supplier.phone,
+          email: supplier.email,
+          contactName: supplier.contactName,
+          notes: supplier.notes,
+          createdAt: supplier.createdAt,
+          updatedAt: supplier.updatedAt,
+        });
+      } catch {
+        // Skip invalid suppliers
+      }
+    }
   }
 
   private async restoreFamilies(families: { id: string; name: string; createdAt: string; updatedAt: string }[]): Promise<void> {
@@ -87,7 +128,7 @@ export class RestoreBackupUseCase {
 
   private async restoreProducts(products: {
     id: string; name: string; code?: string; price: number; stock: number;
-    format: string; photoUri?: string; familyId: string; createdAt: string; updatedAt: string;
+    format: string; photoUri?: string; familyId: string; supplierId?: string; createdAt: string; updatedAt: string;
   }[]): Promise<void> {
     for (const product of products) {
       await this.productRepo.create(product as any);
@@ -115,6 +156,8 @@ export class RestoreBackupUseCase {
           subtotal: order.subtotal,
           iva: order.iva,
           total: order.total,
+          status: order.status ?? 'pending',
+          paidAmount: order.paidAmount ?? (order.status === 'paid' ? order.total : 0),
           notes: order.notes,
           createdAt: order.createdAt,
         });

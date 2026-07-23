@@ -27,9 +27,11 @@ import { ProductInputDto, productSchema } from '../../application/dtos/ProductDt
 import { Product, ProductFormat } from '../../domain/entities/product';
 import { useProducts } from '../hooks/useProducts';
 import { useFamilies } from '../../../families/presentation/hooks/useFamilies';
+import { useSuppliers } from '../../../suppliers/presentation/hooks/useSuppliers';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCart } from '../../../orders/presentation/hooks/useCart';
+import { DiscountType, calculateSubtotal } from '../../../orders/domain/entities/CartItem';
 
 const formats: ProductFormat[] = ['unit', 'box', 'pack', 'service'];
 
@@ -127,6 +129,7 @@ export function ProductsScreen() {
   const { navigate } = useAppNavigation();
   const { products, reload } = useProducts();
   const { families } = useFamilies();
+  const { suppliers } = useSuppliers();
   const { reload: reloadCart, totalItems } = useCart();
   const insets = useSafeAreaInsets();
   const [editing, setEditing] = useState<Product | null>(null);
@@ -134,12 +137,15 @@ export function ProductsScreen() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [filterFamily, setFilterFamily] = useState<string | null>(null);
+  const [filterSupplier, setFilterSupplier] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [showForm, setShowForm] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'newest'>('newest');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [addToCartProduct, setAddToCartProduct] = useState<Product | null>(null);
   const [cartQuantity, setCartQuantity] = useState('1');
+  const [cartDiscountType, setCartDiscountType] = useState<DiscountType>('none');
+  const [cartDiscountValue, setCartDiscountValue] = useState('');
 
   const form = useForm<ProductInputDto>({
     defaultValues: {
@@ -160,6 +166,11 @@ export function ProductsScreen() {
     [families],
   );
 
+  const supplierById = useMemo(
+    () => new Map(suppliers.map((s) => [s.id, s.name])),
+    [suppliers],
+  );
+
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
@@ -170,6 +181,10 @@ export function ProductsScreen() {
 
     if (filterFamily) {
       result = result.filter((p) => p.familyId === filterFamily);
+    }
+
+    if (filterSupplier) {
+      result = result.filter((p) => p.supplierId === filterSupplier);
     }
 
     switch (sortBy) {
@@ -223,6 +238,7 @@ export function ProductsScreen() {
       stock: product.stock,
       format: product.format,
       familyId: product.familyId,
+      supplierId: product.supplierId,
       photoUri: product.photoUri,
     });
   }
@@ -277,6 +293,8 @@ export function ProductsScreen() {
   function openAddToCart(product: Product) {
     setAddToCartProduct(product);
     setCartQuantity('1');
+    setCartDiscountType('none');
+    setCartDiscountValue('');
   }
 
   async function confirmAddToCart() {
@@ -287,8 +305,19 @@ export function ProductsScreen() {
       return;
     }
 
+    const discountVal = parseFloat(cartDiscountValue) || 0;
+    if (cartDiscountType === 'percentage' && (discountVal < 0 || discountVal > 100)) {
+      setError('El porcentaje debe ser entre 0 y 100');
+      return;
+    }
+    if (cartDiscountType === 'currency' && discountVal < 0) {
+      setError('El descuento no puede ser negativo');
+      return;
+    }
+
     try {
       setError('');
+      const subtotal = calculateSubtotal(addToCartProduct.price, qty, cartDiscountType, discountVal);
       await useCases.addToCart.execute({
         productId: addToCartProduct.id,
         productName: addToCartProduct.name,
@@ -296,10 +325,14 @@ export function ProductsScreen() {
         unitPrice: addToCartProduct.price,
         quantity: qty,
         format: addToCartProduct.format,
-        subtotal: addToCartProduct.price * qty,
+        discountType: cartDiscountType,
+        discountValue: discountVal,
+        subtotal,
       });
       setAddToCartProduct(null);
       setCartQuantity('1');
+      setCartDiscountType('none');
+      setCartDiscountValue('');
       await reloadCart();
     } catch (currentError) {
       setError(
@@ -351,7 +384,7 @@ export function ProductsScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 4 }}>
                   <ChoiceChip
-                    label="Todos"
+                    label="Todas"
                     selected={filterFamily === null}
                     onPress={() => setFilterFamily(null)}
                   />
@@ -389,6 +422,30 @@ export function ProductsScreen() {
                 </Pressable>
               </View>
             </View>
+
+            {suppliers.length > 0 ? (
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 2 }}>
+                    <ChoiceChip
+                      label="Todos proveedores"
+                      selected={filterSupplier === null}
+                      onPress={() => setFilterSupplier(null)}
+                      color="#8B5CF6"
+                    />
+                    {suppliers.map((s) => (
+                      <ChoiceChip
+                        key={s.id}
+                        label={s.name}
+                        selected={filterSupplier === s.id}
+                        onPress={() => setFilterSupplier(s.id === filterSupplier ? null : s.id)}
+                        color="#8B5CF6"
+                      />
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            ) : null}
 
             <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
               <ChoiceChip
@@ -446,6 +503,7 @@ export function ProductsScreen() {
                 price={formatMoney(p.price)}
                 format={p.format}
                 family={familyById.get(p.familyId) ?? ''}
+                supplier={p.supplierId ? (supplierById.get(p.supplierId) ?? '') : ''}
                 photoUri={p.photoUri}
                 stock={p.stock}
                 onPress={() => setSelectedProduct(p)}
@@ -477,6 +535,12 @@ export function ProductsScreen() {
                   <AppText variant="price" color="accent" style={{ marginTop: 2 }}>{formatMoney(p.price)}</AppText>
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                     <AppText variant="caption" color="muted">{familyById.get(p.familyId) ?? ''}</AppText>
+                    {p.supplierId && supplierById.get(p.supplierId) ? (
+                      <>
+                        <AppText variant="caption" color="disabled">·</AppText>
+                        <AppText variant="caption" color="muted" style={{ color: '#8B5CF6' }}>{supplierById.get(p.supplierId)}</AppText>
+                      </>
+                    ) : null}
                     <AppText variant="caption" color="disabled">·</AppText>
                     <AppText variant="caption" color="muted">{p.format}</AppText>
                     <AppText variant="caption" color="disabled">·</AppText>
@@ -577,6 +641,9 @@ export function ProductsScreen() {
                 {familyById.get(selectedProduct.familyId) ? (
                   <Badge label={familyById.get(selectedProduct.familyId) ?? ''} color={colors.secondary} />
                 ) : null}
+                {selectedProduct.supplierId && supplierById.get(selectedProduct.supplierId) ? (
+                  <Badge label={supplierById.get(selectedProduct.supplierId) ?? ''} color="#8B5CF6" />
+                ) : null}
                 {selectedProduct.code ? (
                   <Badge label={`Cod. ${selectedProduct.code}`} color={colors.success} />
                 ) : null}
@@ -600,6 +667,12 @@ export function ProductsScreen() {
                   <AppText variant="bodySmall" color="muted">Familia</AppText>
                   <AppText variant="bodySmall" color="primary" style={{ flex: 1, textAlign: 'right' }}>
                     {familyById.get(selectedProduct.familyId) || 'Sin familia'}
+                  </AppText>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                  <AppText variant="bodySmall" color="muted">Proveedor</AppText>
+                  <AppText variant="bodySmall" color="primary" style={{ flex: 1, textAlign: 'right' }}>
+                    {selectedProduct.supplierId ? (supplierById.get(selectedProduct.supplierId) || 'Sin proveedor') : 'Sin proveedor'}
                   </AppText>
                 </View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
@@ -733,13 +806,37 @@ export function ProductsScreen() {
           ))}
         </View>
         <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 8 }}>Familia</AppText>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {families.map((f) => (
               <ChoiceChip key={f.id} label={f.name} selected={selectedFamily === f.id} onPress={() => form.setValue('familyId', f.id)} />
             ))}
           </View>
         </ScrollView>
+        {suppliers.length > 0 ? (
+          <>
+            <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 8 }}>Proveedor (opcional)</AppText>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <ChoiceChip
+                  label="Sin proveedor"
+                  selected={!form.watch('supplierId')}
+                  onPress={() => form.setValue('supplierId', undefined)}
+                  color="#8B5CF6"
+                />
+                {suppliers.map((s) => (
+                  <ChoiceChip
+                    key={s.id}
+                    label={s.name}
+                    selected={form.watch('supplierId') === s.id}
+                    onPress={() => form.setValue('supplierId', s.id)}
+                    color="#8B5CF6"
+                  />
+                ))}
+              </View>
+            </ScrollView>
+          </>
+        ) : null}
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}>
             <SecondaryButton label="Cámara" icon="camera-outline" onPress={pickFromCamera} />
@@ -755,7 +852,7 @@ export function ProductsScreen() {
 
       <BottomSheet
         visible={!!addToCartProduct}
-        onClose={() => { setAddToCartProduct(null); setCartQuantity('1'); }}
+        onClose={() => { setAddToCartProduct(null); setCartQuantity('1'); setCartDiscountType('none'); setCartDiscountValue(''); }}
         title="Agregar al carrito"
         stickyFooter={
           addToCartProduct ? (
@@ -764,7 +861,7 @@ export function ProductsScreen() {
                 <SecondaryButton
                   label="Cancelar"
                   icon="close-outline"
-                  onPress={() => { setAddToCartProduct(null); setCartQuantity('1'); }}
+                  onPress={() => { setAddToCartProduct(null); setCartQuantity('1'); setCartDiscountType('none'); setCartDiscountValue(''); }}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -829,14 +926,105 @@ export function ProductsScreen() {
               autoFocus
             />
 
+            <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 8 }}>
+              Descuento
+            </AppText>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              {(['none', 'currency', 'percentage'] as DiscountType[]).map((type) => (
+                <Pressable
+                  key={type}
+                  onPress={() => {
+                    setCartDiscountType(type);
+                    if (type === 'none') setCartDiscountValue('');
+                  }}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 8,
+                    borderWidth: 1.5,
+                    borderColor: cartDiscountType === type ? colors.primary : colors.borderDefault,
+                    backgroundColor: cartDiscountType === type ? colors.primaryLight : 'transparent',
+                    alignItems: 'center',
+                  }}
+                >
+                  <AppText
+                    variant="caption"
+                    color={cartDiscountType === type ? 'accent' : 'muted'}
+                    style={{ fontWeight: cartDiscountType === type ? '700' : '400' } as any}
+                  >
+                    {type === 'none' ? 'Sin desc.' : type === 'currency' ? '$ Fijo' : '% Porc.'}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+
+            {cartDiscountType !== 'none' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    keyboardType="numeric"
+                    placeholder={cartDiscountType === 'currency' ? 'Monto' : 'Porcentaje'}
+                    placeholderTextColor={colors.textMuted}
+                    style={{
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderColor: colors.borderDefault,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      fontSize: 16,
+                      fontWeight: '600',
+                      color: colors.textPrimary,
+                      textAlign: 'center',
+                    }}
+                    value={cartDiscountValue}
+                    onChangeText={setCartDiscountValue}
+                  />
+                </View>
+                <AppText variant="bodyMedium" color="muted" style={{ minWidth: 24 }}>
+                  {cartDiscountType === 'currency' ? '$' : '%'}
+                </AppText>
+              </View>
+            )}
+
             {cartQuantity && parseInt(cartQuantity, 10) > 0 ? (
               <Card style={{ padding: 14 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <AppText variant="bodySmall" color="muted">Subtotal</AppText>
-                  <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>
-                    {formatMoney(addToCartProduct.price * parseInt(cartQuantity, 10))}
-                  </AppText>
-                </View>
+                {cartDiscountType !== 'none' && (parseFloat(cartDiscountValue) || 0) > 0 ? (
+                  <>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <AppText variant="bodySmall" color="muted">Sin descuento</AppText>
+                      <AppText variant="bodySmall" color="muted" style={{ textDecorationLine: 'line-through' }}>
+                        {formatMoney(addToCartProduct.price * parseInt(cartQuantity, 10))}
+                      </AppText>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <AppText variant="bodySmall" color="success">
+                        Descuento ({cartDiscountType === 'currency' ? formatMoney(parseFloat(cartDiscountValue) || 0) : `${cartDiscountValue}%`})
+                      </AppText>
+                      <AppText variant="bodySmall" color="success">
+                        -{formatMoney(
+                          cartDiscountType === 'currency'
+                            ? (parseFloat(cartDiscountValue) || 0)
+                            : (addToCartProduct.price * parseInt(cartQuantity, 10) * (parseFloat(cartDiscountValue) || 0)) / 100
+                        )}
+                      </AppText>
+                    </View>
+                    <View style={{ borderTopWidth: 1, borderTopColor: colors.borderDefault, paddingTop: 6, marginTop: 4 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '700' } as any}>Subtotal</AppText>
+                        <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '700' } as any}>
+                          {formatMoney(calculateSubtotal(addToCartProduct.price, parseInt(cartQuantity, 10), cartDiscountType, parseFloat(cartDiscountValue) || 0))}
+                        </AppText>
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <AppText variant="bodySmall" color="muted">Subtotal</AppText>
+                    <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>
+                      {formatMoney(addToCartProduct.price * parseInt(cartQuantity, 10))}
+                    </AppText>
+                  </View>
+                )}
               </Card>
             ) : null}
           </View>

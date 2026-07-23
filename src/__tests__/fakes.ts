@@ -15,7 +15,11 @@ import { Order } from '../modules/orders/domain/entities/Order';
 import { OrderRepository } from '../modules/orders/domain/repositories/OrderRepository';
 import { CartItem } from '../modules/orders/domain/entities/CartItem';
 import { CartRepository } from '../modules/orders/domain/repositories/CartRepository';
+import { PurchaseCartItem } from '../modules/orders/domain/entities/PurchaseCartItem';
+import { PurchaseCartRepository } from '../modules/orders/domain/repositories/PurchaseCartRepository';
 import { OrderPdfGeneratorPort } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
+import { Supplier } from '../modules/suppliers/domain/entities/Supplier';
+import { SupplierRepository } from '../modules/suppliers/domain/repositories/SupplierRepository';
 
 export class InMemoryFamilyRepository implements FamilyRepository {
   families = new Map<string, Family>();
@@ -74,6 +78,12 @@ export class InMemoryProductRepository implements ProductRepository {
   async findByFamily(familyId: string) {
     return [...this.products.values()].filter(
       (product) => product.familyId === familyId,
+    );
+  }
+
+  async findBySupplier(supplierId: string) {
+    return [...this.products.values()].filter(
+      (product) => product.supplierId === supplierId,
     );
   }
 }
@@ -298,5 +308,45 @@ export class FakeOrderPdfGenerator implements OrderPdfGeneratorPort {
   async generate(order: Order, profile: Profile | null): Promise<string> {
     this.lastCall = { order, profile };
     return this.nextUri;
+  }
+}
+
+export class InMemorySupplierRepository implements SupplierRepository {
+  suppliers = new Map<string, Supplier>();
+
+  async create(supplier: Supplier) {
+    this.suppliers.set(supplier.id, supplier);
+  }
+
+  async update(supplier: Supplier) {
+    this.suppliers.set(supplier.id, supplier);
+  }
+
+  async delete(id: string) {
+    this.suppliers.delete(id);
+  }
+
+  async findAll() {
+    return [...this.suppliers.values()];
+  }
+
+  async findById(id: string) {
+    return this.suppliers.get(id) ?? null;
+  }
+}
+
+export class InMemoryPurchaseCartRepository implements PurchaseCartRepository {
+  private items: PurchaseCartItem[] = [];
+
+  async getItems(): Promise<PurchaseCartItem[]> {
+    return [...this.items];
+  }
+
+  async saveItems(items: PurchaseCartItem[]): Promise<void> {
+    this.items = [...items];
+  }
+
+  async clear(): Promise<void> {
+    this.items = [];
   }
 }

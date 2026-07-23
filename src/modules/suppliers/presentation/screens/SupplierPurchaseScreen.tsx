@@ -11,43 +11,33 @@ import {
   EmptyStateIllustrated,
   Header,
   PrimaryButton,
-  SecondaryButton,
   Screen,
+  SecondaryButton,
   SearchBar,
   Divider,
   ChoiceChip,
 } from '../../../../shared/presentation/components/ui';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
-import { spacing, borderRadius } from '../../../../shared/presentation/theme';
 import { formatMoney } from '../../../../shared/utils/money';
 import { useProducts } from '../../../products/presentation/hooks/useProducts';
 import { useProfile } from '../../../profile/presentation/hooks/useProfile';
-import { useSuppliers } from '../../../suppliers/presentation/hooks/useSuppliers';
+import { useSuppliers } from '../hooks/useSuppliers';
+import { usePurchaseCart } from '../../../orders/presentation/hooks/usePurchaseCart';
 import { Product } from '../../../products/domain/entities/product';
-import { CartItem } from '../../domain/entities/CartItem';
+import { PurchaseCartItem, PurchaseDiscountType } from '../../../orders/domain/entities/PurchaseCartItem';
 
-type SelectedItem = {
-  productId: string;
-  productName: string;
-  productCode?: string;
-  unitPrice: number;
-  quantity: number;
-  format: string;
-  subtotal: number;
-};
-
-export function PurchaseDetailScreen() {
+export function SupplierPurchaseScreen() {
   const colors = useThemeColors();
   const { useCases } = useDependencies();
-  const { navigate } = useAppNavigation();
+  const { navigate, routeParams } = useAppNavigation();
   const { products } = useProducts();
   const { profile } = useProfile();
   const { suppliers } = useSuppliers();
+  const { items, reload, totalItems, subtotal } = usePurchaseCart();
 
-  const [supplierName, setSupplierName] = useState('');
+  const [supplierName, setSupplierName] = useState(routeParams?.supplierName ?? '');
   const [showSupplierPicker, setShowSupplierPicker] = useState(false);
   const [notes, setNotes] = useState('');
-  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const [showQuantityDialog, setShowQuantityDialog] = useState<Product | null>(null);
@@ -56,15 +46,9 @@ export function PurchaseDetailScreen() {
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [error, setError] = useState('');
-
-  const subtotal = useMemo(
-    () => selectedItems.reduce((sum, i) => sum + i.subtotal, 0),
-    [selectedItems],
-  );
-  const totalItems = useMemo(
-    () => selectedItems.reduce((sum, i) => sum + i.quantity, 0),
-    [selectedItems],
-  );
+  const [editingDiscount, setEditingDiscount] = useState<string | null>(null);
+  const [discountType, setDiscountType] = useState<PurchaseDiscountType>('none');
+  const [discountValue, setDiscountValue] = useState('');
 
   const filteredProducts = useMemo(() => {
     if (!pickerSearch) return products;
@@ -76,10 +60,37 @@ export function PurchaseDetailScreen() {
     );
   }, [products, pickerSearch]);
 
+  function updateQuantity(productId: string, currentQty: number, delta: number) {
+    const newQty = currentQty + delta;
+    if (newQty < 0) return;
+    void useCases.updatePurchaseCartItem.execute(productId, newQty).then(() => reload());
+  }
+
+  function removeItem(productId: string) {
+    Alert.alert('Quitar producto', '¿Eliminar este producto del carrito de compra?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Quitar',
+        style: 'destructive',
+        onPress: () => void useCases.removeFromPurchaseCart.execute(productId).then(() => reload()),
+      },
+    ]);
+  }
+
+  function clearCart() {
+    Alert.alert('Vaciar carrito', '¿Eliminar todos los productos del carrito de compra?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Vaciar',
+        style: 'destructive',
+        onPress: () => void useCases.clearPurchaseCart.execute().then(() => reload()),
+      },
+    ]);
+  }
+
   function openQuantityDialog(product: Product) {
-    const existing = selectedItems.find((i) => i.productId === product.id);
-    setTempQuantity(existing ? String(existing.quantity) : '1');
     setShowQuantityDialog(product);
+    setTempQuantity('1');
   }
 
   function confirmQuantity() {
@@ -89,55 +100,37 @@ export function PurchaseDetailScreen() {
       Alert.alert('Cantidad inválida', 'Ingresa un número mayor a 0');
       return;
     }
-
     const product = showQuantityDialog;
-    const existing = selectedItems.find((i) => i.productId === product.id);
-
-    if (existing) {
-      if (qty === 0) {
-        setSelectedItems((prev) => prev.filter((i) => i.productId !== product.id));
-      } else {
-        setSelectedItems((prev) =>
-          prev.map((i) =>
-            i.productId === product.id
-              ? { ...i, quantity: qty, subtotal: qty * i.unitPrice }
-              : i,
-          ),
-        );
-      }
-    } else {
-      setSelectedItems((prev) => [
-        ...prev,
-        {
-          productId: product.id,
-          productName: product.name,
-          productCode: product.code,
-          unitPrice: product.price,
-          quantity: qty,
-          format: product.format,
-          subtotal: qty * product.price,
-        },
-      ]);
-    }
-
-    setShowQuantityDialog(null);
+    const item: PurchaseCartItem = {
+      productId: product.id,
+      productName: product.name,
+      productCode: product.code,
+      unitPrice: product.price,
+      quantity: qty,
+      format: product.format,
+      discountType: 'none',
+      discountValue: 0,
+      subtotal: qty * product.price,
+    };
+    void useCases.addToPurchaseCart.execute(item).then(() => {
+      reload();
+      setShowQuantityDialog(null);
+    });
   }
 
-  function removeItem(productId: string) {
-    setSelectedItems((prev) => prev.filter((i) => i.productId !== productId));
+  function openDiscountEditor(item: PurchaseCartItem) {
+    setEditingDiscount(item.productId);
+    setDiscountType(item.discountType);
+    setDiscountValue(item.discountValue > 0 ? String(item.discountValue) : '');
   }
 
-  function updateQty(productId: string, delta: number) {
-    setSelectedItems((prev) =>
-      prev
-        .map((i) => {
-          if (i.productId !== productId) return i;
-          const newQty = i.quantity + delta;
-          if (newQty <= 0) return null;
-          return { ...i, quantity: newQty, subtotal: newQty * i.unitPrice };
-        })
-        .filter(Boolean) as SelectedItem[],
-    );
+  function saveDiscount() {
+    if (!editingDiscount) return;
+    const val = parseFloat(discountValue) || 0;
+    void useCases.updatePurchaseCartItemDiscount.execute(editingDiscount, discountType, val).then(() => {
+      reload();
+      setEditingDiscount(null);
+    });
   }
 
   async function generatePdf() {
@@ -145,8 +138,8 @@ export function PurchaseDetailScreen() {
       setError('Ingresa el nombre del proveedor');
       return;
     }
-    if (selectedItems.length === 0) {
-      setError('Selecciona al menos un producto');
+    if (items.length === 0) {
+      setError('El carrito está vacío');
       return;
     }
 
@@ -154,23 +147,23 @@ export function PurchaseDetailScreen() {
       setError('');
       setGenerating(true);
 
-      const items: CartItem[] = selectedItems.map((i) => ({
+      const cartItems = items.map((i) => ({
         productId: i.productId,
         productName: i.productName,
         productCode: i.productCode,
         unitPrice: i.unitPrice,
         quantity: i.quantity,
         format: i.format,
-        discountType: 'none' as const,
-        discountValue: 0,
+        discountType: i.discountType as any,
+        discountValue: i.discountValue,
         subtotal: i.subtotal,
       }));
 
       const order = {
-        id: `pd_${Date.now()}`,
+        id: `pc_${Date.now()}`,
         orderNumber: 0,
         clientName: supplierName.trim(),
-        items,
+        items: cartItems,
         subtotal,
         iva: 0,
         total: subtotal,
@@ -181,6 +174,16 @@ export function PurchaseDetailScreen() {
       const uri = await useCases.generateOrderPdf.execute(order as any, profile);
       setPdfUri(uri);
       setShowResult(true);
+
+      for (const item of items) {
+        const product = products.find((p) => p.id === item.productId);
+        if (product) {
+          await useCases.updateStock.execute(item.productId, product.stock + item.quantity);
+        }
+      }
+
+      await useCases.clearPurchaseCart.execute();
+      await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo generar el PDF');
     } finally {
@@ -197,25 +200,16 @@ export function PurchaseDetailScreen() {
     }
   }
 
-  function resetForm() {
-    setSupplierName('');
-    setNotes('');
-    setSelectedItems([]);
-    setPdfUri(null);
-    setShowResult(false);
-    setError('');
-  }
-
   return (
     <>
       <Screen>
         <Header
           eyebrow="Compra proveedor"
-          title="Detalle de compra"
-          subtitle={selectedItems.length > 0 ? `${totalItems} productos - ${formatMoney(subtotal)}` : 'Selecciona productos para tu pedido'}
+          title="Carrito de compra"
+          subtitle={totalItems > 0 ? `${totalItems} productos - ${formatMoney(subtotal)}` : 'Carrito de compra vacío'}
           action={
-            selectedItems.length > 0 ? (
-              <Pressable onPress={() => setSelectedItems([])} style={{ padding: 8 }}>
+            items.length > 0 ? (
+              <Pressable onPress={clearCart} style={{ padding: 8 }}>
                 <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
               </Pressable>
             ) : undefined
@@ -274,14 +268,20 @@ export function PurchaseDetailScreen() {
         </Card>
 
         <PrimaryButton
-          label="Seleccionar productos"
+          label="Agregar productos"
           icon="add-circle-outline"
           onPress={() => setShowProductPicker(true)}
         />
 
-        {selectedItems.length > 0 ? (
+        {items.length === 0 ? (
+          <EmptyStateIllustrated
+            icon="cart-outline"
+            title="Carrito de compra vacío"
+            subtitle="Agrega productos desde el selector de productos."
+          />
+        ) : (
           <>
-            {selectedItems.map((item) => (
+            {items.map((item) => (
               <Card key={item.productId} style={{ marginBottom: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -294,11 +294,22 @@ export function PurchaseDetailScreen() {
                     <AppText variant="bodySmall" color="muted" style={{ marginTop: 2 }}>
                       {item.format} - {formatMoney(item.unitPrice)} c/u
                     </AppText>
+                    {item.discountType !== 'none' && item.discountValue > 0 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                        <View style={{ backgroundColor: colors.success + '18', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                          <AppText variant="caption" color="success" style={{ fontWeight: '600' } as any}>
+                            {item.discountType === 'currency'
+                              ? `-${formatMoney(item.discountValue)}`
+                              : `-${item.discountValue}%`}
+                          </AppText>
+                        </View>
+                      </View>
+                    ) : null}
                   </View>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 0 }}>
                     <Pressable
-                      onPress={() => updateQty(item.productId, -1)}
+                      onPress={() => updateQuantity(item.productId, item.quantity, -1)}
                       style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' }}
                     >
                       <Ionicons name="remove" size={16} color={colors.primary} />
@@ -309,7 +320,7 @@ export function PurchaseDetailScreen() {
                       </AppText>
                     </View>
                     <Pressable
-                      onPress={() => updateQty(item.productId, 1)}
+                      onPress={() => updateQuantity(item.productId, item.quantity, 1)}
                       style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' }}
                     >
                       <Ionicons name="add" size={16} color={colors.primary} />
@@ -318,9 +329,19 @@ export function PurchaseDetailScreen() {
 
                   <View style={{ alignItems: 'flex-end', minWidth: 80 }}>
                     <AppText variant="price" color="accent">{formatMoney(item.subtotal)}</AppText>
-                    <Pressable onPress={() => removeItem(item.productId)} style={{ marginTop: 4 }}>
-                      <Ionicons name="close-circle-outline" size={18} color={colors.error} />
-                    </Pressable>
+                    {item.discountType !== 'none' && item.discountValue > 0 ? (
+                      <AppText variant="caption" color="muted" style={{ textDecorationLine: 'line-through' }}>
+                        {formatMoney(item.unitPrice * item.quantity)}
+                      </AppText>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <Pressable onPress={() => openDiscountEditor(item)}>
+                        <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
+                      </Pressable>
+                      <Pressable onPress={() => removeItem(item.productId)}>
+                        <Ionicons name="close-circle-outline" size={18} color={colors.error} />
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
               </Card>
@@ -370,12 +391,6 @@ export function PurchaseDetailScreen() {
               disabled={generating}
             />
           </>
-        ) : (
-          <EmptyStateIllustrated
-            icon="cart-outline"
-            title="Sin productos"
-            subtitle="Toca 'Seleccionar productos' para agregar productos a tu detalle de compra."
-          />
         )}
       </Screen>
 
@@ -383,14 +398,14 @@ export function PurchaseDetailScreen() {
       <BottomSheet
         visible={showProductPicker}
         onClose={() => { setShowProductPicker(false); setPickerSearch(''); }}
-        title="Seleccionar productos"
+        title="Agregar productos"
       >
         <SearchBar value={pickerSearch} onChange={setPickerSearch} placeholder="Buscar producto..." />
         <FlatList
           data={filteredProducts}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
-            const isSelected = selectedItems.some((i) => i.productId === item.id);
+            const inCart = items.some((i) => i.productId === item.id);
             return (
               <Pressable
                 onPress={() => openQuantityDialog(item)}
@@ -403,8 +418,8 @@ export function PurchaseDetailScreen() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 12,
-                  borderColor: isSelected ? colors.primary : colors.border,
-                  borderWidth: isSelected ? 1.5 : 1,
+                  borderColor: inCart ? colors.primary : colors.border,
+                  borderWidth: inCart ? 1.5 : 1,
                 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' } as any}>
@@ -414,7 +429,7 @@ export function PurchaseDetailScreen() {
                       {item.format} · {formatMoney(item.price)}
                     </AppText>
                   </View>
-                  {isSelected ? (
+                  {inCart ? (
                     <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
                       <Ionicons name="checkmark" size={16} color="#FFF" />
                     </View>
@@ -439,7 +454,7 @@ export function PurchaseDetailScreen() {
               <SecondaryButton label="Cancelar" onPress={() => setShowQuantityDialog(null)} />
             </View>
             <View style={{ flex: 1 }}>
-              <PrimaryButton label="Confirmar" onPress={confirmQuantity} />
+              <PrimaryButton label="Agregar" onPress={confirmQuantity} />
             </View>
           </View>
         }
@@ -491,6 +506,66 @@ export function PurchaseDetailScreen() {
         )}
       </BottomSheet>
 
+      {/* Discount Editor BottomSheet */}
+      <BottomSheet
+        visible={!!editingDiscount}
+        onClose={() => setEditingDiscount(null)}
+        title="Editar descuento"
+        stickyFooter={
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton label="Cancelar" icon="close-outline" onPress={() => setEditingDiscount(null)} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <PrimaryButton label="Guardar" icon="checkmark-outline" onPress={saveDiscount} />
+            </View>
+          </View>
+        }
+      >
+        {editingDiscount ? (
+          <View style={{ gap: 12 }}>
+            <AppText variant="labelMedium" color="secondary">Tipo de descuento</AppText>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(['none', 'currency', 'percentage'] as PurchaseDiscountType[]).map((t) => (
+                <ChoiceChip
+                  key={t}
+                  label={t === 'none' ? 'Sin descuento' : t === 'currency' ? 'Monto fijo' : 'Porcentaje'}
+                  selected={discountType === t}
+                  onPress={() => {
+                    setDiscountType(t);
+                    if (t === 'none') setDiscountValue('');
+                  }}
+                />
+              ))}
+            </View>
+            {discountType !== 'none' && (
+              <>
+                <AppText variant="labelMedium" color="secondary">
+                  {discountType === 'currency' ? 'Monto del descuento' : 'Porcentaje de descuento'}
+                </AppText>
+                <TextInput
+                  placeholder={discountType === 'currency' ? 'Ej: 500' : 'Ej: 10'}
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  style={{
+                    borderRadius: 12,
+                    borderWidth: 1.5,
+                    borderColor: colors.borderDefault,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    fontSize: 15,
+                    fontWeight: '500',
+                    color: colors.textPrimary,
+                  }}
+                  value={discountValue}
+                  onChangeText={setDiscountValue}
+                />
+              </>
+            )}
+          </View>
+        ) : null}
+      </BottomSheet>
+
       {/* Result BottomSheet */}
       <BottomSheet
         visible={showResult}
@@ -499,11 +574,11 @@ export function PurchaseDetailScreen() {
         stickyFooter={
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}>
-              <SecondaryButton label="Nuevo" onPress={resetForm} />
+              <SecondaryButton label="Cerrar" icon="close-outline" onPress={() => setShowResult(false)} />
             </View>
             {pdfUri && (
               <View style={{ flex: 1 }}>
-                <PrimaryButton label="Compartir" icon="share-social-outline" onPress={sharePdf} />
+                <PrimaryButton label="Compartir PDF" icon="share-social-outline" onPress={sharePdf} />
               </View>
             )}
           </View>
@@ -522,7 +597,7 @@ export function PurchaseDetailScreen() {
               </View>
               <AppText variant="headingMedium" color="primary" style={{ textAlign: 'center' } as any}>{supplierName}</AppText>
               <AppText variant="bodySmall" color="secondary" style={{ marginTop: 4 }}>
-                {selectedItems.length} productos · {formatMoney(subtotal)}
+                PDF listo para compartir
               </AppText>
             </>
           ) : null}
@@ -535,6 +610,7 @@ export function PurchaseDetailScreen() {
         </View>
       ) : null}
 
+      {/* Supplier Picker BottomSheet */}
       <BottomSheet
         visible={showSupplierPicker}
         onClose={() => setShowSupplierPicker(false)}
@@ -570,7 +646,7 @@ export function PurchaseDetailScreen() {
               >
                 <Ionicons name="business-outline" size={18} color={supplierName === s.name ? colors.primary : colors.textMuted} />
                 <View style={{ flex: 1 }}>
-                  <AppText variant="bodyMedium" color={supplierName === s.name ? 'accent' : 'primary'} style={{ fontWeight: '600' as any }}>
+                  <AppText variant="bodyMedium" color={supplierName === s.name ? 'accent' : 'primary'} style={{ fontWeight: '600' } as any}>
                     {s.name}
                   </AppText>
                   {s.contactName ? (

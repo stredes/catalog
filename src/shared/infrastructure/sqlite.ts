@@ -1,5 +1,8 @@
 import { SQLiteDatabase, openDatabaseAsync } from 'expo-sqlite';
 import { Directory, File, Paths } from 'expo-file-system';
+import { DATABASE_SCHEMA_VERSION } from './schema-version';
+
+export { DATABASE_SCHEMA_VERSION };
 
 let database: SQLiteDatabase | null = null;
 let databasePromise: Promise<SQLiteDatabase> | null = null;
@@ -13,7 +16,6 @@ type ColumnInfo = {
 };
 
 const DATABASE_NAME = 'catalog.db';
-export const DATABASE_SCHEMA_VERSION = 10;
 const BACKUP_DIR = new Directory(Paths.document, 'backups');
 
 const migrations: Record<number, string[]> = {
@@ -111,6 +113,21 @@ const migrations: Record<number, string[]> = {
     `CREATE INDEX IF NOT EXISTS idx_analytics_events_created ON analytics_events(createdAt)`,
   ],
   10: [`ALTER TABLE orders ADD COLUMN orderNumber INTEGER NOT NULL DEFAULT 0`],
+  11: [`ALTER TABLE orders ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'`],
+  12: [
+    `CREATE TABLE IF NOT EXISTS suppliers (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      phone TEXT,
+      email TEXT,
+      contactName TEXT,
+      notes TEXT,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    )`,
+    `ALTER TABLE products ADD COLUMN supplierId TEXT`,
+  ],
+  13: [`ALTER TABLE orders ADD COLUMN paidAmount REAL NOT NULL DEFAULT 0`],
 };
 
 async function columnExists(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {
@@ -232,16 +249,18 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
     const hasCatalogs = await tableExists(db, 'catalogs');
     const hasProfile = await tableExists(db, 'profile');
     const hasOrders = await tableExists(db, 'orders');
+    const hasSuppliers = await tableExists(db, 'suppliers');
 
     const families = hasFamilies ? await db.getAllAsync('SELECT * FROM families') : [];
     const products = hasProducts ? await db.getAllAsync('SELECT * FROM products') : [];
     const catalogs = hasCatalogs ? await db.getAllAsync('SELECT * FROM catalogs') : [];
     const profile = hasProfile ? await db.getAllAsync('SELECT * FROM profile') : [];
     const orders = hasOrders ? await db.getAllAsync('SELECT * FROM orders') : [];
+    const suppliers = hasSuppliers ? await db.getAllAsync('SELECT * FROM suppliers') : [];
     const migrations = await db.getAllAsync('SELECT * FROM schema_migrations').catch(() => []);
 
     const backupData = {
-      version: '3.1.8',
+      version: '3.2.2',
       createdAt: new Date().toISOString(),
       schemaVersion: currentVersion,
       families,
@@ -249,6 +268,7 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
       catalogs,
       profile,
       orders,
+      suppliers,
       schemaMigrations: migrations,
     };
 

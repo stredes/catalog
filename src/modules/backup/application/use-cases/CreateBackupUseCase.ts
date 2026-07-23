@@ -3,14 +3,23 @@ import { ProductRepository } from '../../../products/domain/repositories/Product
 import { CatalogRepository } from '../../../catalogs/domain/repositories/CatalogRepository';
 import { ProfileRepository } from '../../../profile/domain/repositories/ProfileRepository';
 import { OrderRepository } from '../../../orders/domain/repositories/OrderRepository';
+import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
 import { BackupRepository } from '../../domain/repositories/BackupRepository';
-import { BackupSnapshot, BackupPayload } from '../../domain/entities/BackupSnapshot';
+import { BackupSnapshot, BackupPayload, BackupImageMap } from '../../domain/entities/BackupSnapshot';
 import { CreateBackupInput, CreateBackupSchema } from '../dtos/BackupDtos';
 import { createId } from '../../../../shared/utils/ids';
 import { nowIso } from '../../../../shared/utils/dates';
-import { DATABASE_SCHEMA_VERSION } from '../../../../shared/infrastructure/sqlite';
+import { DATABASE_SCHEMA_VERSION } from '../../../../shared/infrastructure/schema-version';
+import { Product } from '../../../products/domain/entities/product';
+import { Profile } from '../../../profile/domain/entities/profile';
+
+export type ImageCollector = (products: Product[], profile: Profile | null) => Promise<BackupImageMap>;
+
+const noopImageCollector: ImageCollector = async () => ({});
 
 export class CreateBackupUseCase {
+  private readonly collectImages: ImageCollector;
+
   constructor(
     private readonly backupRepo: BackupRepository,
     private readonly familyRepo: FamilyRepository,
@@ -18,18 +27,25 @@ export class CreateBackupUseCase {
     private readonly catalogRepo: CatalogRepository,
     private readonly profileRepo: ProfileRepository,
     private readonly orderRepo: OrderRepository,
-  ) {}
+    private readonly supplierRepo: SupplierRepository,
+    collectImages?: ImageCollector,
+  ) {
+    this.collectImages = collectImages ?? noopImageCollector;
+  }
 
   async execute(input: CreateBackupInput): Promise<BackupSnapshot> {
     const validated = CreateBackupSchema.parse(input);
 
-    const [families, products, catalogs, profile, orders] = await Promise.all([
+    const [families, products, catalogs, profile, orders, suppliers] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
       this.catalogRepo.findAll(),
       this.profileRepo.find(),
       this.orderRepo.findAll(),
+      this.supplierRepo.findAll(),
     ]);
+
+    const images = await this.collectImages(products, profile);
 
     const payload: BackupPayload = {
       schemaVersion: DATABASE_SCHEMA_VERSION,
@@ -39,6 +55,8 @@ export class CreateBackupUseCase {
       catalogs,
       profile,
       orders,
+      suppliers,
+      images,
     };
 
     const checksum = computeChecksum(payload);
@@ -69,6 +87,7 @@ function computeChecksum(payload: BackupPayload): string {
     pc: payload.products.length,
     cc: payload.catalogs.length,
     oc: payload.orders.length,
+    sc: payload.suppliers?.length ?? 0,
     fp: payload.profile !== null,
     fn: payload.families.map((f) => f.id).sort(),
     pn: payload.products.map((p) => p.id).sort(),

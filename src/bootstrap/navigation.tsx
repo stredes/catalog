@@ -11,15 +11,13 @@ import { LoginScreen } from '../modules/auth/presentation/screens/LoginScreen';
 import { RegisterScreen } from '../modules/auth/presentation/screens/RegisterScreen';
 import { CartScreen } from '../modules/orders/presentation/screens/CartScreen';
 import { OrderHistoryScreen } from '../modules/orders/presentation/screens/OrderHistoryScreen';
-import { PurchaseDetailScreen } from '../modules/orders/presentation/screens/PurchaseDetailScreen';
 import { EditOrderScreen } from '../modules/orders/presentation/screens/EditOrderScreen';
 import { BackupSettingsScreen } from '../modules/backup/presentation/screens/BackupSettingsScreen';
+import { SuppliersScreen } from '../modules/suppliers/presentation/screens/SuppliersScreen';
+import { SupplierPurchaseScreen } from '../modules/suppliers/presentation/screens/SupplierPurchaseScreen';
 import { useDependencies } from './dependencies';
 
-export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'OrderHistory' | 'PurchaseDetail' | 'EditOrder' | 'Backup';
-
-const ONBOARDING_KEY = 'catalog_clean_onboarding_completed';
-const USER_KEY = 'catalog_clean_user';
+export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'OrderHistory' | 'PurchaseCart' | 'EditOrder' | 'Backup' | 'Suppliers';
 
 type NavigationContextValue = {
   activeRoute: AppRoute;
@@ -61,12 +59,14 @@ function renderRoute(route: AppRoute) {
       return <CartScreen />;
     case 'OrderHistory':
       return <OrderHistoryScreen />;
-    case 'PurchaseDetail':
-      return <PurchaseDetailScreen />;
+    case 'PurchaseCart':
+      return <SupplierPurchaseScreen />;
     case 'EditOrder':
       return <EditOrderScreen />;
     case 'Backup':
       return <BackupSettingsScreen />;
+    case 'Suppliers':
+      return <SuppliersScreen />;
     case 'Dashboard':
     default:
       return <DashboardScreen />;
@@ -80,11 +80,8 @@ export function AppNavigator() {
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    async function init() {
-      setActiveRoute('Dashboard');
-      setReady(true);
-    }
-    init();
+    setActiveRoute('Dashboard');
+    setReady(true);
   }, []);
 
   const navigate = useCallback((route: AppRoute, params?: Record<string, string>) => {

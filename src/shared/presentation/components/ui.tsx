@@ -35,7 +35,7 @@ export function c() {
 
 // ─── AppText ───────────────────────────────────────────
 
-type AppTextColor = 'primary' | 'secondary' | 'muted' | 'disabled' | 'inverse' | 'accent' | 'success' | 'warning' | 'error';
+type AppTextColor = 'primary' | 'secondary' | 'muted' | 'disabled' | 'inverse' | 'accent' | 'info' | 'success' | 'warning' | 'error';
 
 const colorMap: Record<AppTextColor, keyof ReturnType<typeof c>> = {
   primary: 'textPrimary',
@@ -44,6 +44,7 @@ const colorMap: Record<AppTextColor, keyof ReturnType<typeof c>> = {
   disabled: 'textDisabled',
   inverse: 'textInverse',
   accent: 'textAccent',
+  info: 'info',
   success: 'success',
   warning: 'warning',
   error: 'error',
@@ -363,11 +364,12 @@ export function FloatingActionButton({ icon, label, onPress, bottom }: {
 
 // ─── ProductCard (responsive) ──────────────────────────
 
-export function ProductCard({ name, price, format, family, photoUri, stock, onPress, onEdit, onDelete, onIncrement, onDecrement, onStockChange }: {
+export function ProductCard({ name, price, format, family, supplier, photoUri, stock, onPress, onEdit, onDelete, onIncrement, onDecrement, onStockChange }: {
   name: string;
   price: string;
   format: string;
   family: string;
+  supplier?: string;
   photoUri?: string | null;
   stock?: number;
   onPress?: () => void;
@@ -432,8 +434,8 @@ export function ProductCard({ name, price, format, family, photoUri, stock, onPr
             <Ionicons name="image-outline" size={28} color={colors.textMuted} />
           </View>
         )}
-        <View style={styles.productInfo}>
-          <AppText variant="bodyMedium" color="primary" numberOfLines={2}>{name}</AppText>
+        <View style={[styles.productInfo, { minWidth: 0 }]}>
+          <AppText variant="bodyMedium" color="primary" numberOfLines={2} style={{ lineHeight: 18 }}>{name}</AppText>
           <AppText variant="price" color="accent" numberOfLines={1} style={{ marginTop: spacing.xs }}>{price}</AppText>
           <View style={[styles.productMeta, { marginTop: spacing.sm }]}>
             <View style={[styles.formatBadge, { backgroundColor: fmtColor + '18' }]}>
@@ -441,6 +443,9 @@ export function ProductCard({ name, price, format, family, photoUri, stock, onPr
             </View>
           </View>
           <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: 2 }}>{family}</AppText>
+          {supplier ? (
+            <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: 1, color: '#8B5CF6' }}>{supplier}</AppText>
+          ) : null}
           {stock !== undefined ? (
             <View style={[styles.stockCounter, { marginTop: spacing.sm }]}>
               <Pressable

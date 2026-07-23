@@ -3,6 +3,7 @@ import { Product } from '../../../products/domain/entities/product';
 import { Catalog } from '../../../catalogs/domain/entities/Catalog';
 import { Profile } from '../../../profile/domain/entities/profile';
 import { Order } from '../../../orders/domain/entities/Order';
+import { Supplier } from '../../../suppliers/domain/entities/Supplier';
 
 export type BackupTrigger = 'manual' | 'auto-before-delete' | 'auto-periodic' | 'auto-before-seed';
 
@@ -20,6 +21,8 @@ export type BackupSnapshot = {
   createdAt: string;
 };
 
+export type BackupImageMap = Record<string, string>;
+
 export type BackupPayload = {
   schemaVersion: number;
   createdAt: string;
@@ -28,4 +31,6 @@ export type BackupPayload = {
   catalogs: Catalog[];
   profile: Profile | null;
   orders: Order[];
+  suppliers: Supplier[];
+  images: BackupImageMap;
 };

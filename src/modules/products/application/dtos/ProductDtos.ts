@@ -8,6 +8,7 @@ export const productSchema = z.object({
   format: z.enum(['unit', 'box', 'pack', 'service']),
   photoUri: z.string().optional(),
   familyId: z.string().min(1, 'Selecciona una familia'),
+  supplierId: z.string().optional(),
 });
 
 export type ProductInputDto = z.input<typeof productSchema>;

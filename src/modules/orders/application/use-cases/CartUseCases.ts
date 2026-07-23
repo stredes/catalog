@@ -1,4 +1,4 @@
-import { CartItem } from '../../domain/entities/CartItem';
+import { CartItem, calculateSubtotal } from '../../domain/entities/CartItem';
 import { CartRepository } from '../../domain/repositories/CartRepository';
 
 export class GetCartItemsUseCase {
@@ -18,9 +18,10 @@ export class AddToCartUseCase {
 
     let updated: CartItem[];
     if (existing) {
+      const newQty = existing.quantity + item.quantity;
       updated = items.map((i) =>
         i.productId === item.productId
-          ? { ...i, quantity: i.quantity + item.quantity, subtotal: (i.quantity + item.quantity) * i.unitPrice }
+          ? { ...i, quantity: newQty, subtotal: calculateSubtotal(i.unitPrice, newQty, i.discountType, i.discountValue) }
           : i,
       );
     } else {
@@ -46,7 +47,23 @@ export class UpdateCartItemUseCase {
 
     const updated = items.map((i) =>
       i.productId === productId
-        ? { ...i, quantity, subtotal: quantity * i.unitPrice }
+        ? { ...i, quantity, subtotal: calculateSubtotal(i.unitPrice, quantity, i.discountType, i.discountValue) }
+        : i,
+    );
+
+    await this.cart.saveItems(updated);
+    return updated;
+  }
+}
+
+export class UpdateCartItemDiscountUseCase {
+  constructor(private cart: CartRepository) {}
+
+  async execute(productId: string, discountType: CartItem['discountType'], discountValue: number): Promise<CartItem[]> {
+    const items = await this.cart.getItems();
+    const updated = items.map((i) =>
+      i.productId === productId
+        ? { ...i, discountType, discountValue, subtotal: calculateSubtotal(i.unitPrice, i.quantity, discountType, discountValue) }
         : i,
     );
 

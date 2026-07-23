@@ -1,21 +1,21 @@
-export type DiscountType = 'none' | 'currency' | 'percentage';
+export type PurchaseDiscountType = 'none' | 'currency' | 'percentage';
 
-export type CartItem = {
+export type PurchaseCartItem = {
   productId: string;
   productName: string;
   productCode?: string;
   unitPrice: number;
   quantity: number;
   format: string;
-  discountType: DiscountType;
+  discountType: PurchaseDiscountType;
   discountValue: number;
   subtotal: number;
 };
 
-export function calculateSubtotal(
+export function calculatePurchaseSubtotal(
   unitPrice: number,
   quantity: number,
-  discountType: DiscountType,
+  discountType: PurchaseDiscountType,
   discountValue: number,
 ): number {
   const base = unitPrice * quantity;

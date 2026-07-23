@@ -1,5 +1,5 @@
 import { getDatabase } from '../../../../shared/infrastructure/sqlite';
-import { Order } from '../../domain/entities/Order';
+import { Order, OrderStatus } from '../../domain/entities/Order';
 import { OrderRepository } from '../../domain/repositories/OrderRepository';
 
 type OrderRow = {
@@ -10,6 +10,8 @@ type OrderRow = {
   subtotal: number;
   iva: number;
   total: number;
+  status: string;
+  paidAmount: number;
   notes: string | null;
   createdAt: string;
 };
@@ -23,6 +25,8 @@ function rowToOrder(row: OrderRow): Order {
     subtotal: row.subtotal,
     iva: row.iva,
     total: row.total,
+    status: (['pending', 'partial', 'paid'].includes(row.status) ? row.status : 'pending') as OrderStatus,
+    paidAmount: row.paidAmount ?? (row.status === 'paid' ? row.total : 0),
     notes: row.notes ?? undefined,
     createdAt: row.createdAt,
   };
@@ -32,8 +36,8 @@ export class SQLiteOrderRepository implements OrderRepository {
   async save(order: Order): Promise<void> {
     const db = await getDatabase();
     await db.runAsync(
-      `INSERT INTO orders (id, orderNumber, clientName, items, subtotal, iva, total, notes, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO orders (id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       order.id,
       order.orderNumber,
       order.clientName,
@@ -41,6 +45,8 @@ export class SQLiteOrderRepository implements OrderRepository {
       order.subtotal,
       order.iva,
       order.total,
+      order.status ?? 'pending',
+      order.paidAmount ?? 0,
       order.notes ?? null,
       order.createdAt,
     );
@@ -49,12 +55,14 @@ export class SQLiteOrderRepository implements OrderRepository {
   async update(order: Order): Promise<void> {
     const db = await getDatabase();
     await db.runAsync(
-      `UPDATE orders SET clientName = ?, items = ?, subtotal = ?, iva = ?, total = ?, notes = ? WHERE id = ?`,
+      `UPDATE orders SET clientName = ?, items = ?, subtotal = ?, iva = ?, total = ?, status = ?, paidAmount = ?, notes = ? WHERE id = ?`,
       order.clientName,
       JSON.stringify(order.items),
       order.subtotal,
       order.iva,
       order.total,
+      order.status ?? 'pending',
+      order.paidAmount ?? 0,
       order.notes ?? null,
       order.id,
     );

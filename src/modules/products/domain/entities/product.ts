@@ -9,6 +9,7 @@ export type Product = {
   format: ProductFormat;
   photoUri?: string;
   familyId: string;
+  supplierId?: string;
   createdAt: string;
   updatedAt: string;
 };

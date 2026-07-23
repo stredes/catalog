@@ -1,6 +1,6 @@
 # Contexto rapido para agentes IA
 
-Ultima actualizacion: 2026-07-22 (v3.1.8 - font sizes aumentados, renombrar orden→pedido, stock 0 oculto en PDFs, namespace fix, APK build)
+Ultima actualizacion: 2026-07-23 (v3.2.2 - pagos parciales, estadisticas de ventas y reposicion de stock por compra)
 Proyecto: `catalog-clean`
 Raiz: `C:\Users\bodega 1\Desktop\workspace\catalog`
 
@@ -12,12 +12,14 @@ persistente de la app.
 
 Flujos principales:
 - Gestionar familias/categorias.
-- Gestionar productos con precio, formato, codigo opcional, stock, familia e imagen.
+- Gestionar productos con precio, formato, codigo opcional, stock, familia, proveedor e imagen.
+- Gestionar proveedores para asociar productos a sus catalogos.
 - Configurar perfil del negocio con logo, datos de contacto y datos bancarios.
-- Generar catálogos PDF con 6 formatos visuales (incluido premium editorial).
+- Generar catalogos PDF con 6 formatos visuales (incluido premium editorial).
 - Contenido editorial: texto profesional auto-generado offline por categoria/producto.
-- Carrito de compras con cantidades y generacion de pedidos PDF.
-- Backup y restauracion de datos (2 sistemas: basico y avanzado).
+- Carrito de compras con cantidades, descuentos y generacion de pedidos PDF.
+- Historial de pedidos con calendario, filtros por estado y toggle pagado/pendiente.
+- Backup y restauracion de datos (incluye suppliers).
 - Compartir PDFs por share sheet nativo.
 
 ## Stack
@@ -55,7 +57,7 @@ Scripts utiles:
 - `src/bootstrap/navigation.tsx`: navegacion manual por estado, sin React
   Navigation. Rutas: `Login`, `Register`, `Onboarding`, `Dashboard`, `Products`,
   `Families`, `Catalogs`, `CatalogBuilder`, `Profile`, `Cart`, `OrderHistory`,
-  `PurchaseDetail`, `Backup`.
+  `PurchaseDetail`, `EditOrder`, `Backup`, `Suppliers`.
 - `src/bootstrap/dependencies.tsx`: composicion de dependencias, repositorios,
   servicios y casos de uso.
 
@@ -84,6 +86,7 @@ src/
     products/         # CRUD productos
     profile/          # Perfil del negocio
     sharing/          # Servicio nativo de share
+    suppliers/        # CRUD proveedores
 ```
 
  Patron local:
@@ -104,7 +107,7 @@ nuevas directamente en pantallas si pertenecen a casos de uso o repositorios.
 SQLite:
 - Archivo DB: `catalog.db`
 - Implementacion central: `src/shared/infrastructure/sqlite.ts`
-- Version actual de esquema: `DATABASE_SCHEMA_VERSION = 10`
+- Version actual de esquema: `DATABASE_SCHEMA_VERSION = 13`
 - Migraciones:
   1. `families`, `products`, `catalogs`, `schema_migrations`
   2. `profile`
@@ -116,22 +119,26 @@ SQLite:
   8. `backup_snapshots`, `backup_payloads`
   9. `analytics_events` (con indices)
   10. `orders.orderNumber` (numeracion progresiva de pedidos)
+  11. `orders.status` (estado de pago: pending/paid)
+  12. `suppliers` + `products.supplierId`
+  13. `orders.paidAmount` (pagos parciales)
 
 Tablas principales:
 - `families`: `id`, `name`, `createdAt`, `updatedAt`
-- `products`: `id`, `name`, `code`, `price`, `format`, `photoUri`, `familyId`, `stock`, `createdAt`, `updatedAt`
+- `products`: `id`, `name`, `code`, `price`, `format`, `photoUri`, `familyId`, `supplierId`, `stock`, `createdAt`, `updatedAt`
+- `suppliers`: `id`, `name`, `phone`, `email`, `contactName`, `notes`, `createdAt`, `updatedAt`
 - `catalogs`: `id`, `name`, `familyId`, `familyIds`, `format`, `purpose`, `productIds`, `pdfUri`, `createdAt`
 - `profile`: datos del negocio, `logoUri`, datos bancarios
-- `orders`: `id`, `clientName`, `items` (JSON), `subtotal`, `iva=0`, `total`, `notes`, `createdAt`
+- `orders`: `id`, `clientName`, `items` (JSON), `subtotal`, `iva=0`, `total`, `status` (pending/partial/paid), `paidAmount`, `notes`, `createdAt`
 - `backup_snapshots`: metadata de backups
-- `backup_payloads`: payload completo JSON
+- `backup_payloads`: payload completo JSON (incluye `images` como `Record<string, string>`)
 - `analytics_events`: `id`, `name`, `data` (JSON), `createdAt`
 
 Archivos persistentes:
 - Imagenes: `Paths.document/product-images`
 - PDFs catalogos: `Paths.document/catalog-pdfs`
 - PDFs pedidos: `Paths.document/order-pdfs`
-- Backups: directorio de backups
+- Backups: directorio de backups (auto-backup antes de migracion)
 
 Notas:
 - `SQLiteCatalogRepository.delete` borra el PDF fisico solo si ningun otro
@@ -140,6 +147,7 @@ Notas:
 - `SQLiteProductRepository.delete` no borra la imagen fisica del producto.
 - Carrito persiste en AsyncStorage (clave `catalog_clean_cart`), NO en SQLite.
 - IVA hardcoded en 0 (productos ya incluyen IVA).
+- Productos pueden tener `supplierId` opcional para asociarlos a un proveedor.
 
 ## BottomMenu (5 tabs)
 
@@ -153,13 +161,14 @@ Notas:
 
 - Cart NO esta en BottomMenu; se accede desde icono carrito en ProductsScreen.
 - PurchaseDetail se accede desde tile "Compra proveedor" en Dashboard.
+- Suppliers se accede desde tile "Proveedores" en Dashboard.
 - Backup se accede desde ProfileScreen.
 - UI usa `LiquidGlassContainer` con efecto frosted glass.
 
 ## Navegacion
 
 Rutas: `Login | Register | Onboarding | Dashboard | Products | Families |
-Catalogs | CatalogBuilder | Profile | Cart | OrderHistory | PurchaseDetail | Backup`
+Catalogs | CatalogBuilder | Profile | Cart | OrderHistory | PurchaseDetail | EditOrder | Backup | Suppliers`
 
 Navegacion manual por `useState` (sin React Navigation).
 - `NavigationContext` con `activeRoute` y `navigate(route)`.
@@ -180,6 +189,22 @@ Archivos:
 Validacion: nombre requerido, minimo 2 caracteres.
 Eliminacion en cascade: borrar familia tambien borra sus productos.
 
+### Suppliers
+
+Archivos:
+- `src/modules/suppliers/domain/entities/Supplier.ts`
+- `src/modules/suppliers/application/dtos/SupplierDtos.ts`
+- `src/modules/suppliers/application/use-cases/SupplierUseCases.ts`
+- `src/modules/suppliers/infrastructure/repositories/SQLiteSupplierRepository.ts`
+- `src/modules/suppliers/presentation/hooks/useSuppliers.ts`
+- `src/modules/suppliers/presentation/screens/SuppliersScreen.tsx`
+
+Campos: `name` (min 2), `phone` (opcional), `email` (opcional),
+`contactName` (opcional), `notes` (opcional).
+Productos se asocian via `supplierId` opcional en Product.
+SuppliersScreen: lista con busqueda, detalle, crear/editar/eliminar.
+Conteo de productos asociados por proveedor.
+
 ### Products
 
 Archivos:
@@ -192,12 +217,13 @@ Archivos:
 - `src/modules/products/presentation/screens/ProductsScreen.tsx`
 
 Campos: `name` (min 2), `code` (opcional), `price` (positivo),
-`format` (unit/box/pack/service), `familyId` (requerido), `photoUri` (opcional),
-`stock` (entero, default 0).
+`format` (unit/box/pack/service), `familyId` (requerido), `supplierId` (opcional),
+`photoUri` (opcional), `stock` (entero, default 0).
 
-Features: toggle grilla/lista, busqueda, filtro por familia, 3 ordenes,
+Features: toggle grilla/lista, busqueda, filtro por familia Y por proveedor, 3 ordenes,
 FAB, badge de carrito, bottom sheet detalle con pinch-zoom, +/- stock,
-agregar al carrito con cantidad.
+agregar al carrito con cantidad y descuento (currency o percentage).
+Badge del proveedor (morado) en tarjetas y detalle.
 
 ### Catalogs / History
 
@@ -222,7 +248,7 @@ Wizard del builder (7 pasos):
 - 5: Vista previa
 - 6: Generar/Exito (con boton compartir)
 
-Dashboard quick actions (5 tiles): Nuevo producto, Nueva categoria, Historial, Pedidos, Compra proveedor
+Dashboard quick actions (6 tiles): Productos, Carrito, Pedidos, Categorias, Proveedores, Compra proveedor, Backup
 
 Tipos de documento (`CatalogPurpose`):
 - `'catalog'` - Catalogo de productos para clientes
@@ -265,7 +291,7 @@ Notas:
 - `ExpoPdfGenerator` arma HTML inline y usa `Print.printToFileAsync`.
 - Lazy image loading: procesamiento por lotes (IMAGE_BATCH_SIZE=5).
 - Cache SHA256: reutiliza PDF si mismo nombre+formato+productos.
-- Conversión de imagenes a data URI via `CatalogImageResolver`.
+- Conversion de imagenes a data URI via `CatalogImageResolver`.
 - Escape HTML implementado en `escapeHtml()`.
 - WhatsApp SVG inline junto al telefono.
 - `premium-cover` usa `src/modules/pdf/templates/editorial` con tokens
@@ -274,28 +300,53 @@ Notas:
 ### Orders / Carrito de Compras
 
 Archivos:
-- `src/modules/orders/domain/entities/CartItem.ts` - productId, productName, productCode, unitPrice, quantity, format, subtotal
-- `src/modules/orders/domain/entities/Order.ts` - id, clientName, items[], subtotal, iva=0, total, notes, createdAt
+- `src/modules/orders/domain/entities/CartItem.ts` - productId, productName, productCode, unitPrice, quantity, format, discountType, discountValue, subtotal + calculateSubtotal()
+- `src/modules/orders/domain/entities/Order.ts` - id, clientName, items[], subtotal, iva=0, total, status ('pending'|'paid'), notes, createdAt + OrderStatus type
 - `src/modules/orders/domain/repositories/CartRepository.ts`
 - `src/modules/orders/domain/repositories/OrderRepository.ts`
 - `src/modules/orders/application/dtos/OrderDtos.ts`
-- `src/modules/orders/application/use-cases/CartUseCases.ts` - addToCart, updateQuantity, removeFromCart, clearCart
-- `src/modules/orders/application/use-cases/OrderUseCases.ts` - generateOrder, getOrders, deleteOrder, formatOrderAsText
+- `src/modules/orders/application/use-cases/CartUseCases.ts` - addToCart, updateQuantity, updateCartItemDiscount, removeFromCart, clearCart
+- `src/modules/orders/application/use-cases/OrderUseCases.ts` - generateOrder, getOrders, deleteOrder, toggleOrderStatus, updateOrder, formatOrderAsText
 - `src/modules/orders/application/use-cases/GenerateOrderPdfUseCase.ts`
-- `src/modules/orders/infrastructure/OrderPdfGenerator.ts` - PDF pedido
+- `src/modules/orders/infrastructure/OrderPdfGenerator.ts` - PDF pedido con descuentos y badge de estado
 - `src/modules/orders/infrastructure/repositories/AsyncStorageCartRepository.ts`
 - `src/modules/orders/infrastructure/repositories/SQLiteOrderRepository.ts`
 - `src/modules/orders/presentation/hooks/useCart.ts`
 - `src/modules/orders/presentation/hooks/useOrders.ts`
 - `src/modules/orders/presentation/screens/CartScreen.tsx`
-- `src/modules/orders/presentation/screens/OrderHistoryScreen.tsx`
+- `src/modules/orders/presentation/screens/OrderHistoryScreen.tsx` - vista lista/calendario, filtros por estado, toggle, badge
+- `src/modules/orders/presentation/screens/EditOrderScreen.tsx`
 - `src/modules/orders/presentation/screens/PurchaseDetailScreen.tsx`
 
+Descuentos (DiscountType: 'none' | 'currency' | 'percentage'):
+- ProductsScreen BottomSheet: selector tipo descuento, input valor, preview subtotal con descuento.
+- CartScreen: muestra badge de descuento (verde), precio original tachado, subtotal descontado.
+- OrderPdfGenerator: columna descuento en tabla HTML, precio original tachado.
+- formatOrderAsText: muestra descuento en formato texto.
+- calculateSubtotal(unitPrice, qty, discountType, discountValue) calcula subtotal con descuento.
+
+Estado de pedido (OrderStatus: 'pending' | 'partial' | 'paid'):
+- Cada pedido nuevo inicia en 'pending'.
+- Los abonos acumulan `paidAmount`; el estado cambia a `partial` y finalmente a `paid`.
+- OrderHistoryScreen: vista lista y calendario, chips de filtro (Todos/Pendientes/Pagados), badge verde/amarillo, boton toggle.
+- OrderPdfGenerator: badge de estado en PDF (verde PAGADO, amarillo PENDIENTE).
+- formatOrderAsText: linea "Estado: PAGADO/PENDIENTE".
+- ToggleOrderStatusUseCase: alterna entre pending/paid.
+
+OrderHistoryScreen features:
+- Toggle vista lista / calendario
+- Calendario: navegacion mes, dias con pedidos marcados en amarillo, tap para ver pedidos del dia
+- Filtros: Todos, Pendientes, Pagados + ordenamiento (recientes, cliente)
+- Tarjetas: precio total alineado con `flexShrink: 0` + `minWidth: 80` + `textAlign: right`
+- Subtotales de items con `flexShrink: 0` para evitar compresion
+
 Flujo:
-- Desde Productos, tocar producto abre detalle. Boton "Al carrito" con cantidad.
+- Desde Productos, tocar producto abre detalle. Boton "Al carrito" con cantidad y descuento opcional.
 - Carrito en AsyncStorage. Badge en ProductsScreen.
-- CartScreen: items con +/-, eliminar, subtotal/total, nombre cliente, notas.
-- "Generar pedido" → guarda en SQLite, genera PDF, muestra desglose.
+- CartScreen: items con +/-, eliminar, subtotal/total con descuentos, nombre cliente, notas.
+- "Generar pedido" -> guarda en SQLite con status 'pending', genera PDF con descuentos y badge estado.
+- OrderHistoryScreen: filtrar por estado, marcar como pagado/pendiente, ver calendario.
+- EditOrderScreen: editar cantidad de items existentes con recalculo de descuentos.
 - IVA siempre en 0 (productos ya incluyen IVA).
 
 ### Profile
@@ -312,24 +363,32 @@ Campos: businessName (min 2), ownerName, phone, email, address, website,
 logoUri, bankName, bankAccountType, bankAccountNumber.
 Toggle tema claro/oscuro. Backup basico inline. Logout.
 
-### Backup (2 sistemas)
+### Backup (sistema unificado)
 
-**Sistema 1 - Basico** (ProfileScreen):
-- Exporta todas las tablas a JSON timestamped.
-- Listar, restaurar, eliminar, compartir.
+- `src/modules/backup/domain/entities/BackupSnapshot.ts` - entidades: `BackupSnapshot`, `BackupPayload` (con `images`, `suppliers`), `BackupTrigger`
+- `src/modules/backup/domain/repositories/BackupRepository.ts` - interfaz
+- `src/modules/backup/domain/repositories/ChangeTrackerPort.ts` - interfaz
+- `src/modules/backup/infrastructure/repositories/SQLiteBackupRepository.ts` - repositorio SQLite
+- `src/modules/backup/infrastructure/services/AutoBackupService.ts` - auto-backup, monitoreo, pre-eliminacion
+- `src/modules/backup/infrastructure/services/ChangeDetector.ts` - deteccion de cambios
+- `src/modules/backup/infrastructure/services/BackupImageCollector.ts` - coleccion y restauracion de imagenes
+- `src/modules/backup/infrastructure/services/FileImportService.ts` - importar JSON legacy
+- `src/modules/backup/application/use-cases/CreateBackupUseCase.ts` - crear backup con imagenes + suppliers
+- `src/modules/backup/application/use-cases/RestoreBackupUseCase.ts` - restaurar backup con imagenes + suppliers
+- `src/modules/backup/application/use-cases/ListBackupsUseCase.ts` - listar backups
+- `src/modules/backup/application/dtos/BackupDtos.ts` - schemas Zod
+- `src/modules/backup/presentation/screens/BackupSettingsScreen.tsx` - UI completa
+- `src/modules/backup/presentation/hooks/useBackupManager.ts` - hook de estado
+- `src/modules/backup/__tests__/AutoBackupService.test.ts` - tests
 
-**Sistema 2 - Avanzado** (BackupSettingsScreen):
-- `src/modules/backup/domain/entities/Backup.ts`
-- `src/modules/backup/domain/repositories/BackupRepository.ts`
-- `src/modules/backup/infrastructure/repositories/SQLiteBackupRepository.ts`
-- `src/modules/backup/application/use-cases/BackupUseCases.ts`
-- `src/modules/backup/infrastructure/DatabaseBackupService.ts`
-- `src/modules/backup/presentation/screens/BackupSettingsScreen.tsx`
-  - Backup con etiqueta, auto-backup, 4 triggers, deteccion de cambios,
-    monitoreo periodico (5 min), pre-eliminacion, max 10 backups.
-  - Backup incluye orders (v3.1.8).
-  - BackupPayload type: families, products, catalogs, profile, orders.
-  - BackupSnapshot type: incluye ordersCount.
+Features:
+- Backup con etiqueta, auto-backup, 4 triggers, deteccion de cambios, monitoreo periodico (5 min)
+- Backup incluye imagenes (productos y logo) como base64 en payload JSON
+- Backup incluye suppliers (migracion backwards-compatible)
+- Importar backup desde archivo JSON legacy (via FileImportService)
+- Compartir backup via share sheet nativo
+- Max 10 backups en SQLite
+- BackupPayload: families, products, catalogs, profile, orders, suppliers, images
 
 ### Analytics
 
@@ -373,6 +432,7 @@ Notas:
 - Componentes: AppText, Card, PrimaryButton, SecondaryButton, GhostButton,
   IconButton, SearchBar, ChoiceChip, BottomSheet, FloatingActionButton,
   WizardStep, MetricCard, StatusBadge, EmptyState, ConfirmDialog, etc.
+- ProductCard: soporta `supplier` opcional (texto morado debajo de familia).
 - ProductSelectionCard: seleccion con toggle, soporta quantity para purchase-detail.
 - ProductCard, FamilyCard, HistoryItem, RecentProductCard: text overflow fix
   con `numberOfLines={1}` y `minWidth: 0`.
@@ -389,11 +449,11 @@ Tests existentes:
 - `src/modules/products/application/use-cases/ProductUseCases.test.ts`
 - `src/modules/catalogs/application/use-cases/CatalogUseCases.test.ts`
 - `src/modules/catalogs/domain/services/getCatalogSelectedProducts.test.ts`
-- `src/modules/backup/__tests__/AutoBackupService.test.ts` (1 fallo pre-existente)
+- `src/modules/backup/__tests__/AutoBackupService.test.ts`
 - `src/__tests__/e2e-flow.test.ts` (3 tests E2E)
-- Fakes: `src/__tests__/fakes.ts` (InMemoryOrderRepository, InMemoryCartRepository, FakeOrderPdfGenerator, etc.)
+- Fakes: `src/__tests__/fakes.ts` (InMemoryOrderRepository, InMemoryCartRepository, InMemorySupplierRepository, FakeOrderPdfGenerator, etc.)
 
-Total: 38/39 tests pasan (1 fallo pre-existente en AutoBackupService).
+Total: 39/39 tests pasan.
 
 Antes de entregar cambios de logica:
 - Correr `npm test`.
@@ -401,8 +461,8 @@ Antes de entregar cambios de logica:
 
 ## APK
 
-- Version: 3.1.8, versionCode: 15
-- APK: `C:\Users\bodega 1\Desktop\CatalogClean-v3.1.8.apk` (~67 MB)
+- Version: 3.2.2, versionCode: 22
+- APK: `C:\Users\bodega 1\Desktop\CatalogClean-v3.2.2.apk` (~67 MB)
 - Package: `com.anonymous.catalogclean`
 - Build: `android\gradlew.bat -p android assembleRelease`
 - JAVA_HOME: `.build-tools\jdk17\jdk-17.0.19+10`
@@ -431,20 +491,17 @@ Working tree puede tener cambios pendientes. Para estado legible:
 
 ## Pendientes conocidos
 
-### Completados recientemente (2026-07-22)
-- ~~Namespace fix~~ (build.gradle namespace alineado a applicationId, Java files movidos a com/anonymous/catalogclean/)
-- ~~Package name fix~~ (com.anonymous.catalogclean, mantiene compatibilidad con instalacion existente del cliente)
-- ~~Backup/restore mejorado con orders~~ (CreateBackupUseCase y RestoreBackupUseCase ahora incluyen orders)
-- ~~Version sync~~ (DatabaseBackupService y sqlite.ts usan version 3.1.8, schemaVersion desde DATABASE_SCHEMA_VERSION)
-- ~~BackupSnapshot ordersCount~~ (campo ordersCount agregado a entidades y repositorio, con fallback para DBs viejas)
-- ~~RestoreBackupUseCase: orders~~ (restoreOrders con parseo de items JSON, skip invalid orders)
-- ~~SQLiteBackupRepository: try/catch ordersCount~~ (fallback INSERT sin ordersCount si DB vieja)
-- ~~migrate-backup.js~~ (script para migrar backups schemaVersion 9 → 10, paquete old → new)
-- ~~Backup/restore scripts~~ (backup.sh y restore.sh alineados a com.anonymous.catalogclean)
-- ~~Renombrar "orden" a "pedido"~~ (UI, PDF, filenames, messages)
-- ~~Stock 0 oculto en PDFs~~ (editorial templates, featured page)
-- ~~Header PDF mas grande~~ (brand-info, detail-row, transfer-box, cat-hdr, page-hdr)
-- ~~Build APK v3.1.8~~ (CatalogClean-v3.1.8.apk en Desktop)
+### Completados recientemente (2026-07-23)
+- ~~Sumar stock al generar compra a proveedor~~ (SupplierPurchaseScreen actualiza stock por cantidad comprada)
+- ~~Pago parcial~~ (Order.paidAmount, migration v13, RecordPaymentUseCase, historial y PDF)
+- ~~Estadisticas de ventas~~ (Dashboard: ventas pagadas, cobrado, por cobrar y top productos)
+- ~~Relacion producto-proveedor~~ (Supplier entity, tabla suppliers, migration v12, SupplierRepository, SupplierUseCases, SuppliersScreen, supplier picker en ProductsScreen, filtro por proveedor, badge morado, backup/restore incluye suppliers)
+- ~~Precio alineado en historial de pedidos~~ (flexShrink: 0 + minWidth: 80 + textAlign: right en tarjetas list/calendar)
+- ~~Estado de pedido~~ (Order entity: status pending/paid, migration v11, ToggleOrderStatusUseCase, OrderHistoryScreen filtros/badges/toggle, PDF badge estado)
+- ~~Descuentos en carrito/pedidos~~ (CartItem: discountType, discountValue, calculateSubtotal; ProductsScreen: selector descuento BottomSheet; CartScreen: badge descuento + precio tachado; OrderPdfGenerator: columna descuento; formatOrderAsText: descuento en texto)
+- ~~Unificar sistemas de backup~~ (sistema avanzado unificado con imagenes, file import, share; eliminado DatabaseBackupService.ts)
+- ~~Auth bypass~~ (navigation.tsx verifica getCurrentUser() en init, redirige a Login si no hay usuario)
+- ~~AutoBackupService test fix~~ (39/39 tests pasan, extraido DATABASE_SCHEMA_VERSION a schema-version.ts, image collector inyectable)
 
 ### Completados recientemente (2026-07-21)
 - ~~E2E test~~ (3 tests en e2e-flow.test.ts)
@@ -458,18 +515,15 @@ Working tree puede tener cambios pendientes. Para estado legible:
 - ~~BottomMenu restaurado~~ (5 tabs: Inicio, Productos, Familias, Catalogos, Perfil)
 - ~~Cart icon en ProductsScreen~~ (badge de cantidad)
 - ~~Backup module~~ (merge desde remoto)
-- ~~Order History~~ (OrderHistoryScreen, busqueda, eliminar, N° pedidos)
-- ~~Progressive order numbers~~ (N° 0001, N° 0002..., migration v10)
+- ~~Order History~~ (OrderHistoryScreen, busqueda, eliminar, N pedidos)
+- ~~Progressive order numbers~~ (N 0001, N 0002..., migration v10)
 - ~~Import backup from file~~ (expo-document-picker, restaurar con imagenes)
 - ~~Purchase Detail~~ (compra proveedor: seleccion productos, cantidades, PDF)
 
 ### Pendientes activos
-- Fallo pre-existente: `AutoBackupService.test.ts` "no crea backup si no hay cambios"
-- Auth siempre redirige a Dashboard (bypass de login)
-- Dos sistemas de backup redundantes
-- `savedForFuture` flag sin UI
-- Mojibake en `app.json` y docs
-- versionCode/Name en build.gradle hardcodeados (14/3.1.7) vs app.json (15/3.1.8)
+- `savedForFuture` flag sin consumo de negocio
+- versionCode/Name en build.gradle siguen hardcodeados, pero quedaron sincronizados con app.json en v3.2.2
+- UpdateCartItemDiscountUseCase: permite editar descuentos desde CartScreen (use case existe, UI pendiente)
 
 ## Como actualizar este archivo
 

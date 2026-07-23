@@ -110,18 +110,21 @@ export class AutoBackupService {
   }
 
   private async getLastBackupState(): Promise<ChangeSnapshot | null> {
-    const snapshot = await this.createBackup['backupRepo'].findAll();
-    if (snapshot.length === 0) return null;
+    const snapshots = await this.createBackup['backupRepo'].findAll();
+    if (snapshots.length === 0) return null;
+
+    const last = snapshots[0];
+    const counts = {
+      families: last.familiesCount,
+      products: last.productsCount,
+      catalogs: last.catalogsCount,
+      hasProfile: last.hasProfile,
+    };
 
     return {
-      counts: {
-        families: snapshot[0].familiesCount,
-        products: snapshot[0].productsCount,
-        catalogs: snapshot[0].catalogsCount,
-        hasProfile: snapshot[0].hasProfile,
-      },
-      checksum: snapshot[0].checksum,
-      timestamp: snapshot[0].createdAt,
+      counts,
+      checksum: this.changeDetector['computeChecksum'](counts),
+      timestamp: last.createdAt,
     };
   }
 }

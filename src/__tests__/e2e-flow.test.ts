@@ -19,6 +19,7 @@ import {
   GenerateOrderUseCase,
   GetOrdersUseCase,
   DeleteOrderUseCase,
+  RecordPaymentUseCase,
   formatOrderAsText,
 } from '../modules/orders/application/use-cases/OrderUseCases';
 import { GenerateOrderPdfUseCase } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
@@ -107,6 +108,8 @@ describe('E2E: Flujo completo producto → carrito → orden → PDF', () => {
       unitPrice: product1.price,
       quantity: 3,
       format: product1.format,
+      discountType: 'none',
+      discountValue: 0,
       subtotal: 3 * product1.price,
     });
     expect(cartAfterFirst).toHaveLength(1);
@@ -120,6 +123,8 @@ describe('E2E: Flujo completo producto → carrito → orden → PDF', () => {
       unitPrice: product2.price,
       quantity: 10,
       format: product2.format,
+      discountType: 'none',
+      discountValue: 0,
       subtotal: 10 * product2.price,
     });
     expect(cartAfterSecond).toHaveLength(2);
@@ -131,6 +136,8 @@ describe('E2E: Flujo completo producto → carrito → orden → PDF', () => {
       unitPrice: product1.price,
       quantity: 2,
       format: product1.format,
+      discountType: 'none',
+      discountValue: 0,
       subtotal: 2 * product1.price,
     });
     expect(cartAfterDuplicate).toHaveLength(2);
@@ -146,7 +153,7 @@ describe('E2E: Flujo completo producto → carrito → orden → PDF', () => {
     const totalCartValue = allCartItems.reduce((sum, i) => sum + i.subtotal, 0);
     expect(totalCartValue).toBe(5 * 25000 + 7 * 5000);
 
-    const generateOrder = new GenerateOrderUseCase(orderRepo, cartRepo);
+    const generateOrder = new GenerateOrderUseCase(orderRepo, cartRepo, productRepo);
     const order = await generateOrder.execute('Cliente Importante', 'Entregar antes del viernes');
     expect(order.id).toMatch(/^order_/);
     expect(order.clientName).toBe('Cliente Importante');
@@ -248,10 +255,12 @@ describe('E2E: Flujo completo producto → carrito → orden → PDF', () => {
       unitPrice: shirt.price,
       quantity: 5,
       format: shirt.format,
+      discountType: 'none',
+      discountValue: 0,
       subtotal: 5 * shirt.price,
     });
 
-    const generateOrder = new GenerateOrderUseCase(orderRepo, cartRepo);
+    const generateOrder = new GenerateOrderUseCase(orderRepo, cartRepo, productRepo);
     const order1 = await generateOrder.execute('Cliente A');
     expect(order1.subtotal).toBe(40000);
 
@@ -261,6 +270,8 @@ describe('E2E: Flujo completo producto → carrito → orden → PDF', () => {
       unitPrice: pants.price,
       quantity: 2,
       format: pants.format,
+      discountType: 'none',
+      discountValue: 0,
       subtotal: 2 * pants.price,
     });
 
@@ -277,5 +288,34 @@ describe('E2E: Flujo completo producto → carrito → orden → PDF', () => {
     const remainingOrders = await getOrders.execute();
     expect(remainingOrders).toHaveLength(1);
     expect(remainingOrders[0].clientName).toBe('Cliente B');
+  });
+});
+
+describe('Pagos parciales', () => {
+  it('acumula abonos y marca el pedido como pagado al completar el saldo', async () => {
+    const repository = new InMemoryOrderRepository();
+    await repository.save({
+      id: 'order_partial',
+      orderNumber: 1,
+      clientName: 'Cliente',
+      items: [],
+      subtotal: 10000,
+      iva: 0,
+      total: 10000,
+      status: 'pending',
+      paidAmount: 0,
+      createdAt: new Date().toISOString(),
+    });
+
+    const recordPayment = new RecordPaymentUseCase(repository);
+    const partial = await recordPayment.execute('order_partial', 4000);
+    expect(partial.status).toBe('partial');
+    expect(partial.paidAmount).toBe(4000);
+
+    const paid = await recordPayment.execute('order_partial', 6000);
+    expect(paid.status).toBe('paid');
+    expect(paid.paidAmount).toBe(10000);
+
+    await expect(recordPayment.execute('order_partial', 1)).rejects.toThrow('ya esta pagado');
   });
 });

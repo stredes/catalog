@@ -60,19 +60,43 @@ export class OrderPdfGenerator {
   }
 
   private buildHtml(order: Order, profile: Profile | null, logoDataUri: string): string {
-    const rows = order.items.map((item, index) => `
+    const paidAmount = order.paidAmount ?? (order.status === 'paid' ? order.total : 0);
+    const pendingAmount = Math.max(0, order.total - paidAmount);
+    const statusStyle = order.status === 'paid'
+      ? 'background:#dcfce7;color:#166534'
+      : order.status === 'partial'
+        ? 'background:#dbeafe;color:#1d4ed8'
+        : 'background:#fef3c7;color:#92400e';
+    const statusLabel = order.status === 'paid'
+      ? 'PAGADO'
+      : order.status === 'partial'
+        ? 'PAGO PARCIAL'
+        : 'PENDIENTE';
+    const rows = order.items.map((item, index) => {
+      const hasDiscount = (item as any).discountType && (item as any).discountType !== 'none' && (item as any).discountValue > 0;
+      const discountLabel = hasDiscount
+        ? (item as any).discountType === 'currency'
+          ? `-${formatMoneyCLP((item as any).discountValue)}`
+          : `-${(item as any).discountValue}%`
+        : '';
+
+      return `
       <tr>
         <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:13px">${index + 1}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb">
           <div style="font-weight:700;color:#111827;font-size:14px">${escapeHtml(item.productName)}</div>
           ${item.productCode ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">Cod: ${escapeHtml(item.productCode)}</div>` : ''}
+          ${hasDiscount ? `<div style="font-size:11px;color:#16a34a;margin-top:2px;font-weight:600">Descuento: ${discountLabel}</div>` : ''}
         </td>
-        <td style="padding:10px 12px;border-bottom:1px solid #e5e77;text-align:center;color:#374151;font-size:13px">${escapeHtml(item.format)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:#374151;font-size:13px">${escapeHtml(item.format)}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:#374151;font-size:13px">${item.quantity}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:right;color:#374151;font-size:13px">${formatMoneyCLP(item.unitPrice)}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:#111827;font-size:13px">${formatMoneyCLP(item.subtotal)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:#111827;font-size:13px">
+          ${hasDiscount ? `<span style="text-decoration:line-through;color:#9ca3af;font-weight:400;font-size:11px">${formatMoneyCLP(item.unitPrice * item.quantity)}</span> ` : ''}
+          ${formatMoneyCLP(item.subtotal)}
+        </td>
       </tr>
-    `).join('');
+    `}).join('');
 
     const profileSection = profile ? `
       <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:24px">
@@ -115,6 +139,7 @@ export class OrderPdfGenerator {
   <div style="text-align:center;margin-bottom:8px">
     <h1 style="font-size:24px;font-weight:800;color:#111827;letter-spacing:1px">PEDIDO</h1>
     <div style="font-size:13px;color:#64748b;margin-top:4px">N° ${formatOrderNumber(order.orderNumber)}</div>
+    <div style="margin-top:6px;display:inline-block;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:0.5px;${statusStyle}">${statusLabel}</div>
   </div>
 
   <div style="display:flex;justify-content:space-between;margin-bottom:20px;font-size:13px;color:#374151">
@@ -152,6 +177,14 @@ export class OrderPdfGenerator {
           <span style="color:#2563eb">${formatMoneyCLP(order.total)}</span>
         </div>
       </div>
+      ${paidAmount > 0 ? `
+        <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:13px;color:#166534">
+          <span>Pagado</span><strong>${formatMoneyCLP(paidAmount)}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:13px;color:#92400e">
+          <span>Saldo pendiente</span><strong>${formatMoneyCLP(pendingAmount)}</strong>
+        </div>
+      ` : ''}
     </div>
   </div>
 

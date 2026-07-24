@@ -1,5 +1,5 @@
 import { Order, OrderStatus } from '../../domain/entities/Order';
-import { CartItem } from '../../domain/entities/CartItem';
+import { CartItem, calculateSubtotal } from '../../domain/entities/CartItem';
 import { OrderRepository } from '../../domain/repositories/OrderRepository';
 import { CartRepository } from '../../domain/repositories/CartRepository';
 import { ProductRepository } from '../../../products/domain/repositories/ProductRepository';
@@ -21,16 +21,66 @@ export class GenerateOrderUseCase {
       throw new Error('El carrito esta vacio');
     }
 
-    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+    for (const item of items) {
+      if (!Number.isFinite(item.quantity) || item.quantity <= 0 || !Number.isInteger(item.quantity)) {
+        throw new Error(`Cantidad inválida para "${item.productName}": ${item.quantity}`);
+      }
+      if (!Number.isFinite(item.unitPrice) || item.unitPrice <= 0) {
+        throw new Error(`Precio inválido para "${item.productName}": ${item.unitPrice}`);
+      }
+      if (!Number.isFinite(item.subtotal) || item.subtotal < 0) {
+        throw new Error(`Subtotal inválido para "${item.productName}": ${item.subtotal}`);
+      }
+      if (item.discountType === 'percentage') {
+        if (!Number.isFinite(item.discountValue) || item.discountValue < 0 || item.discountValue > 100) {
+          throw new Error(`Descuento porcentual inválido para "${item.productName}": ${item.discountValue}%`);
+        }
+      }
+      if (item.discountType === 'currency') {
+        if (!Number.isFinite(item.discountValue) || item.discountValue < 0) {
+          throw new Error(`Descuento monetario inválido para "${item.productName}": ${item.discountValue}`);
+        }
+        const base = item.unitPrice * item.quantity;
+        if (item.discountValue > base) {
+          throw new Error(`El descuento no puede superar el subtotal para "${item.productName}"`);
+        }
+      }
+    }
 
-    const existingOrders = await this.orderRepository.findAll();
-    const orderNumber = existingOrders.length + 1;
+    const insufficientStock: Array<{ productName: string; requested: number; available: number }> = [];
+    for (const item of items) {
+      const product = await this.productRepository.findById(item.productId);
+      if (!product) {
+        throw new Error(`Producto "${item.productName}" no encontrado en inventario`);
+      }
+      if (product.stock < item.quantity) {
+        insufficientStock.push({
+          productName: item.productName,
+          requested: item.quantity,
+          available: product.stock,
+        });
+      }
+    }
+
+    if (insufficientStock.length > 0) {
+      const details = insufficientStock
+        .map((s) => `"${s.productName}": solicitado ${s.requested}, disponible ${s.available}`)
+        .join('; ');
+      throw new Error(`Stock insuficiente: ${details}`);
+    }
+
+    const orderItems = items.map((item) => ({
+      ...item,
+      subtotal: calculateSubtotal(item.unitPrice, item.quantity, item.discountType, item.discountValue),
+    }));
+
+    const subtotal = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
 
     const order: Order = {
       id: createId('order'),
-      orderNumber,
+      orderNumber: 0,
       clientName,
-      items,
+      items: orderItems,
       subtotal,
       iva: 0,
       total: subtotal,
@@ -40,19 +90,18 @@ export class GenerateOrderUseCase {
       createdAt: nowIso(),
     };
 
-    await this.orderRepository.save(order);
+    const stockChanges = orderItems.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+    }));
 
-    for (const item of items) {
-      const product = await this.productRepository.findById(item.productId);
-      if (product) {
-        const newStock = Math.max(0, product.stock - item.quantity);
-        await this.productRepository.updateStock(item.productId, newStock);
-      }
-    }
+    const { orderNumber } = await this.orderRepository.saveAndDecrementStock(
+      order,
+      stockChanges,
+      () => this.cartRepository.clear(),
+    );
 
-    await this.cartRepository.clear();
-
-    return order;
+    return { ...order, orderNumber };
   }
 }
 
@@ -68,7 +117,7 @@ export class DeleteOrderUseCase {
   constructor(private orderRepository: OrderRepository) {}
 
   async execute(id: string): Promise<void> {
-    await this.orderRepository.delete(id);
+    await this.orderRepository.deleteAndRestoreStock(id);
   }
 }
 
@@ -90,12 +139,17 @@ export class UpdateOrderUseCase {
       throw new Error('El pedido debe tener al menos un producto');
     }
 
-    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+    const orderItems = items.map((item) => ({
+      ...item,
+      subtotal: calculateSubtotal(item.unitPrice, item.quantity, item.discountType, item.discountValue),
+    }));
+
+    const subtotal = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
 
     const updated: Order = {
       ...existing,
       clientName,
-      items,
+      items: orderItems,
       subtotal,
       total: subtotal,
       notes: notes || undefined,
@@ -136,8 +190,8 @@ export class RecordPaymentUseCase {
       throw new Error('Pedido no encontrado');
     }
 
-    if (amount <= 0) {
-      throw new Error('El monto debe ser mayor a 0');
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('El monto debe ser un número finito mayor a 0');
     }
 
     const currentPaidAmount = existing.paidAmount ?? (existing.status === 'paid' ? existing.total : 0);

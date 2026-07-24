@@ -1,13 +1,14 @@
 {
   "name": "catalog-clean",
-  "version": "3.2.2",
+  "version": "3.2.4",
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@hookform/resolvers": "^5.4.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-google-signin/google-signin": "^16.1.2",
-    "expo": "54.0.35",
+    "@sentry/react-native": "~7.2.0",
+    "expo": "~54.0.36",
     "expo-auth-session": "~7.0.11",
     "expo-blur": "~15.0.8",
     "expo-crypto": "~15.0.9",
@@ -17,6 +18,7 @@
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
     "expo-print": "~15.0.8",
+    "expo-secure-store": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.10",
+    "@vitest/coverage-v8": "^4.1.10",
     "typescript": "~5.9.2",
     "vitest": "^4.1.10"
   },
@@ -40,6 +43,7 @@
     "ios": "expo run:ios",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "web": "expo start --web"
   },
   "private": true

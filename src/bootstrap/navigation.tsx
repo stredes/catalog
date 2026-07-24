@@ -16,6 +16,7 @@ import { BackupSettingsScreen } from '../modules/backup/presentation/screens/Bac
 import { SuppliersScreen } from '../modules/suppliers/presentation/screens/SuppliersScreen';
 import { SupplierPurchaseScreen } from '../modules/suppliers/presentation/screens/SupplierPurchaseScreen';
 import { useDependencies } from './dependencies';
+import { AUTHENTICATION_ENABLED } from '../shared/config/features';
 
 export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'OrderHistory' | 'PurchaseCart' | 'EditOrder' | 'Backup' | 'Suppliers';
 
@@ -38,6 +39,10 @@ export function useAppNavigation() {
 }
 
 function renderRoute(route: AppRoute) {
+  if (!AUTHENTICATION_ENABLED && (route === 'Login' || route === 'Register')) {
+    return <DashboardScreen />;
+  }
+
   switch (route) {
     case 'Login':
       return <LoginScreen />;
@@ -74,19 +79,57 @@ function renderRoute(route: AppRoute) {
 }
 
 export function AppNavigator() {
-  const { services } = useDependencies();
+  const { services, autoBackupService } = useDependencies();
   const [ready, setReady] = useState(false);
-  const [activeRoute, setActiveRoute] = useState<AppRoute>('Login');
+  const [activeRoute, setActiveRoute] = useState<AppRoute>(
+    AUTHENTICATION_ENABLED ? 'Login' : 'Dashboard',
+  );
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setActiveRoute('Dashboard');
-    setReady(true);
+    async function initSession() {
+      try {
+        const onboardingCompleted = await services.preferences.getBoolean('catalog_clean_onboarding_completed');
+
+        if (!AUTHENTICATION_ENABLED) {
+          setActiveRoute(onboardingCompleted ? 'Dashboard' : 'Onboarding');
+          await autoBackupService.onSessionStart();
+          autoBackupService.startMonitoring();
+        } else {
+          const user = await services.auth.getCurrentUser();
+          if (!user) {
+            setActiveRoute('Login');
+            return;
+          }
+
+          setActiveRoute(onboardingCompleted ? 'Dashboard' : 'Onboarding');
+          await autoBackupService.onSessionStart();
+          autoBackupService.startMonitoring();
+        }
+      } catch {
+        if (AUTHENTICATION_ENABLED) {
+          setActiveRoute('Login');
+        } else {
+          setActiveRoute('Dashboard');
+        }
+      } finally {
+        setReady(true);
+      }
+    }
+    void initSession();
+
+    return () => {
+      autoBackupService.stopMonitoring();
+    };
   }, []);
 
   const navigate = useCallback((route: AppRoute, params?: Record<string, string>) => {
     setRouteParams(params ?? {});
-    setActiveRoute(route);
+    setActiveRoute(
+      !AUTHENTICATION_ENABLED && (route === 'Login' || route === 'Register')
+        ? 'Dashboard'
+        : route,
+    );
   }, []);
 
   const navigation = useMemo(

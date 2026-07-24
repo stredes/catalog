@@ -13,7 +13,7 @@ export class ExpoNativeShareService implements NativeShareService {
     await Sharing.shareAsync(uri, {
       dialogTitle: title,
       mimeType: mimeType ?? 'application/pdf',
-      UTI: mimeType === 'application/json' ? 'public.json' : 'com.adobe.pdf',
+      UTI: mimeType === 'application/json' ? 'public.data' : 'com.adobe.pdf',
     });
   }
 }

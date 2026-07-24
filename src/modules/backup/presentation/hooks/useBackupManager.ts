@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { BackupSnapshot } from '../../domain/entities/BackupSnapshot';
+import { assertBackupIsComplete } from '../../infrastructure/services/BackupImageCollector';
 
 export function useBackupManager() {
-  const { useCases, autoBackupService, services } = useDependencies();
+  const { useCases, autoBackupService, services, repositories } = useDependencies();
   const [backups, setBackups] = useState<BackupSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -76,35 +77,50 @@ export function useBackupManager() {
           text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
-            await useCases.restoreBackup['backupRepo'].delete(snapshot.id);
+            await repositories.backup.delete(snapshot.id);
             await loadBackups();
           },
         },
       ],
     );
-  }, [loadBackups]);
+  }, [loadBackups, repositories.backup]);
 
   const shareBackup = useCallback(async (snapshot: BackupSnapshot) => {
     try {
-      const payload = await useCases.restoreBackup['backupRepo'].loadPayload(snapshot.id);
+      const payload = await repositories.backup.loadPayload(snapshot.id);
       if (!payload) {
         Alert.alert('Error', 'No se pudo cargar el backup para compartir.');
         return;
       }
 
-      const tempUri = `${Date.now()}_backup_${snapshot.label.replace(/\s+/g, '_')}.json`;
+      assertBackupIsComplete(payload.products, payload.profile, payload.images);
+
+      const safeLabel = snapshot.label
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 48) || 'completo';
+      const tempUri = `CatalogClean_${safeLabel}_${Date.now()}.json`;
       const { Directory, File, Paths } = await import('expo-file-system');
       const tempDir = new Directory(Paths.cache, 'shared_backups');
       tempDir.create({ idempotent: true, intermediates: true });
       const tempFile = new File(tempDir, tempUri);
       tempFile.create({ overwrite: true, intermediates: true });
-      tempFile.write(JSON.stringify(payload, null, 2));
+      tempFile.write(JSON.stringify(payload));
+
+      if (!tempFile.exists || tempFile.size === 0) {
+        throw new Error('El archivo temporal del backup no se pudo crear.');
+      }
 
       await services.share.shareFile(tempFile.uri, `Backup: ${snapshot.label}`, 'application/json');
     } catch (err) {
-      Alert.alert('Error', 'No se pudo compartir el backup.');
+      Alert.alert(
+        'Error al compartir',
+        err instanceof Error ? err.message : 'No se pudo compartir el backup.',
+      );
     }
-  }, [useCases.restoreBackup, services.share]);
+  }, [repositories.backup, services.share]);
 
   const toggleAutoBackup = useCallback(() => {
     setAutoBackupEnabled((prev) => !prev);

@@ -6,4 +6,11 @@ export interface OrderRepository {
   findAll(): Promise<Order[]>;
   findById(id: string): Promise<Order | null>;
   delete(id: string): Promise<void>;
+  deleteAndRestoreStock(id: string): Promise<void>;
+  getMaxOrderNumber(): Promise<number>;
+  saveAndDecrementStock(
+    order: Order,
+    stockChanges: Array<{ productId: string; quantity: number }>,
+    clearCart?: () => Promise<void>,
+  ): Promise<{ orderNumber: number }>;
 }

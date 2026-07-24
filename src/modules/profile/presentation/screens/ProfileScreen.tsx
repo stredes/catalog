@@ -6,6 +6,7 @@ import { Alert, Image, Pressable, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
+import { AUTHENTICATION_ENABLED } from '../../../../shared/config/features';
 import { BottomMenu } from '../../../../shared/presentation/components/BottomMenu';
 import {
   AppText,
@@ -426,11 +427,13 @@ export function ProfileScreen() {
           )}
         </Section>
 
-        <SecondaryButton
-          label="Cerrar sesión"
-          icon="log-out-outline"
-          onPress={handleLogout}
-        />
+        {AUTHENTICATION_ENABLED ? (
+          <SecondaryButton
+            label="Cerrar sesión"
+            icon="log-out-outline"
+            onPress={handleLogout}
+          />
+        ) : null}
       </Screen>
 
       <ConfirmDialog

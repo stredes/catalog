@@ -22,11 +22,16 @@ async function loadSentry(): Promise<SentryModule | null> {
 export class SentryErrorReporter implements ErrorReporter {
   private initialized = false;
 
-  async init(dsn: string): Promise<void> {
+  async init(dsn?: string): Promise<void> {
+    const effectiveDsn = dsn || process.env.EXPO_PUBLIC_SENTRY_DSN;
+    if (!effectiveDsn) {
+      return;
+    }
+
     const mod = await loadSentry();
     if (!mod) return;
     mod.init({
-      dsn,
+      dsn: effectiveDsn,
       enableAutoSessionTracking: true,
       environment: __DEV__ ? 'development' : 'production',
     });

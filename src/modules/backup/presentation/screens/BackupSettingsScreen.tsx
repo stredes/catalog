@@ -82,7 +82,7 @@ export function BackupSettingsScreen() {
                 const counts = await importBackupFromFile(fileUri);
                 Alert.alert(
                   'Backup importado',
-                  `Restaurado exitosamente:\n• ${counts.families} familias\n• ${counts.products} productos\n• ${counts.catalogs} catálogos\n• ${counts.orders} pedidos\n• ${counts.images} imágenes`,
+                  `Restaurado exitosamente:\n• ${counts.families} familias\n• ${counts.products} productos\n• ${counts.catalogs} catálogos\n• ${counts.orders} pedidos\n• ${counts.suppliers} proveedores\n• ${counts.images} imágenes`,
                 );
               } catch (err) {
                 Alert.alert(

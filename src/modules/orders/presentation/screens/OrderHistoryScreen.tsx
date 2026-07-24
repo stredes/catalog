@@ -26,29 +26,11 @@ import { formatMoney } from '../../../../shared/utils/money';
 import { formatDate } from '../../../../shared/utils/dates';
 import { useOrders } from '../hooks/useOrders';
 import { Order } from '../../domain/entities/Order';
+import { WEEK_DAYS, MONTH_NAMES, getDaysInMonth, getFirstDayOfMonth, toDateKey } from '../utils/calendar';
 
 type SortOption = 'newest' | 'name';
 type StatusFilter = 'all' | 'pending' | 'partial' | 'paid';
 type ViewMode = 'list' | 'calendar';
-
-const WEEK_DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
-const MONTH_NAMES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-];
-
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstDayOfMonth(year: number, month: number): number {
-  const day = new Date(year, month, 1).getDay();
-  return day === 0 ? 6 : day - 1;
-}
-
-function toDateKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
 
 export function OrderHistoryScreen() {
   const colors = useThemeColors();

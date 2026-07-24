@@ -1,6 +1,7 @@
 import { getDatabase } from '../../../../shared/infrastructure/sqlite';
 import { Order, OrderStatus } from '../../domain/entities/Order';
 import { OrderRepository } from '../../domain/repositories/OrderRepository';
+import { OrderSchema } from '../../../../shared/validation/schemas';
 
 type OrderRow = {
   id: string;
@@ -17,15 +18,25 @@ type OrderRow = {
 };
 
 function rowToOrder(row: OrderRow): Order {
+  let items: Order['items'];
+  try {
+    const parsed: unknown = JSON.parse(row.items);
+    items = Array.isArray(parsed) ? parsed as Order['items'] : [];
+  } catch {
+    items = [];
+  }
+
+  const validStatus: OrderStatus = (['pending', 'partial', 'paid'].includes(row.status) ? row.status : 'pending') as OrderStatus;
+
   return {
     id: row.id,
     orderNumber: row.orderNumber,
     clientName: row.clientName,
-    items: JSON.parse(row.items),
+    items,
     subtotal: row.subtotal,
     iva: row.iva,
     total: row.total,
-    status: (['pending', 'partial', 'paid'].includes(row.status) ? row.status : 'pending') as OrderStatus,
+    status: validStatus,
     paidAmount: row.paidAmount ?? (row.status === 'paid' ? row.total : 0),
     notes: row.notes ?? undefined,
     createdAt: row.createdAt,
@@ -88,5 +99,102 @@ export class SQLiteOrderRepository implements OrderRepository {
   async delete(id: string): Promise<void> {
     const db = await getDatabase();
     await db.runAsync('DELETE FROM orders WHERE id = ?', id);
+  }
+
+  async deleteAndRestoreStock(id: string): Promise<void> {
+    const db = await getDatabase();
+
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      const row = await txn.getFirstAsync<OrderRow>(
+        'SELECT * FROM orders WHERE id = ?',
+        id,
+      );
+      if (!row) {
+        throw new Error('Pedido no encontrado');
+      }
+
+      const order = rowToOrder(row);
+      if (order.items.length === 0) {
+        throw new Error('El pedido no contiene productos válidos para devolver al stock');
+      }
+
+      for (const item of order.items) {
+        if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+          throw new Error(`Cantidad inválida en el pedido para producto ${item.productId}`);
+        }
+
+        const result = await txn.runAsync(
+          'UPDATE products SET stock = stock + ?, updatedAt = ? WHERE id = ?',
+          item.quantity,
+          new Date().toISOString(),
+          item.productId,
+        );
+        if (result.changes === 0) {
+          throw new Error(`No se encontró el producto ${item.productId}; el pedido no fue eliminado`);
+        }
+      }
+
+      const deleted = await txn.runAsync('DELETE FROM orders WHERE id = ?', id);
+      if (deleted.changes !== 1) {
+        throw new Error('No se pudo eliminar el pedido');
+      }
+    });
+  }
+
+  async getMaxOrderNumber(): Promise<number> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ maxNum: number }>(
+      'SELECT COALESCE(MAX(orderNumber), 0) as maxNum FROM orders',
+    );
+    return row?.maxNum ?? 0;
+  }
+
+  async saveAndDecrementStock(
+    order: Order,
+    stockChanges: Array<{ productId: string; quantity: number }>,
+    clearCart?: () => Promise<void>,
+  ): Promise<{ orderNumber: number }> {
+    const db = await getDatabase();
+    let assignedOrderNumber = 0;
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      const maxRow = await txn.getFirstAsync<{ maxNum: number }>(
+        'SELECT COALESCE(MAX(orderNumber), 0) as maxNum FROM orders',
+      );
+      assignedOrderNumber = (maxRow?.maxNum ?? 0) + 1;
+
+      await txn.runAsync(
+        `INSERT INTO orders (id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        order.id,
+        assignedOrderNumber,
+        order.clientName,
+        JSON.stringify(order.items),
+        order.subtotal,
+        order.iva,
+        order.total,
+        order.status ?? 'pending',
+        order.paidAmount ?? 0,
+        order.notes ?? null,
+        order.createdAt,
+      );
+
+      for (const change of stockChanges) {
+        const result = await txn.runAsync(
+          'UPDATE products SET stock = stock - ?, updatedAt = ? WHERE id = ? AND stock >= ?',
+          change.quantity,
+          new Date().toISOString(),
+          change.productId,
+          change.quantity,
+        );
+        if (result.changes === 0) {
+          throw new Error(`Stock insuficiente para producto ${change.productId}: no se pudo descontar ${change.quantity} unidades`);
+        }
+      }
+
+      if (clearCart) {
+        await clearCart();
+      }
+    });
+    return { orderNumber: assignedOrderNumber };
   }
 }

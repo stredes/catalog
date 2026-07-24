@@ -10,7 +10,7 @@ import { Profile } from '../modules/profile/domain/entities/profile';
 import { ProfileRepository } from '../modules/profile/domain/repositories/ProfileRepository';
 import { NativeShareService } from '../modules/sharing/domain/NativeShareService';
 import { BackupSnapshot, BackupPayload } from '../modules/backup/domain/entities/BackupSnapshot';
-import { BackupRepository } from '../modules/backup/domain/repositories/BackupRepository';
+import { BackupRepository, TransactionalRestoreData } from '../modules/backup/domain/repositories/BackupRepository';
 import { Order } from '../modules/orders/domain/entities/Order';
 import { OrderRepository } from '../modules/orders/domain/repositories/OrderRepository';
 import { CartItem } from '../modules/orders/domain/entities/CartItem';
@@ -204,9 +204,23 @@ export function makeProfile(overrides: Partial<Profile> = {}): Profile {
   };
 }
 
+export interface InMemoryBackupRepositoryDeps {
+  familyRepo?: FamilyRepository;
+  productRepo?: ProductRepository;
+  catalogRepo?: CatalogRepository;
+  profileRepo?: ProfileRepository;
+  orderRepo?: OrderRepository;
+  supplierRepo?: SupplierRepository;
+}
+
 export class InMemoryBackupRepository implements BackupRepository {
   snapshots = new Map<string, BackupSnapshot>();
   payloads = new Map<string, BackupPayload>();
+  private deps: InMemoryBackupRepositoryDeps;
+
+  constructor(deps: InMemoryBackupRepositoryDeps = {}) {
+    this.deps = deps;
+  }
 
   async saveSnapshot(snapshot: BackupSnapshot, payload: BackupPayload): Promise<void> {
     this.snapshots.set(snapshot.id, snapshot);
@@ -240,6 +254,38 @@ export class InMemoryBackupRepository implements BackupRepository {
   async count(): Promise<number> {
     return this.snapshots.size;
   }
+
+  async transactionalRestore(data: TransactionalRestoreData): Promise<void> {
+    this.lastRestoreData = { ...data };
+
+    const { familyRepo, productRepo, catalogRepo, profileRepo, orderRepo, supplierRepo } = this.deps;
+
+    if (familyRepo) {
+      for (const f of await familyRepo.findAll()) await familyRepo.delete(f.id);
+      for (const f of data.families) await familyRepo.create(f);
+    }
+    if (productRepo) {
+      for (const p of await productRepo.findAll()) await productRepo.delete(p.id);
+      for (const p of data.products) await productRepo.create(p);
+    }
+    if (catalogRepo) {
+      for (const c of await catalogRepo.findAll()) await catalogRepo.delete(c.id);
+      for (const c of data.catalogs) await catalogRepo.create(c);
+    }
+    if (profileRepo) {
+      if (data.profile) await profileRepo.save(data.profile);
+    }
+    if (orderRepo) {
+      for (const o of await orderRepo.findAll()) await orderRepo.delete(o.id);
+      for (const o of data.orders) await orderRepo.save(o);
+    }
+    if (supplierRepo) {
+      for (const s of await supplierRepo.findAll()) await supplierRepo.delete(s.id);
+      for (const s of data.suppliers) await supplierRepo.create(s);
+    }
+  }
+
+  lastRestoreData: TransactionalRestoreData | null = null;
 }
 
 export function makeBackupSnapshot(overrides: Partial<BackupSnapshot> = {}): BackupSnapshot {
@@ -251,6 +297,7 @@ export function makeBackupSnapshot(overrides: Partial<BackupSnapshot> = {}): Bac
     productsCount: 1,
     catalogsCount: 0,
     ordersCount: 0,
+    suppliersCount: 0,
     hasProfile: true,
     checksum: 'abc123',
     filePath: '',
@@ -259,8 +306,34 @@ export function makeBackupSnapshot(overrides: Partial<BackupSnapshot> = {}): Bac
   };
 }
 
+export function computeBackupChecksum(payload: BackupPayload): string {
+  const raw = JSON.stringify({
+    fc: payload.families.length,
+    pc: payload.products.length,
+    cc: payload.catalogs.length,
+    oc: payload.orders.length,
+    sc: payload.suppliers?.length ?? 0,
+    fp: payload.profile !== null,
+    fn: payload.families.map((f) => f.id).sort(),
+    pn: payload.products.map((p) => p.id).sort(),
+    cn: payload.catalogs.map((c) => c.id).sort(),
+  });
+
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const char = raw.charCodeAt(i);
+    hash = ((hash << 5) - hash + char) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 export class InMemoryOrderRepository implements OrderRepository {
   orders = new Map<string, Order>();
+  private productRepo: InMemoryProductRepository | null;
+
+  constructor(productRepo?: InMemoryProductRepository) {
+    this.productRepo = productRepo ?? null;
+  }
 
   async save(order: Order): Promise<void> {
     this.orders.set(order.id, order);
@@ -282,6 +355,77 @@ export class InMemoryOrderRepository implements OrderRepository {
 
   async delete(id: string): Promise<void> {
     this.orders.delete(id);
+  }
+
+  async deleteAndRestoreStock(id: string): Promise<void> {
+    const order = this.orders.get(id);
+    if (!order) throw new Error('Pedido no encontrado');
+
+    if (this.productRepo) {
+      for (const item of order.items) {
+        const product = this.productRepo.products.get(item.productId);
+        if (!product) {
+          throw new Error(`No se encontró el producto ${item.productId}; el pedido no fue eliminado`);
+        }
+      }
+      for (const item of order.items) {
+        const product = this.productRepo.products.get(item.productId)!;
+        this.productRepo.products.set(item.productId, {
+          ...product,
+          stock: product.stock + item.quantity,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    this.orders.delete(id);
+  }
+
+  async getMaxOrderNumber(): Promise<number> {
+    let max = 0;
+    for (const order of this.orders.values()) {
+      if (order.orderNumber > max) max = order.orderNumber;
+    }
+    return max;
+  }
+
+  async saveAndDecrementStock(
+    order: Order,
+    stockChanges: Array<{ productId: string; quantity: number }>,
+    clearCart?: () => Promise<void>,
+  ): Promise<{ orderNumber: number }> {
+    for (const change of stockChanges) {
+      if (this.productRepo) {
+        const product = this.productRepo.products.get(change.productId);
+        if (!product || product.stock < change.quantity) {
+          throw new Error(`Stock insuficiente para producto ${change.productId}: no se pudo descontar ${change.quantity} unidades`);
+        }
+      }
+    }
+
+    const maxOrderNumber = await this.getMaxOrderNumber();
+    const orderNumber = maxOrderNumber + 1;
+
+    this.orders.set(order.id, { ...order, orderNumber });
+
+    if (this.productRepo) {
+      for (const change of stockChanges) {
+        const product = this.productRepo.products.get(change.productId);
+        if (product) {
+          this.productRepo.products.set(change.productId, {
+            ...product,
+            stock: product.stock - change.quantity,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    if (clearCart) {
+      await clearCart();
+    }
+
+    return { orderNumber };
   }
 }
 

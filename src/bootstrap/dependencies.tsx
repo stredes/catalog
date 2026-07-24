@@ -123,11 +123,14 @@ function buildDependencies() {
     productRepository,
     catalogRepository,
     profileRepository,
+    orderRepository,
+    supplierRepository,
   );
 
   const autoBackupService = new AutoBackupService(
     createBackupUseCase,
     changeDetector,
+    backupRepository,
   );
 
     return {
@@ -146,7 +149,7 @@ function buildDependencies() {
         preferences,
         auth,
         share: shareService,
-        autoBackup: changeDetector,
+        autoBackup: autoBackupService,
         analytics,
         errorReporter,
       },
@@ -204,6 +207,7 @@ function buildDependencies() {
           orderRepository,
           supplierRepository,
           restoreBackupImages,
+          collectBackupImages,
         ),
         seed,
         createSupplier: new CreateSupplierUseCase(supplierRepository),

@@ -15,6 +15,7 @@ export type BackupSnapshot = {
   productsCount: number;
   catalogsCount: number;
   ordersCount: number;
+  suppliersCount: number;
   hasProfile: boolean;
   checksum: string;
   filePath: string;

@@ -128,6 +128,12 @@ const migrations: Record<number, string[]> = {
     `ALTER TABLE products ADD COLUMN supplierId TEXT`,
   ],
   13: [`ALTER TABLE orders ADD COLUMN paidAmount REAL NOT NULL DEFAULT 0`],
+  14: [
+    `ALTER TABLE backup_snapshots ADD COLUMN ordersCount INTEGER NOT NULL DEFAULT 0`,
+    `UPDATE orders SET orderNumber = (SELECT COUNT(*) FROM orders o2 WHERE o2.createdAt < orders.createdAt OR (o2.createdAt = orders.createdAt AND o2.rowid < orders.rowid)) + 1 WHERE orderNumber IN (SELECT orderNumber FROM orders GROUP BY orderNumber HAVING COUNT(*) > 1)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_orderNumber ON orders(orderNumber) WHERE orderNumber > 0`,
+  ],
+  15: [`ALTER TABLE backup_snapshots ADD COLUMN suppliersCount INTEGER NOT NULL DEFAULT 0`],
 };
 
 async function columnExists(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {
@@ -197,8 +203,14 @@ async function applyMigration(db: SQLiteDatabase, version: number) {
 
     try {
       await db.execAsync(trimmed);
-    } catch {
-      if (upperTrimmed.startsWith('ALTER TABLE') || upperTrimmed.startsWith('CREATE INDEX')) {
+    } catch (error) {
+      if (upperTrimmed.startsWith('ALTER TABLE')) {
+        continue;
+      }
+      if (upperTrimmed.startsWith('CREATE INDEX')) {
+        const msg = error instanceof Error ? error.message : '';
+        if (msg.includes('already exists')) continue;
+        console.warn(`Migration v${version} CREATE INDEX warning: ${msg}`);
         continue;
       }
       throw new Error(`Migration v${version} failed: ${trimmed.slice(0, 80)}`);

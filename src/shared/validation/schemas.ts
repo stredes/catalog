@@ -1,0 +1,202 @@
+import { z } from 'zod';
+
+export const PositiveFiniteNumber = z.number()
+  .finite('El valor debe ser un número finito')
+  .nonnegative('El valor no puede ser negativo');
+
+export const StrictPositiveInteger = z.number()
+  .int('Debe ser un número entero')
+  .finite('Debe ser un número finito')
+  .positive('Debe ser mayor a cero');
+
+export const NonNegativeInteger = z.number()
+  .int('Debe ser un número entero')
+  .finite('Debe ser un número finito')
+  .nonnegative('No puede ser negativo');
+
+export const PercentageSchema = z.number()
+  .finite('Debe ser un número finito')
+  .min(0, 'No puede ser menor a 0')
+  .max(100, 'No puede ser mayor a 100');
+
+export const MoneySchema = z.number()
+  .finite('Debe ser un número finito')
+  .nonnegative('No puede ser negativo');
+
+export const FamilySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+});
+
+export type ValidatedFamily = z.infer<typeof FamilySchema>;
+
+export const ProductSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  code: z.string().optional(),
+  price: MoneySchema.positive('El precio debe ser mayor a cero'),
+  stock: NonNegativeInteger,
+  format: z.enum(['unit', 'box', 'pack', 'service']),
+  photoUri: z.string().optional(),
+  familyId: z.string().min(1),
+  supplierId: z.string().optional(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+});
+
+export type ValidatedProduct = z.infer<typeof ProductSchema>;
+
+export const ProfileSchema = z.object({
+  id: z.literal('profile'),
+  businessName: z.string().min(1),
+  ownerName: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+  address: z.string().optional(),
+  website: z.string().optional(),
+  logoUri: z.string().optional(),
+  bankName: z.string().optional(),
+  bankAccountType: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  updatedAt: z.string().min(1),
+});
+
+export type ValidatedProfile = z.infer<typeof ProfileSchema>;
+
+export const OrderStatusSchema = z.enum(['pending', 'partial', 'paid']);
+
+export const CartItemSchema = z.object({
+  productId: z.string().min(1),
+  productName: z.string().min(1),
+  productCode: z.string().optional(),
+  unitPrice: MoneySchema.positive('El precio unitario debe ser mayor a cero'),
+  quantity: StrictPositiveInteger,
+  format: z.string().min(1),
+  discountType: z.enum(['none', 'currency', 'percentage']),
+  discountValue: z.number().finite().nonnegative(),
+  subtotal: MoneySchema,
+});
+
+export type ValidatedCartItem = z.infer<typeof CartItemSchema>;
+
+export const OrderSchema = z.object({
+  id: z.string().min(1),
+  orderNumber: NonNegativeInteger,
+  clientName: z.string().min(1),
+  items: z.array(CartItemSchema),
+  subtotal: MoneySchema,
+  iva: MoneySchema,
+  total: MoneySchema,
+  status: OrderStatusSchema.default('pending'),
+  paidAmount: MoneySchema.default(0),
+  notes: z.string().optional(),
+  createdAt: z.string().min(1),
+});
+
+export type ValidatedOrder = z.infer<typeof OrderSchema>;
+
+export const CatalogSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  familyId: z.string().min(1),
+  familyIds: z.array(z.string()).optional(),
+  format: z.enum(['grid-2', 'grid-3', 'grid-4x5', 'grid-3x7', 'simple-list', 'premium-cover']),
+  purpose: z.enum(['catalog', 'purchase-detail']).optional(),
+  productIds: z.array(z.string()),
+  pdfUri: z.string().min(1),
+  createdAt: z.string().min(1),
+});
+
+export type ValidatedCatalog = z.infer<typeof CatalogSchema>;
+
+export const SupplierSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+  contactName: z.string().optional(),
+  notes: z.string().optional(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+});
+
+export type ValidatedSupplier = z.infer<typeof SupplierSchema>;
+
+export const BackupPayloadSchema = z.object({
+  schemaVersion: z.number().int().nonnegative(),
+  createdAt: z.string().min(1),
+  families: z.array(FamilySchema),
+  products: z.array(ProductSchema),
+  catalogs: z.array(CatalogSchema),
+  profile: ProfileSchema.nullable(),
+  orders: z.array(OrderSchema),
+  suppliers: z.array(SupplierSchema).optional().default([]),
+  images: z.record(z.string(), z.string()).optional().default({}),
+});
+
+export type ValidatedBackupPayload = z.infer<typeof BackupPayloadSchema>;
+
+export type ValidationError = {
+  path: string;
+  message: string;
+};
+
+export function validateBackupPayload(raw: unknown): {
+  success: true;
+  data: ValidatedBackupPayload;
+} | {
+  success: false;
+  errors: ValidationError[];
+} {
+  const result = BackupPayloadSchema.safeParse(raw);
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+
+  const errors: ValidationError[] = result.error.issues.map((issue) => ({
+    path: issue.path.join('.'),
+    message: issue.message,
+  }));
+
+  return { success: false, errors };
+}
+
+export function validateArray<T>(raw: unknown[], schema: z.ZodType<T>, entityName: string): {
+  valid: T[];
+  failures: Array<{ index: number; errors: string[] }>;
+} {
+  const valid: T[] = [];
+  const failures: Array<{ index: number; errors: string[] }> = [];
+
+  for (let i = 0; i < raw.length; i++) {
+    const result = schema.safeParse(raw[i]);
+    if (result.success) {
+      valid.push(result.data);
+    } else {
+      failures.push({
+        index: i,
+        errors: result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`),
+      });
+    }
+  }
+
+  return { valid, failures };
+}
+
+export class ValidationErrorReport extends Error {
+  readonly errors: ValidationError[];
+  readonly entityName: string;
+
+  constructor(entityName: string, errors: ValidationError[]) {
+    const summary = errors
+      .slice(0, 5)
+      .map((e) => `[${e.path}] ${e.message}`)
+      .join('; ');
+    super(`Validación fallida para ${entityName}: ${summary}${errors.length > 5 ? ` (+${errors.length - 5} más)` : ''}`);
+    this.name = 'ValidationErrorReport';
+    this.entityName = entityName;
+    this.errors = errors;
+  }
+}

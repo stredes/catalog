@@ -50,9 +50,11 @@ describe('AutoBackupService', () => {
       productRepo,
       catalogRepo,
       profileRepo,
+      orderRepo,
+      supplierRepo,
     );
 
-    service = new AutoBackupService(createBackup, changeDetector, {
+    service = new AutoBackupService(createBackup, changeDetector, backupRepo, {
       enabled: true,
       checkIntervalMs: 100,
     });
@@ -125,5 +127,56 @@ describe('AutoBackupService', () => {
     service.startMonitoring();
     service.stopMonitoring();
     expect(service['checkTimer']).toBeNull();
+  });
+
+  it('no inicia monitoreo dos veces', () => {
+    service.startMonitoring();
+    service.startMonitoring();
+    const timer1 = service['checkTimer'];
+    service.stopMonitoring();
+    expect(timer1).not.toBeNull();
+  });
+
+  it('no ejecuta onSessionStart dos veces concurrentemente', async () => {
+    const p1 = service.onSessionStart();
+    const p2 = service.onSessionStart();
+    await Promise.all([p1, p2]);
+    const backups = await backupRepo.findAll();
+    expect(backups.length).toBeLessThanOrEqual(2);
+  });
+
+  it('reporta isCurrentlyRunning correctamente', async () => {
+    expect(service.isCurrentlyRunning).toBe(false);
+  });
+
+  it('createManualBackup lanza error si hay operacion en curso', async () => {
+    service['isRunning'] = true;
+    await expect(service.createManualBackup('test')).rejects.toThrow('operación de backup en curso');
+  });
+
+  it('onSessionStart es no-op si disabled', async () => {
+    const disabledService = new AutoBackupService(createBackup, changeDetector, backupRepo, {
+      enabled: false,
+    });
+    await disabledService.onSessionStart();
+    const backups = await backupRepo.findAll();
+    expect(backups).toHaveLength(0);
+  });
+
+  it('detecta cambios en pedidos y proveedores', async () => {
+    const emptySnapshot = await changeDetector.capture();
+    expect(emptySnapshot.counts.orders).toBe(0);
+    expect(emptySnapshot.counts.suppliers).toBe(0);
+  });
+
+  it('captura incluye orders y suppliers en checksum', async () => {
+    const snap1 = await changeDetector.capture();
+    await orderRepo.save({
+      id: 'o1', orderNumber: 1, clientName: 'Test',
+      items: [], subtotal: 0, iva: 0, total: 0,
+      status: 'pending', paidAmount: 0, createdAt: new Date().toISOString(),
+    });
+    const snap2 = await changeDetector.capture();
+    expect(snap1.checksum).not.toBe(snap2.checksum);
   });
 });

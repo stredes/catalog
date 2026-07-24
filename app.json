@@ -2,7 +2,7 @@
   "expo": {
     "name": "catalog-clean",
     "slug": "catalog-clean",
-    "version": "3.2.2",
+    "version": "3.2.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,7 +16,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "versionCode": 22,
+      "versionCode": 24,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.catalogclean"
     },
@@ -34,7 +34,9 @@
         }
       ],
       "expo-web-browser",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "expo-secure-store",
+      "@sentry/react-native"
     ]
   }
 }

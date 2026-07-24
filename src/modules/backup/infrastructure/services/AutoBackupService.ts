@@ -1,6 +1,7 @@
 import { CreateBackupUseCase } from '../../application/use-cases/CreateBackupUseCase';
 import { ChangeDetector } from './ChangeDetector';
 import { ChangeSnapshot } from '../../domain/repositories/ChangeTrackerPort';
+import { BackupRepository } from '../../domain/repositories/BackupRepository';
 
 export type AutoBackupConfig = {
   enabled: boolean;
@@ -18,39 +19,46 @@ export class AutoBackupService {
   private config: AutoBackupConfig;
   private lastSnapshot: ChangeSnapshot | null = null;
   private checkTimer: ReturnType<typeof setInterval> | null = null;
+  private isRunning = false;
 
   constructor(
     private readonly createBackup: CreateBackupUseCase,
     private readonly changeDetector: ChangeDetector,
+    private readonly backupRepo: BackupRepository,
     config: Partial<AutoBackupConfig> = {},
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
   async onSessionStart(): Promise<void> {
-    if (!this.config.enabled) return;
+    if (!this.config.enabled || this.isRunning) return;
+    this.isRunning = true;
 
-    const current = await this.changeDetector.capture();
-    const lastBackup = await this.getLastBackupState();
+    try {
+      const current = await this.changeDetector.capture();
+      const lastBackup = await this.getLastBackupState();
 
-    if (!lastBackup) {
-      await this.createBackup.execute({
-        label: 'Inicio de sesión - primer backup',
-        trigger: 'auto-periodic',
-      });
+      if (!lastBackup) {
+        await this.createBackup.execute({
+          label: 'Inicio de sesión - primer backup',
+          trigger: 'auto-periodic',
+        });
+        this.lastSnapshot = current;
+        return;
+      }
+
+      const changed = await this.changeDetector.hasChanged(lastBackup);
+      if (changed) {
+        await this.createBackup.execute({
+          label: 'Inicio de sesión - cambios detectados',
+          trigger: 'auto-periodic',
+        });
+      }
+
       this.lastSnapshot = current;
-      return;
+    } finally {
+      this.isRunning = false;
     }
-
-    const changed = await this.changeDetector.hasChanged(lastBackup);
-    if (changed) {
-      await this.createBackup.execute({
-        label: 'Inicio de sesión - cambios detectados',
-        trigger: 'auto-periodic',
-      });
-    }
-
-    this.lastSnapshot = current;
   }
 
   startMonitoring(): void {
@@ -69,22 +77,43 @@ export class AutoBackupService {
   }
 
   async createPreDeleteBackup(entityType: string): Promise<void> {
-    if (!this.config.enabled) return;
+    if (!this.config.enabled || this.isRunning) return;
 
-    await this.createBackup.execute({
-      label: `Pre-eliminación: ${entityType}`,
-      trigger: 'auto-before-delete',
-    });
+    this.isRunning = true;
+    try {
+      await this.createBackup.execute({
+        label: `Pre-eliminación: ${entityType}`,
+        trigger: 'auto-before-delete',
+      });
+    } finally {
+      this.isRunning = false;
+    }
   }
 
   async createManualBackup(label: string): Promise<void> {
-    await this.createBackup.execute({
-      label,
-      trigger: 'manual',
-    });
+    if (this.isRunning) {
+      throw new Error('Ya hay una operación de backup en curso');
+    }
+
+    this.isRunning = true;
+    try {
+      await this.createBackup.execute({
+        label,
+        trigger: 'manual',
+      });
+    } finally {
+      this.isRunning = false;
+    }
+  }
+
+  get isCurrentlyRunning(): boolean {
+    return this.isRunning;
   }
 
   private async checkAndBackup(): Promise<void> {
+    if (this.isRunning) return;
+    this.isRunning = true;
+
     try {
       if (!this.lastSnapshot) {
         this.lastSnapshot = await this.changeDetector.capture();
@@ -106,11 +135,13 @@ export class AutoBackupService {
       }
     } catch (error) {
       console.error('[AutoBackupService] Error en chequeo periódico:', error);
+    } finally {
+      this.isRunning = false;
     }
   }
 
   private async getLastBackupState(): Promise<ChangeSnapshot | null> {
-    const snapshots = await this.createBackup['backupRepo'].findAll();
+    const snapshots = await this.backupRepo.findAll();
     if (snapshots.length === 0) return null;
 
     const last = snapshots[0];
@@ -118,12 +149,14 @@ export class AutoBackupService {
       families: last.familiesCount,
       products: last.productsCount,
       catalogs: last.catalogsCount,
+      orders: last.ordersCount,
+      suppliers: last.suppliersCount ?? 0,
       hasProfile: last.hasProfile,
     };
 
     return {
       counts,
-      checksum: this.changeDetector['computeChecksum'](counts),
+      checksum: this.changeDetector.computeChecksum(counts),
       timestamp: last.createdAt,
     };
   }

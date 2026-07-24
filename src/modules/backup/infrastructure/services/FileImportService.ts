@@ -3,6 +3,8 @@ import { getDatabase } from '../../../../shared/infrastructure/sqlite';
 import { DATABASE_SCHEMA_VERSION } from '../../../../shared/infrastructure/schema-version';
 import { restoreBackupImages } from './BackupImageCollector';
 import { BackupImageMap } from '../../domain/entities/BackupSnapshot';
+import { validateBackupPayload } from '../../../../shared/validation/schemas';
+import { SQLiteBackupRepository } from '../repositories/SQLiteBackupRepository';
 
 type LegacyBackupData = {
   version?: string;
@@ -56,6 +58,7 @@ export async function importBackupFromFile(filepath: string): Promise<{
   products: number;
   catalogs: number;
   orders: number;
+  suppliers: number;
   images: number;
 }> {
   const file = new File(filepath);
@@ -67,19 +70,58 @@ export async function importBackupFromFile(filepath: string): Promise<{
     throw new Error('El archivo de backup está vacío.');
   }
 
-  let data: LegacyBackupData;
+  let raw: unknown;
   try {
-    data = JSON.parse(content);
+    raw = JSON.parse(content);
   } catch {
     throw new Error('El archivo no es un backup válido (JSON inválido).');
   }
 
+  const currentBackup = validateBackupPayload(raw);
+  if (currentBackup.success) {
+    const payload = currentBackup.data;
+    const restoredImages = await restoreBackupImages(payload.images);
+    const products = payload.products.map((product) => ({
+      ...product,
+      photoUri: product.photoUri
+        ? (restoredImages[product.photoUri] ?? product.photoUri)
+        : undefined,
+    }));
+    const profile = payload.profile
+      ? {
+          ...payload.profile,
+          logoUri: payload.profile.logoUri
+            ? (restoredImages[payload.profile.logoUri] ?? payload.profile.logoUri)
+            : undefined,
+        }
+      : null;
+
+    await new SQLiteBackupRepository().transactionalRestore({
+      families: payload.families,
+      products,
+      catalogs: payload.catalogs,
+      profile,
+      orders: payload.orders,
+      suppliers: payload.suppliers,
+    });
+
+    return {
+      families: payload.families.length,
+      products: payload.products.length,
+      catalogs: payload.catalogs.length,
+      orders: payload.orders.length,
+      suppliers: payload.suppliers.length,
+      images: Object.keys(restoredImages).length,
+    };
+  }
+
+  const data = raw as LegacyBackupData;
   if (!data.families && !data.products && !data.catalogs && !data.orders) {
     throw new Error('El archivo no contiene datos de backup reconocidos.');
   }
 
   const db = await getDatabase();
-  let counts = { families: 0, products: 0, catalogs: 0, orders: 0, images: 0 };
+  let counts = { families: 0, products: 0, catalogs: 0, orders: 0, suppliers: 0, images: 0 };
 
   await ensureAllTablesExist(db);
   await clearAllTables(db);
@@ -150,7 +192,16 @@ export async function importBackupFromFile(filepath: string): Promise<{
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_SCHEMA_VERSION}`);
 
-  counts.images = await restoreBackupImages(data.images);
+  const restoredImages = await restoreBackupImages(data.images);
+  counts.images = Object.keys(restoredImages).length;
+  if (Object.keys(restoredImages).length > 0) {
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      for (const [oldUri, newUri] of Object.entries(restoredImages)) {
+        await txn.runAsync('UPDATE products SET photoUri = ? WHERE photoUri = ?', newUri, oldUri);
+        await txn.runAsync('UPDATE profile SET logoUri = ? WHERE logoUri = ?', newUri, oldUri);
+      }
+    });
+  }
 
   return counts;
 }

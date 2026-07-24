@@ -69,6 +69,7 @@ export class CreateBackupUseCase {
       productsCount: products.length,
       catalogsCount: catalogs.length,
       ordersCount: orders.length,
+      suppliersCount: suppliers.length,
       hasProfile: profile !== null,
       checksum,
       filePath: '',

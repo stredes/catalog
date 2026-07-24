@@ -2,6 +2,8 @@ export type TableCounts = {
   families: number;
   products: number;
   catalogs: number;
+  orders: number;
+  suppliers: number;
   hasProfile: boolean;
 };
 

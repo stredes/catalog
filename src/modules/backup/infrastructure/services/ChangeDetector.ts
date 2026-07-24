@@ -2,6 +2,8 @@ import { FamilyRepository } from '../../../families/domain/repositories/FamilyRe
 import { ProductRepository } from '../../../products/domain/repositories/ProductRepository';
 import { CatalogRepository } from '../../../catalogs/domain/repositories/CatalogRepository';
 import { ProfileRepository } from '../../../profile/domain/repositories/ProfileRepository';
+import { OrderRepository } from '../../../orders/domain/repositories/OrderRepository';
+import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
 import { ChangeTrackerPort, ChangeSnapshot, TableCounts } from '../../domain/repositories/ChangeTrackerPort';
 
 export class ChangeDetector implements ChangeTrackerPort {
@@ -10,20 +12,26 @@ export class ChangeDetector implements ChangeTrackerPort {
     private readonly productRepo: ProductRepository,
     private readonly catalogRepo: CatalogRepository,
     private readonly profileRepo: ProfileRepository,
+    private readonly orderRepo: OrderRepository,
+    private readonly supplierRepo: SupplierRepository,
   ) {}
 
   async capture(): Promise<ChangeSnapshot> {
-    const [families, products, catalogs, profile] = await Promise.all([
+    const [families, products, catalogs, profile, orders, suppliers] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
       this.catalogRepo.findAll(),
       this.profileRepo.find(),
+      this.orderRepo.findAll(),
+      this.supplierRepo.findAll(),
     ]);
 
     const counts: TableCounts = {
       families: families.length,
       products: products.length,
       catalogs: catalogs.length,
+      orders: orders.length,
+      suppliers: suppliers.length,
       hasProfile: profile !== null,
     };
 
@@ -50,7 +58,11 @@ export class ChangeDetector implements ChangeTrackerPort {
       ? (previous.counts.products - current.counts.products) / previous.counts.products
       : 0;
 
-    return familyLoss >= threshold || productLoss >= threshold;
+    const orderLoss = previous.counts.orders > 0
+      ? (previous.counts.orders - current.counts.orders) / previous.counts.orders
+      : 0;
+
+    return familyLoss >= threshold || productLoss >= threshold || orderLoss >= threshold;
   }
 
   computeChecksum(counts: TableCounts): string {

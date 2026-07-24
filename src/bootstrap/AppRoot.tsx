@@ -9,7 +9,7 @@ function SentryInit() {
   const { services } = useDependencies();
 
   useEffect(() => {
-    services.errorReporter.init('https://examplePublicKey@o0.ingest.sentry.io/0');
+    services.errorReporter.init();
   }, []);
 
   return null;

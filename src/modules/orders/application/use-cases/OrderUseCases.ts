@@ -191,11 +191,24 @@ export class ToggleOrderStatusUseCase {
       throw new Error('Pedido no encontrado');
     }
 
-    const newStatus: OrderStatus = existing.status === 'paid' ? 'pending' : 'paid';
+    let newStatus: OrderStatus;
+    let newPaidAmount: number;
+
+    if (existing.status === 'pending') {
+      newStatus = 'paid';
+      newPaidAmount = existing.total;
+    } else if (existing.status === 'paid') {
+      newStatus = 'partial';
+      newPaidAmount = existing.paidAmount || existing.total;
+    } else {
+      newStatus = 'pending';
+      newPaidAmount = 0;
+    }
+
     const updated: Order = {
       ...existing,
       status: newStatus,
-      paidAmount: newStatus === 'paid' ? existing.total : 0,
+      paidAmount: newPaidAmount,
     };
 
     await this.orderRepository.update(updated);

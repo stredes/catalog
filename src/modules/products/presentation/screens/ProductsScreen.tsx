@@ -116,7 +116,7 @@ export function ProductsScreen() {
     }
 
     return result;
-  }, [products, search, filterFamily, sortBy]);
+  }, [products, search, filterFamily, filterSupplier, sortBy]);
 
   async function submit(input: ProductInputDto) {
     try {

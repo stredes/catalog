@@ -134,6 +134,7 @@ const migrations: Record<number, string[]> = {
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_orderNumber ON orders(orderNumber) WHERE orderNumber > 0`,
   ],
   15: [`ALTER TABLE backup_snapshots ADD COLUMN suppliersCount INTEGER NOT NULL DEFAULT 0`],
+  16: [`ALTER TABLE catalogs ADD COLUMN purpose TEXT`],
 };
 
 async function columnExists(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {

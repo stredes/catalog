@@ -151,11 +151,12 @@ export class SQLiteBackupRepository implements BackupRepository {
 
       for (const catalog of data.catalogs) {
         await txn.runAsync(
-          `INSERT INTO catalogs (id, name, familyId, familyIds, format, productIds, pdfUri, createdAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO catalogs (id, name, familyId, familyIds, format, productIds, pdfUri, purpose, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           catalog.id, catalog.name, catalog.familyId,
           catalog.familyIds ? JSON.stringify(catalog.familyIds) : null,
-          catalog.format, JSON.stringify(catalog.productIds), catalog.pdfUri, catalog.createdAt,
+          catalog.format, JSON.stringify(catalog.productIds), catalog.pdfUri,
+          catalog.purpose ?? null, catalog.createdAt,
         );
       }
 

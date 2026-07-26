@@ -122,7 +122,10 @@ export class DeleteOrderUseCase {
 }
 
 export class UpdateOrderUseCase {
-  constructor(private orderRepository: OrderRepository) {}
+  constructor(
+    private orderRepository: OrderRepository,
+    private productRepository: ProductRepository,
+  ) {}
 
   async execute(
     id: string,
@@ -156,6 +159,25 @@ export class UpdateOrderUseCase {
     };
 
     await this.orderRepository.update(updated);
+
+    for (const oldItem of existing.items) {
+      const product = await this.productRepository.findById(oldItem.productId);
+      if (product) {
+        await this.productRepository.updateStock(product.id, product.stock + oldItem.quantity);
+      }
+    }
+
+    for (const item of orderItems) {
+      const product = await this.productRepository.findById(item.productId);
+      if (product) {
+        const newStock = product.stock - item.quantity;
+        if (newStock < 0) {
+          throw new Error(`Stock insuficiente para "${item.productName}": disponible ${product.stock}, requerido ${item.quantity}`);
+        }
+        await this.productRepository.updateStock(product.id, newStock);
+      }
+    }
+
     return updated;
   }
 }

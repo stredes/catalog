@@ -192,7 +192,7 @@ function buildDependencies() {
         generateOrder: new GenerateOrderUseCase(orderRepository, cartRepository, productRepository),
         getOrders: new GetOrdersUseCase(orderRepository),
         deleteOrder: new DeleteOrderUseCase(orderRepository),
-        updateOrder: new UpdateOrderUseCase(orderRepository),
+        updateOrder: new UpdateOrderUseCase(orderRepository, productRepository),
         toggleOrderStatus: new ToggleOrderStatusUseCase(orderRepository),
         recordPayment: new RecordPaymentUseCase(orderRepository),
         generateOrderPdf: new GenerateOrderPdfUseCase(orderPdfGenerator),

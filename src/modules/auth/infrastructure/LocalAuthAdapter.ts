@@ -125,10 +125,18 @@ export class LocalAuthAdapter implements AuthPort {
   }
 
   private async hashPassword(password: string, salt: string): Promise<string> {
-    return Crypto.digestStringAsync(
+    const ITERATIONS = 10000;
+    let hash = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       password + salt,
     );
+    for (let i = 1; i < ITERATIONS; i++) {
+      hash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        hash,
+      );
+    }
+    return hash;
   }
 
   private async migrateOldCredentialsIfNeeded(): Promise<void> {

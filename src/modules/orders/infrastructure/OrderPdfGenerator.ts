@@ -73,11 +73,11 @@ export class OrderPdfGenerator {
         ? 'PAGO PARCIAL'
         : 'PENDIENTE';
     const rows = order.items.map((item, index) => {
-      const hasDiscount = (item as any).discountType && (item as any).discountType !== 'none' && (item as any).discountValue > 0;
+      const hasDiscount = item.discountType !== 'none' && item.discountValue > 0;
       const discountLabel = hasDiscount
-        ? (item as any).discountType === 'currency'
-          ? `-${formatMoneyCLP((item as any).discountValue)}`
-          : `-${(item as any).discountValue}%`
+        ? item.discountType === 'currency'
+          ? `-${formatMoneyCLP(item.discountValue)}`
+          : `-${item.discountValue}%`
         : '';
 
       return `

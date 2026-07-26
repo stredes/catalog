@@ -20,6 +20,7 @@ import { PurchaseCartRepository } from '../modules/orders/domain/repositories/Pu
 import { OrderPdfGeneratorPort } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
 import { Supplier } from '../modules/suppliers/domain/entities/Supplier';
 import { SupplierRepository } from '../modules/suppliers/domain/repositories/SupplierRepository';
+import { computeChecksum } from '../shared/utils/checksum';
 
 export class InMemoryFamilyRepository implements FamilyRepository {
   families = new Map<string, Family>();
@@ -307,7 +308,7 @@ export function makeBackupSnapshot(overrides: Partial<BackupSnapshot> = {}): Bac
 }
 
 export function computeBackupChecksum(payload: BackupPayload): string {
-  const raw = JSON.stringify({
+  return computeChecksum({
     fc: payload.families.length,
     pc: payload.products.length,
     cc: payload.catalogs.length,
@@ -318,13 +319,6 @@ export function computeBackupChecksum(payload: BackupPayload): string {
     pn: payload.products.map((p) => p.id).sort(),
     cn: payload.catalogs.map((c) => c.id).sort(),
   });
-
-  let hash = 0;
-  for (let i = 0; i < raw.length; i++) {
-    const char = raw.charCodeAt(i);
-    hash = ((hash << 5) - hash + char) | 0;
-  }
-  return Math.abs(hash).toString(36);
 }
 
 export class InMemoryOrderRepository implements OrderRepository {

@@ -5,6 +5,7 @@ import { ProfileRepository } from '../../../profile/domain/repositories/ProfileR
 import { OrderRepository } from '../../../orders/domain/repositories/OrderRepository';
 import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
 import { ChangeTrackerPort, ChangeSnapshot, TableCounts } from '../../domain/repositories/ChangeTrackerPort';
+import { computeChecksum } from '../../../../shared/utils/checksum';
 
 export class ChangeDetector implements ChangeTrackerPort {
   constructor(
@@ -37,7 +38,7 @@ export class ChangeDetector implements ChangeTrackerPort {
 
     return {
       counts,
-      checksum: this.computeChecksum(counts),
+      checksum: computeChecksum(counts),
       timestamp: new Date().toISOString(),
     };
   }
@@ -63,15 +64,5 @@ export class ChangeDetector implements ChangeTrackerPort {
       : 0;
 
     return familyLoss >= threshold || productLoss >= threshold || orderLoss >= threshold;
-  }
-
-  computeChecksum(counts: TableCounts): string {
-    const raw = JSON.stringify(counts);
-    let hash = 0;
-    for (let i = 0; i < raw.length; i++) {
-      const char = raw.charCodeAt(i);
-      hash = ((hash << 5) - hash + char) | 0;
-    }
-    return Math.abs(hash).toString(36);
   }
 }

@@ -2,6 +2,7 @@ import { CreateBackupUseCase } from '../../application/use-cases/CreateBackupUse
 import { ChangeDetector } from './ChangeDetector';
 import { ChangeSnapshot } from '../../domain/repositories/ChangeTrackerPort';
 import { BackupRepository } from '../../domain/repositories/BackupRepository';
+import { computeChecksum } from '../../../../shared/utils/checksum';
 
 export type AutoBackupConfig = {
   enabled: boolean;
@@ -156,7 +157,7 @@ export class AutoBackupService {
 
     return {
       counts,
-      checksum: this.changeDetector.computeChecksum(counts),
+      checksum: computeChecksum(counts),
       timestamp: last.createdAt,
     };
   }

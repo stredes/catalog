@@ -9,6 +9,7 @@ import { BackupSnapshot, BackupPayload, BackupImageMap } from '../../domain/enti
 import { CreateBackupInput, CreateBackupSchema } from '../dtos/BackupDtos';
 import { createId } from '../../../../shared/utils/ids';
 import { nowIso } from '../../../../shared/utils/dates';
+import { computeChecksum } from '../../../../shared/utils/checksum';
 import { DATABASE_SCHEMA_VERSION } from '../../../../shared/infrastructure/schema-version';
 import { Product } from '../../../products/domain/entities/product';
 import { Profile } from '../../../profile/domain/entities/profile';
@@ -59,7 +60,17 @@ export class CreateBackupUseCase {
       images,
     };
 
-    const checksum = computeChecksum(payload);
+    const checksum = computeChecksum({
+      fc: payload.families.length,
+      pc: payload.products.length,
+      cc: payload.catalogs.length,
+      oc: payload.orders.length,
+      sc: payload.suppliers?.length ?? 0,
+      fp: payload.profile !== null,
+      fn: payload.families.map((f) => f.id).sort(),
+      pn: payload.products.map((p) => p.id).sort(),
+      cn: payload.catalogs.map((c) => c.id).sort(),
+    });
 
     const snapshot: BackupSnapshot = {
       id: createId('bkp'),
@@ -80,25 +91,4 @@ export class CreateBackupUseCase {
 
     return snapshot;
   }
-}
-
-function computeChecksum(payload: BackupPayload): string {
-  const raw = JSON.stringify({
-    fc: payload.families.length,
-    pc: payload.products.length,
-    cc: payload.catalogs.length,
-    oc: payload.orders.length,
-    sc: payload.suppliers?.length ?? 0,
-    fp: payload.profile !== null,
-    fn: payload.families.map((f) => f.id).sort(),
-    pn: payload.products.map((p) => p.id).sort(),
-    cn: payload.catalogs.map((c) => c.id).sort(),
-  });
-
-  let hash = 0;
-  for (let i = 0; i < raw.length; i++) {
-    const char = raw.charCodeAt(i);
-    hash = ((hash << 5) - hash + char) | 0;
-  }
-  return Math.abs(hash).toString(36);
 }

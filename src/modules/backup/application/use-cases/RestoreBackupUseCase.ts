@@ -13,6 +13,7 @@ import { Profile } from '../../../profile/domain/entities/profile';
 import { validateBackupPayload } from '../../../../shared/validation/schemas';
 import { createId } from '../../../../shared/utils/ids';
 import { nowIso } from '../../../../shared/utils/dates';
+import { computeChecksum } from '../../../../shared/utils/checksum';
 import { DATABASE_SCHEMA_VERSION } from '../../../../shared/infrastructure/schema-version';
 
 export type RestoredImageMap = Record<string, string>;
@@ -68,7 +69,17 @@ export class RestoreBackupUseCase {
     this.validatePayloadIntegrity(payload);
 
     if (snapshot.checksum) {
-      const currentChecksum = this.computeChecksum(payload);
+      const currentChecksum = computeChecksum({
+        fc: payload.families.length,
+        pc: payload.products.length,
+        cc: payload.catalogs.length,
+        oc: payload.orders.length,
+        sc: payload.suppliers?.length ?? 0,
+        fp: payload.profile !== null,
+        fn: payload.families.map((f) => f.id).sort(),
+        pn: payload.products.map((p) => p.id).sort(),
+        cn: payload.catalogs.map((c) => c.id).sort(),
+      });
       if (currentChecksum !== snapshot.checksum) {
         throw new AppError('DATABASE_ERROR', 'El checksum del backup no coincide con su contenido');
       }
@@ -109,7 +120,17 @@ export class RestoreBackupUseCase {
         ordersCount: currentOrders.length,
         suppliersCount: currentSuppliers.length,
         hasProfile: currentProfile !== null,
-        checksum: this.computeChecksum(preventivePayload),
+        checksum: computeChecksum({
+          fc: currentFamilies.length,
+          pc: currentProducts.length,
+          cc: currentCatalogs.length,
+          oc: currentOrders.length,
+          sc: currentSuppliers.length,
+          fp: currentProfile !== null,
+          fn: currentFamilies.map((f) => f.id).sort(),
+          pn: currentProducts.map((p) => p.id).sort(),
+          cn: currentCatalogs.map((c) => c.id).sort(),
+        }),
         filePath: '',
         createdAt: nowIso(),
       },
@@ -177,27 +198,6 @@ export class RestoreBackupUseCase {
     if (!payload.createdAt) {
       throw new AppError('DATABASE_ERROR', 'Backup no tiene fecha de creación');
     }
-  }
-
-  private computeChecksum(payload: BackupPayload): string {
-    const raw = JSON.stringify({
-      fc: payload.families.length,
-      pc: payload.products.length,
-      cc: payload.catalogs.length,
-      oc: payload.orders.length,
-      sc: payload.suppliers?.length ?? 0,
-      fp: payload.profile !== null,
-      fn: payload.families.map((f) => f.id).sort(),
-      pn: payload.products.map((p) => p.id).sort(),
-      cn: payload.catalogs.map((c) => c.id).sort(),
-    });
-
-    let hash = 0;
-    for (let i = 0; i < raw.length; i++) {
-      const char = raw.charCodeAt(i);
-      hash = ((hash << 5) - hash + char) | 0;
-    }
-    return Math.abs(hash).toString(36);
   }
 
   private validateSuppliers(suppliers: BackupPayload['suppliers']) {

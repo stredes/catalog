@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   InMemoryFamilyRepository,
+  InMemoryProductRepository,
   makeFamily,
 } from '../../../../__tests__/fakes';
 import {
@@ -53,10 +54,11 @@ describe('Family use cases', () => {
 
   it('deletes a family', async () => {
     const repository = new InMemoryFamilyRepository();
+    const productRepository = new InMemoryProductRepository();
     const family = makeFamily();
     await repository.create(family);
 
-    await new DeleteFamilyUseCase(repository).execute(family.id);
+    await new DeleteFamilyUseCase(repository, productRepository).execute(family.id);
 
     expect(await repository.findById(family.id)).toBeNull();
   });

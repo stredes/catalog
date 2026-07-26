@@ -162,7 +162,7 @@ function buildDependencies() {
         pickProductImage: new PickProductImageUseCase(imagePicker),
         createFamily: new CreateFamilyUseCase(familyRepository),
         updateFamily: new UpdateFamilyUseCase(familyRepository),
-        deleteFamily: new DeleteFamilyUseCase(familyRepository),
+        deleteFamily: new DeleteFamilyUseCase(familyRepository, productRepository),
         generateCatalogPdf: new GenerateCatalogPdfUseCase(
           catalogRepository,
           familyRepository,

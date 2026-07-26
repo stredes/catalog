@@ -4,6 +4,7 @@ import { Family } from '../../domain/entities/Family';
 import { FamilyRepository } from '../../domain/repositories/FamilyRepository';
 import { FamilyInputDto, familySchema } from '../dtos/FamilyDtos';
 import { familyNotFoundError } from '../../../../shared/errors/AppError';
+import { ProductRepository } from '../../../products/domain/repositories/ProductRepository';
 
 export class CreateFamilyUseCase {
   constructor(private readonly repository: FamilyRepository) {}
@@ -41,9 +42,16 @@ export class UpdateFamilyUseCase {
 }
 
 export class DeleteFamilyUseCase {
-  constructor(private readonly repository: FamilyRepository) {}
+  constructor(
+    private readonly repository: FamilyRepository,
+    private readonly productRepository: ProductRepository,
+  ) {}
 
-  execute(id: string) {
+  async execute(id: string) {
+    const products = await this.productRepository.findByFamily(id);
+    if (products.length > 0) {
+      throw new Error('No se puede eliminar la familia porque tiene productos asociados');
+    }
     return this.repository.delete(id);
   }
 }

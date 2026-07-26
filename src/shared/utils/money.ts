@@ -7,3 +7,5 @@ const formatter = new Intl.NumberFormat('es-CL', {
 export function formatMoney(value: number) {
   return formatter.format(Number.isFinite(value) ? value : 0);
 }
+
+export const formatMoneyCLP = formatMoney;

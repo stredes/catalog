@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import { formatMoney } from '../../../shared/utils/money';
+import { escapeHtml } from '../../../shared/utils/html';
 import { processWithConcurrency } from '../../../shared/utils/concurrency';
 import { CatalogFormat } from '../../catalogs/domain/entities/Catalog';
 import {
@@ -92,15 +93,6 @@ function layoutFor(format: CatalogFormat): Layout {
     cardHeightMm: cfg.cardHeightMm,
     compact,
   };
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 type PrintableProduct = PdfCatalogInput['products'][number] & {

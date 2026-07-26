@@ -2,18 +2,8 @@ import * as Print from 'expo-print';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Order } from '../domain/entities/Order';
 import { Profile } from '../../profile/domain/entities/profile';
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function formatMoneyCLP(value: number): string {
-  return `$${value.toLocaleString('es-CL')}`;
-}
+import { escapeHtml } from '../../../shared/utils/html';
+import { formatMoneyCLP } from '../../../shared/utils/money';
 
 function formatOrderNumber(num: number): string {
   return String(num).padStart(4, '0');

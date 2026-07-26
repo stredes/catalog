@@ -1,3 +1,4 @@
+import { File } from 'expo-file-system';
 import { getDatabase } from '../../../../shared/infrastructure/sqlite';
 import { Product } from '../../domain/entities/product';
 import { ProductRepository } from '../../domain/repositories/ProductRepository';
@@ -54,7 +55,32 @@ export class SQLiteProductRepository implements ProductRepository {
 
   async delete(id: string) {
     const db = await getDatabase();
+    const current = await this.findById(id);
+
     await db.runAsync('DELETE FROM products WHERE id = ?', id);
+
+    if (!current?.photoUri) {
+      return;
+    }
+
+    const remaining = await db.getFirstAsync<{ total: number }>(
+      'SELECT COUNT(*) as total FROM products WHERE photoUri = ?',
+      current.photoUri,
+    );
+
+    if ((remaining?.total ?? 0) > 0) {
+      return;
+    }
+
+    try {
+      const imageFile = new File(current.photoUri);
+
+      if (imageFile.exists) {
+        imageFile.delete();
+      }
+    } catch {
+      // Deleting history must not fail just because the physical image was moved.
+    }
   }
 
   async findAll() {

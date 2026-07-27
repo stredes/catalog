@@ -39,9 +39,6 @@ const styles = StyleSheet.create({
   metricIconWrap: { width: 36, height: 36, borderRadius: borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
   metricAccent: { width: 4, height: 22, borderRadius: 2 },
 
-  quickAction: { alignItems: 'center', padding: spacing.lg, width: '100%', minHeight: 80 },
-  quickActionIconWrap: { width: 44, height: 44, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
-
   fabWrapper: { position: 'absolute', right: 20, zIndex: 100 },
   fab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderRadius: borderRadius.full },
 

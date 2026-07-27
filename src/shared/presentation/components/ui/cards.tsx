@@ -86,31 +86,9 @@ export function MetricCard({ label, value, icon, accent }: {
         ) : null}
         <View style={[styles.metricAccent, { backgroundColor: accentColor }]} />
       </View>
-      <AppText variant="metric" color="primary">{value}</AppText>
+<AppText variant="metric" color="primary">{value}</AppText>
       <AppText variant="bodySmall" color="muted" style={{ marginTop: 2 }}>{label}</AppText>
     </Card>
-  );
-}
-
-export function QuickActionCard({ icon, label, onPress, color }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  color?: string;
-}) {
-  const colors = c();
-  const btnColor = color ?? colors.primary;
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] as any }]}>
-      <Card variant="default" style={styles.quickAction}>
-        <View style={[styles.quickActionIconWrap, { backgroundColor: btnColor + '18' }]}>
-          <Ionicons name={icon} size={22} color={btnColor} />
-        </View>
-        <AppText variant="caption" color="primary" style={{ textAlign: 'center', marginTop: spacing.xs } as TextStyle}>
-          {label}
-        </AppText>
-      </Card>
-    </Pressable>
   );
 }
 
@@ -346,26 +324,6 @@ export const CatalogHistoryItem = memo(function CatalogHistoryItem({ name, forma
     </Card>
   );
 });
-
-export function RecentProductCard({ name, format, price, onPress }: {
-  name: string;
-  format: string;
-  price: string;
-  onPress?: () => void;
-}) {
-  const colors = c();
-  return (
-    <Card variant="default" style={{ marginBottom: spacing.sm }} onPress={onPress}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-            <AppText variant="bodyMedium" color="primary" numberOfLines={1}>{name}</AppText>
-          <AppText variant="bodySmall" color="muted">{format}</AppText>
-        </View>
-        <AppText variant="price" color="accent">{price}</AppText>
-      </View>
-    </Card>
-  );
-}
 
 export function SkeletonCard() {
   return (

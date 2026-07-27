@@ -173,16 +173,19 @@ export function SuppliersScreen() {
     }
   }
 
-  const supplierColors = [
-    colors.primary,
-    colors.secondary,
-    colors.success,
-    colors.warning,
-    '#8B5CF6',
-    '#EC4899',
-    '#14B8A6',
-    '#F59E0B',
-  ];
+  const supplierColors = useMemo(
+    () => [
+      colors.primary,
+      colors.secondary,
+      colors.success,
+      colors.warning,
+      '#8B5CF6',
+      '#EC4899',
+      '#14B8A6',
+      '#F59E0B',
+    ],
+    [colors.primary, colors.secondary, colors.success, colors.warning],
+  );
 
   return (
     <>

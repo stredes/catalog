@@ -46,7 +46,7 @@ async function clearAllTables(db: Awaited<ReturnType<typeof getDatabase>>) {
   const tables = ['orders', 'catalogs', 'products', 'families', 'profile'];
   for (const table of tables) {
     try {
-      await db.runAsync(`DELETE FROM ${table}`);
+      await db.runAsync('DELETE FROM ' + table);
     } catch {
       // Table may not exist
     }

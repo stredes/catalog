@@ -1,6 +1,6 @@
 {
   "name": "catalog-clean",
-  "version": "3.2.5",
+  "version": "3.2.7",
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

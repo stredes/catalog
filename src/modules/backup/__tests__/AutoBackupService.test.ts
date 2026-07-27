@@ -10,6 +10,7 @@ import {
   InMemoryProfileRepository,
   InMemoryOrderRepository,
   InMemorySupplierRepository,
+  InMemoryQuotationRepository,
   makeFamily,
   makeProduct,
 } from '../../../__tests__/fakes';
@@ -22,6 +23,7 @@ describe('AutoBackupService', () => {
   let profileRepo: InMemoryProfileRepository;
   let orderRepo: InMemoryOrderRepository;
   let supplierRepo: InMemorySupplierRepository;
+  let quotationRepo: InMemoryQuotationRepository;
   let createBackup: CreateBackupUseCase;
   let changeDetector: ChangeDetector;
   let service: AutoBackupService;
@@ -34,6 +36,7 @@ describe('AutoBackupService', () => {
     profileRepo = new InMemoryProfileRepository();
     orderRepo = new InMemoryOrderRepository();
     supplierRepo = new InMemorySupplierRepository();
+    quotationRepo = new InMemoryQuotationRepository();
 
     createBackup = new CreateBackupUseCase(
       backupRepo,
@@ -43,6 +46,7 @@ describe('AutoBackupService', () => {
       profileRepo,
       orderRepo,
       supplierRepo,
+      quotationRepo,
     );
 
     changeDetector = new ChangeDetector(

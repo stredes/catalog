@@ -1,6 +1,6 @@
 # Contexto rapido para agentes IA
 
-Ultima actualizacion: 2026-07-23 (v3.2.2 - pagos parciales, estadisticas de ventas y reposicion de stock por compra)
+Ultima actualizacion: 2026-07-27 (v3.2.6 - backup UI mejorado, version sync, auth habilitado)
 Proyecto: `catalog-clean`
 Raiz: `C:\Users\bodega 1\Desktop\workspace\catalog`
 
@@ -461,8 +461,8 @@ Antes de entregar cambios de logica:
 
 ## APK
 
-- Version: 3.2.2, versionCode: 22
-- APK: `C:\Users\bodega 1\Desktop\CatalogClean-v3.2.2.apk` (~67 MB)
+- Version: 3.2.6, versionCode: 26
+- APK: pendiente de generar
 - Package: `com.anonymous.catalogclean`
 - Build: `android\gradlew.bat -p android assembleRelease`
 - JAVA_HOME: `.build-tools\jdk17\jdk-17.0.19+10`

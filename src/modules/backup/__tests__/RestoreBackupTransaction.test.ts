@@ -7,6 +7,7 @@ import {
   InMemoryProfileRepository,
   InMemoryOrderRepository,
   InMemorySupplierRepository,
+  InMemoryQuotationRepository,
   makeFamily,
   makeProduct,
   makeProfile,
@@ -25,6 +26,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
   let profileRepo: InMemoryProfileRepository;
   let orderRepo: InMemoryOrderRepository;
   let supplierRepo: InMemorySupplierRepository;
+  let quotationRepo: InMemoryQuotationRepository;
 
   beforeEach(() => {
     familyRepo = new InMemoryFamilyRepository();
@@ -33,6 +35,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
     profileRepo = new InMemoryProfileRepository();
     orderRepo = new InMemoryOrderRepository();
     supplierRepo = new InMemorySupplierRepository();
+    quotationRepo = new InMemoryQuotationRepository();
     backupRepo = new InMemoryBackupRepository({
       familyRepo, productRepo, catalogRepo,
       profileRepo, orderRepo, supplierRepo,
@@ -42,7 +45,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
   it('lanza error cuando el backup no existe', async () => {
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
     );
 
     await expect(useCase.execute({
@@ -63,13 +66,14 @@ describe('RestoreBackupUseCase - Transaccional', () => {
       profile: null,
       orders: [],
       suppliers: [],
+      quotations: [],
       images: {},
     };
     await backupRepo.saveSnapshot(snapshot, payload);
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
     );
 
     await expect(useCase.execute({
@@ -92,6 +96,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
       profile: null,
       orders: [],
       suppliers: [],
+      quotations: [],
       images: {},
     };
 
@@ -100,7 +105,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
     );
 
     const result = await useCase.execute({
@@ -147,6 +152,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
         { id: '', name: '', createdAt: '', updatedAt: '' } as any,
         { id: 'sup_1', name: 'Supplier1', createdAt: '2026-01-01', updatedAt: '2026-01-01' } as any,
       ],
+      quotations: [],
       images: {},
     };
 
@@ -155,7 +161,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
     );
 
     const result = await useCase.execute({
@@ -181,6 +187,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
       profile: null,
       orders: [],
       suppliers: [],
+      quotations: [],
       images: {},
     };
 
@@ -189,7 +196,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
     );
 
     try {
@@ -216,6 +223,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
       profile: null,
       orders: [],
       suppliers: [],
+      quotations: [],
       images: {},
     };
 
@@ -224,7 +232,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
     );
 
     const result = await useCase.execute({
@@ -246,6 +254,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
   let profileRepo: InMemoryProfileRepository;
   let orderRepo: InMemoryOrderRepository;
   let supplierRepo: InMemorySupplierRepository;
+  let quotationRepo: InMemoryQuotationRepository;
 
   beforeEach(() => {
     familyRepo = new InMemoryFamilyRepository();
@@ -254,6 +263,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
     profileRepo = new InMemoryProfileRepository();
     orderRepo = new InMemoryOrderRepository();
     supplierRepo = new InMemorySupplierRepository();
+    quotationRepo = new InMemoryQuotationRepository();
     backupRepo = new InMemoryBackupRepository({
       familyRepo, productRepo, catalogRepo,
       profileRepo, orderRepo, supplierRepo,
@@ -270,6 +280,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
       profile: null,
       orders: [],
       suppliers: [],
+      quotations: [],
       images: {},
     };
     const snapshot = makeBackupSnapshot({ id: 'bkp_bad_ver' });
@@ -277,7 +288,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
     );
 
     await expect(useCase.execute({
@@ -297,6 +308,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
       profile: null,
       orders: [],
       suppliers: [],
+      quotations: [],
       images: {},
     };
 
@@ -305,7 +317,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
     );
 
     await expect(useCase.execute({
@@ -327,6 +339,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
       profile: null,
       orders: [],
       suppliers: [],
+      quotations: [],
       images: {},
     };
 
@@ -335,7 +348,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
     );
 
     const result = await useCase.execute({
@@ -369,6 +382,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
       profile: null,
       orders: [],
       suppliers: [],
+      quotations: [],
       images: { [oldUri]: 'data:image/jpeg;base64,ZmFrZQ==' },
     };
     const snapshot = makeBackupSnapshot({
@@ -379,7 +393,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
       async () => ({ [oldUri]: newUri }),
     );
 

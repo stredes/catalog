@@ -20,6 +20,8 @@ import { PurchaseCartRepository } from '../modules/orders/domain/repositories/Pu
 import { OrderPdfGeneratorPort } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
 import { Supplier } from '../modules/suppliers/domain/entities/Supplier';
 import { SupplierRepository } from '../modules/suppliers/domain/repositories/SupplierRepository';
+import { Quotation } from '../modules/quotations/domain/entities/Quotation';
+import { QuotationRepository } from '../modules/quotations/domain/repositories/QuotationRepository';
 import { computeChecksum } from '../shared/utils/checksum';
 
 export class InMemoryFamilyRepository implements FamilyRepository {
@@ -499,5 +501,37 @@ export class InMemoryPurchaseCartRepository implements PurchaseCartRepository {
 
   async clear(): Promise<void> {
     this.items = [];
+  }
+}
+
+export class InMemoryQuotationRepository implements QuotationRepository {
+  quotations = new Map<string, Quotation>();
+
+  async save(quotation: Quotation) {
+    this.quotations.set(quotation.id, quotation);
+  }
+
+  async update(quotation: Quotation) {
+    this.quotations.set(quotation.id, quotation);
+  }
+
+  async findAll() {
+    return [...this.quotations.values()];
+  }
+
+  async findById(id: string) {
+    return this.quotations.get(id) ?? null;
+  }
+
+  async delete(id: string) {
+    this.quotations.delete(id);
+  }
+
+  async getMaxQuotationNumber() {
+    let max = 0;
+    for (const q of this.quotations.values()) {
+      if (q.quotationNumber > max) max = q.quotationNumber;
+    }
+    return max;
   }
 }

@@ -238,6 +238,12 @@ export function DashboardScreen() {
             accent={colors.warning}
           />
           <QuickTile
+            icon="calculator-outline"
+            label="Cotizaciones"
+            onPress={() => navigate('QuotationBuilder')}
+            accent="#8B5CF6"
+          />
+          <QuickTile
             icon="cloud-upload-outline"
             label="Backup"
             onPress={() => navigate('Backup')}

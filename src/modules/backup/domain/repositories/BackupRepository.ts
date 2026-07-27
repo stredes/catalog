@@ -7,6 +7,7 @@ export interface TransactionalRestoreData {
   profile: BackupPayload['profile'];
   orders: BackupPayload['orders'];
   suppliers: BackupPayload['suppliers'];
+  quotations: BackupPayload['quotations'];
 }
 
 export interface BackupRepository {

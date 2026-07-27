@@ -124,6 +124,38 @@ export const SupplierSchema = z.object({
 
 export type ValidatedSupplier = z.infer<typeof SupplierSchema>;
 
+export const ServiceItemSchema = z.object({
+  id: z.string().min(1),
+  description: z.string().min(1),
+  quantity: StrictPositiveInteger,
+  unitPrice: MoneySchema.positive('El precio unitario debe ser mayor a cero'),
+  subtotal: MoneySchema,
+});
+
+export type ValidatedServiceItem = z.infer<typeof ServiceItemSchema>;
+
+export const QuotationStatusSchema = z.enum(['draft', 'sent', 'accepted', 'rejected']);
+
+export const QuotationSchema = z.object({
+  id: z.string().min(1),
+  quotationNumber: NonNegativeInteger,
+  clientName: z.string().min(1),
+  clientPhone: z.string().optional(),
+  clientEmail: z.string().optional(),
+  clientAddress: z.string().optional(),
+  items: z.array(ServiceItemSchema),
+  subtotal: MoneySchema,
+  ivaRate: z.number().finite().nonnegative(),
+  ivaAmount: MoneySchema,
+  total: MoneySchema,
+  status: QuotationStatusSchema.default('draft'),
+  notes: z.string().optional(),
+  validUntil: z.string().optional(),
+  createdAt: z.string().min(1),
+});
+
+export type ValidatedQuotation = z.infer<typeof QuotationSchema>;
+
 export const BackupPayloadSchema = z.object({
   schemaVersion: z.number().int().nonnegative(),
   createdAt: z.string().min(1),
@@ -133,6 +165,7 @@ export const BackupPayloadSchema = z.object({
   profile: ProfileSchema.nullable(),
   orders: z.array(OrderSchema),
   suppliers: z.array(SupplierSchema).optional().default([]),
+  quotations: z.array(QuotationSchema).optional().default([]),
   images: z.record(z.string(), z.string()).optional().default({}),
 });
 

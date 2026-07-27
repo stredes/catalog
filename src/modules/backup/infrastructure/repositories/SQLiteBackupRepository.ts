@@ -133,6 +133,7 @@ export class SQLiteBackupRepository implements BackupRepository {
       await txn.runAsync('DELETE FROM suppliers');
       await txn.runAsync('DELETE FROM families');
       await txn.runAsync('DELETE FROM profile');
+      await txn.runAsync('DELETE FROM quotations');
 
       for (const family of data.families) {
         await txn.runAsync(
@@ -191,6 +192,19 @@ export class SQLiteBackupRepository implements BackupRepository {
           order.id, order.orderNumber, order.clientName,
           JSON.stringify(order.items), order.subtotal, order.iva, order.total,
           order.status, order.paidAmount, order.notes ?? null, order.createdAt,
+        );
+      }
+
+      for (const quotation of data.quotations) {
+        await txn.runAsync(
+          `INSERT INTO quotations (id, quotationNumber, clientName, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          quotation.id, quotation.quotationNumber, quotation.clientName,
+          quotation.clientPhone ?? null, quotation.clientEmail ?? null,
+          quotation.clientAddress ?? null, JSON.stringify(quotation.items),
+          quotation.subtotal, quotation.ivaRate, quotation.ivaAmount, quotation.total,
+          quotation.status, quotation.notes ?? null, quotation.validUntil ?? null,
+          quotation.createdAt,
         );
       }
     });

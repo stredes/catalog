@@ -5,6 +5,7 @@ import { CatalogRepository } from '../../../catalogs/domain/repositories/Catalog
 import { ProfileRepository } from '../../../profile/domain/repositories/ProfileRepository';
 import { OrderRepository } from '../../../orders/domain/repositories/OrderRepository';
 import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
+import { QuotationRepository } from '../../../quotations/domain/repositories/QuotationRepository';
 import { BackupRepository } from '../../domain/repositories/BackupRepository';
 import { RestoreBackupInput, RestoreBackupSchema } from '../dtos/BackupDtos';
 import { AppError } from '../../../../shared/errors/AppError';
@@ -46,6 +47,7 @@ export class RestoreBackupUseCase {
     private readonly profileRepo: ProfileRepository,
     private readonly orderRepo: OrderRepository,
     private readonly supplierRepo: SupplierRepository,
+    private readonly quotationRepo: QuotationRepository,
     restoreImages?: ImageRestorer,
     collectImages?: ImageCollector,
   ) {
@@ -87,13 +89,14 @@ export class RestoreBackupUseCase {
 
     const warnings: string[] = [];
 
-    const [currentFamilies, currentProducts, currentCatalogs, currentProfile, currentOrders, currentSuppliers] = await Promise.all([
+    const [currentFamilies, currentProducts, currentCatalogs, currentProfile, currentOrders, currentSuppliers, currentQuotations] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
       this.catalogRepo.findAll(),
       this.profileRepo.find(),
       this.orderRepo.findAll(),
       this.supplierRepo.findAll(),
+      this.quotationRepo.findAll(),
     ]);
 
     if (validated.createPreventiveBackup) {
@@ -106,6 +109,7 @@ export class RestoreBackupUseCase {
         profile: currentProfile,
         orders: currentOrders,
         suppliers: currentSuppliers,
+        quotations: currentQuotations,
         images: {},
       };
 
@@ -148,6 +152,11 @@ export class RestoreBackupUseCase {
       warnings.push(`${orderFailures.length} pedidos inválidos omitidos: ${orderFailures.map((f) => `índice ${f.index}: ${f.errors[0]}`).join('; ')}`);
     }
 
+    const { valid: validQuotations, failures: quotationFailures } = this.validateQuotations(payload.quotations ?? []);
+    if (quotationFailures.length > 0) {
+      warnings.push(`${quotationFailures.length} cotizaciones inválidas omitidas: ${quotationFailures.map((f) => `índice ${f.index}: ${f.errors[0]}`).join('; ')}`);
+    }
+
     let restoredImages: RestoredImageMap = {};
     try {
       restoredImages = await this.restoreImages(payload.images);
@@ -171,6 +180,7 @@ export class RestoreBackupUseCase {
         profile: profileWithRestoredImage,
         orders: validOrders,
         suppliers: validSuppliers,
+        quotations: validQuotations,
       });
     } catch (error) {
       throw new AppError(
@@ -252,6 +262,31 @@ export class RestoreBackupUseCase {
         failures.push({ index: i, errors });
       } else {
         valid.push(o);
+      }
+    }
+
+    return { valid, failures };
+  }
+
+  private validateQuotations(quotations: BackupPayload['quotations']) {
+    const valid: BackupPayload['quotations'] = [];
+    const failures: Array<{ index: number; errors: string[] }> = [];
+
+    for (let i = 0; i < quotations.length; i++) {
+      const q = quotations[i];
+      const errors: string[] = [];
+      if (!q.id || typeof q.id !== 'string') errors.push('id inválido');
+      if (typeof q.quotationNumber !== 'number') errors.push('quotationNumber inválido');
+      if (!q.clientName || typeof q.clientName !== 'string') errors.push('clientName inválido');
+      if (!Array.isArray(q.items)) errors.push('items no es un array');
+      if (typeof q.subtotal !== 'number' || !Number.isFinite(q.subtotal)) errors.push('subtotal inválido');
+      if (typeof q.total !== 'number' || !Number.isFinite(q.total)) errors.push('total inválido');
+      if (!q.createdAt) errors.push('createdAt inválido');
+
+      if (errors.length > 0) {
+        failures.push({ index: i, errors });
+      } else {
+        valid.push(q);
       }
     }
 

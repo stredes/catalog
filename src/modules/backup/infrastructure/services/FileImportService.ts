@@ -116,6 +116,7 @@ export async function importBackupFromFile(filepath: string): Promise<{
       profile,
       orders: payload.orders,
       suppliers: payload.suppliers,
+      quotations: payload.quotations ?? [],
     });
 
     return {

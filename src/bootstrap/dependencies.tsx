@@ -81,6 +81,15 @@ import {
   DeleteSupplierUseCase,
 } from '../modules/suppliers/application/use-cases/SupplierUseCases';
 import { SQLiteSupplierRepository } from '../modules/suppliers/infrastructure/repositories/SQLiteSupplierRepository';
+import {
+  CreateQuotationUseCase,
+} from '../modules/quotations/application/use-cases/CreateQuotationUseCase';
+import { GetQuotationsUseCase } from '../modules/quotations/application/use-cases/GetQuotationsUseCase';
+import { DeleteQuotationUseCase } from '../modules/quotations/application/use-cases/DeleteQuotationUseCase';
+import { UpdateQuotationUseCase } from '../modules/quotations/application/use-cases/UpdateQuotationUseCase';
+import { GenerateQuotationPdfUseCase } from '../modules/quotations/application/use-cases/GenerateQuotationPdfUseCase';
+import { SQLiteQuotationRepository } from '../modules/quotations/infrastructure/repositories/SQLiteQuotationRepository';
+import { QuotationPdfGenerator } from '../modules/quotations/infrastructure/QuotationPdfGenerator';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -96,12 +105,14 @@ function buildDependencies() {
   const purchaseCartRepository = new AsyncStoragePurchaseCartRepository();
   const backupRepository = new SQLiteBackupRepository();
   const supplierRepository = new SQLiteSupplierRepository();
+  const quotationRepository = new SQLiteQuotationRepository();
   const pdfGenerator = new ExpoPdfGenerator();
   const shareService = new ExpoNativeShareService();
   const imagePicker = new ExpoImagePickerService();
   const preferences: PreferencesPort = new AsyncStoragePreferencesAdapter();
   const auth: AuthPort = new LocalAuthAdapter(preferences);
   const orderPdfGenerator = new OrderPdfGenerator();
+  const quotationPdfGenerator = new QuotationPdfGenerator();
   const analytics: AnalyticsPort = new SqliteAnalyticsRepository();
   const errorReporter: ErrorReporter = new SentryErrorReporter();
 
@@ -115,6 +126,7 @@ function buildDependencies() {
     profileRepository,
     orderRepository,
     supplierRepository,
+    quotationRepository,
     collectBackupImages,
   );
 
@@ -144,6 +156,7 @@ function buildDependencies() {
         purchaseCart: purchaseCartRepository,
         backup: backupRepository,
         suppliers: supplierRepository,
+        quotations: quotationRepository,
       },
       services: {
         preferences,
@@ -206,6 +219,7 @@ function buildDependencies() {
           profileRepository,
           orderRepository,
           supplierRepository,
+          quotationRepository,
           restoreBackupImages,
           collectBackupImages,
         ),
@@ -213,6 +227,11 @@ function buildDependencies() {
         createSupplier: new CreateSupplierUseCase(supplierRepository),
         updateSupplier: new UpdateSupplierUseCase(supplierRepository),
         deleteSupplier: new DeleteSupplierUseCase(supplierRepository),
+        createQuotation: new CreateQuotationUseCase(quotationRepository),
+        getQuotations: new GetQuotationsUseCase(quotationRepository),
+        deleteQuotation: new DeleteQuotationUseCase(quotationRepository),
+        updateQuotation: new UpdateQuotationUseCase(quotationRepository),
+        generateQuotationPdf: new GenerateQuotationPdfUseCase(quotationPdfGenerator),
       },
       autoBackupService,
     };

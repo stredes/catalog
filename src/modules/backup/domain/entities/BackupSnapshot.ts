@@ -4,6 +4,7 @@ import { Catalog } from '../../../catalogs/domain/entities/Catalog';
 import { Profile } from '../../../profile/domain/entities/profile';
 import { Order } from '../../../orders/domain/entities/Order';
 import { Supplier } from '../../../suppliers/domain/entities/Supplier';
+import { Quotation } from '../../../quotations/domain/entities/Quotation';
 
 export type BackupTrigger = 'manual' | 'auto-before-delete' | 'auto-periodic' | 'auto-before-seed';
 
@@ -33,5 +34,6 @@ export type BackupPayload = {
   profile: Profile | null;
   orders: Order[];
   suppliers: Supplier[];
+  quotations: Quotation[];
   images: BackupImageMap;
 };

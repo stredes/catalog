@@ -4,6 +4,7 @@ import { CatalogRepository } from '../../../catalogs/domain/repositories/Catalog
 import { ProfileRepository } from '../../../profile/domain/repositories/ProfileRepository';
 import { OrderRepository } from '../../../orders/domain/repositories/OrderRepository';
 import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
+import { QuotationRepository } from '../../../quotations/domain/repositories/QuotationRepository';
 import { BackupRepository } from '../../domain/repositories/BackupRepository';
 import { BackupSnapshot, BackupPayload, BackupImageMap } from '../../domain/entities/BackupSnapshot';
 import { CreateBackupInput, CreateBackupSchema } from '../dtos/BackupDtos';
@@ -29,6 +30,7 @@ export class CreateBackupUseCase {
     private readonly profileRepo: ProfileRepository,
     private readonly orderRepo: OrderRepository,
     private readonly supplierRepo: SupplierRepository,
+    private readonly quotationRepo: QuotationRepository,
     collectImages?: ImageCollector,
   ) {
     this.collectImages = collectImages ?? noopImageCollector;
@@ -37,13 +39,14 @@ export class CreateBackupUseCase {
   async execute(input: CreateBackupInput): Promise<BackupSnapshot> {
     const validated = CreateBackupSchema.parse(input);
 
-    const [families, products, catalogs, profile, orders, suppliers] = await Promise.all([
+    const [families, products, catalogs, profile, orders, suppliers, quotations] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
       this.catalogRepo.findAll(),
       this.profileRepo.find(),
       this.orderRepo.findAll(),
       this.supplierRepo.findAll(),
+      this.quotationRepo.findAll(),
     ]);
 
     const images = await this.collectImages(products, profile);
@@ -57,6 +60,7 @@ export class CreateBackupUseCase {
       profile,
       orders,
       suppliers,
+      quotations,
       images,
     };
 

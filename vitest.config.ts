@@ -8,7 +8,13 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/modules/**/application/**/*.ts', 'src/modules/**/infrastructure/**/*.ts', 'src/shared/**/*.ts'],
       exclude: ['src/**/__tests__/**', 'src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.d.ts'],
-      reporter: ['text', 'lcov'],
+      reporter: ['text', 'lcov', 'html'],
+      thresholds: {
+        lines: 25,
+        functions: 25,
+        branches: 18,
+        statements: 25,
+      },
     },
   },
 });

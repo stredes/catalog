@@ -6,6 +6,7 @@ export { spacing } from './theme/spacing';
 export { typography, fontWeights } from './theme/typography';
 export type { TypographyVariant } from './theme/typography';
 export { radius as borderRadius } from './theme/radius';
+export { borders } from './theme/borders';
 export { motion } from './theme/motion';
 export { sizes } from './theme/sizes';
 export { opacity } from './theme/opacity';

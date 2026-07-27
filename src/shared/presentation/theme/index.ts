@@ -4,6 +4,7 @@ export { spacing } from './spacing';
 export { typography, fontWeights } from './typography';
 export type { TypographyVariant } from './typography';
 export { radius } from './radius';
+export { borders } from './borders';
 export { shadow } from './shadows';
 export { motion } from './motion';
 export { sizes } from './sizes';

@@ -7,7 +7,7 @@
 | Kali Linux | 192.168.1.100 | stredes | 19921351-2 | 22 | Seguridad + Bundle Audit |
 | Linux Mint | 192.168.1.90 | stredesmers | 19921351-2 | 22 | Bugs Funcionales + SQLite |
 | Arch Linux (Omarchy) | 192.168.1.89 | lucas | 19921351-2 | 22 | Calidad/DRY + Memoization |
-| Celular owner WhatsApp | 192.168.1.181 | u0_a445 | 199213 | 8022 | WhatsApp + recepcion APK |
+| Celular owner WhatsApp | 192.168.1.81 | u0_a445 | 199213 | 8022 | WhatsApp + recepcion APK |
 | Samsung Tab A8 | 192.168.1.102 | u0_a273 | 199213 | 8022 | Coordinator |
 | Router | 192.168.1.1 | - | - | - | Gateway |
 
@@ -25,9 +25,9 @@
 | Acceso remoto recomendado | SSH tunnel hacia Arch: ssh -N -L 18789:127.0.0.1:18789 lucas@192.168.1.89 |
 | WhatsApp allowFrom | +56954764325 |
 | WhatsApp ownerAllowFrom | whatsapp:+56954764325 |
-| IP celular owner | 192.168.1.181 |
+| IP celular owner | 192.168.1.81 |
 | WhatsApp dmPolicy | pairing |
-| Estado | CLI instalado y numero WhatsApp autorizado; pendiente login QR si el canal aun no fue vinculado |
+| Estado | CLI instalado, plugin WhatsApp instalado, QR vinculado, gateway activo detached, WhatsApp healthy |
 
 ## Flujo de Entrega APK por WhatsApp
 
@@ -37,7 +37,7 @@ Objetivo operativo: cuando termine el trabajo de codigo y se genere una APK corr
 |-------|-------|
 | Version APK actual esperada | 3.2.5 |
 | Destino WhatsApp | +56954764325 |
-| IP celular destino | 192.168.1.181 |
+| IP celular destino | 192.168.1.81 |
 | Canal OpenClaw | whatsapp |
 | Formato de envio | Documento adjunto para evitar compresion o tratamiento como media |
 | Host que debe enviar | Arch Linux (Omarchy) con OpenClaw |
@@ -74,6 +74,8 @@ Checklist antes de enviar:
 | Opencode config | ~/.config/opencode/opencode.json |
 | OpenClaw config | ~/.openclaw/openclaw.json |
 | OpenClaw CLI | ~/.local/share/mise/installs/node/26.3.0/bin/openclaw |
+| Omarchy Multi-PC Control | ~/connect-clients.sh |
+| Omarchy Multi-PC Autostart | ~/.config/autostart/omarchy-multi-pc-tui.desktop |
 | Contexto proyecto | ~/Workspace/catalog/.context |
 | Contexto multi-PC | ~/Workspace/catalog/MULTI_PC_CONTEXT.md |
 | Git remote | git@github.com:stredes/catalog.git |
@@ -86,7 +88,8 @@ sshpass -p '19921351-2' ssh stredes@192.168.1.100    # Kali
 sshpass -p '19921351-2' ssh stredesmers@192.168.1.90  # Mint
 sshpass -p '19921351-2' ssh lucas@192.168.1.89        # Arch
 # Celular owner WhatsApp / APK
-sshpass -p '199213' ssh -p 8022 u0_a445@192.168.1.181
+sshpass -p '199213' ssh -p 8022 u0_a445@192.168.1.81
+# Nota: si responde "Connection refused", iniciar sshd en Termux antes de sincronizar archivos por SSH.
 
 # Tablet omitida del sync OpenClaw/APK por decision operativa actual.
 # sshpass -p '199213' ssh -p 8022 u0_a273@192.168.1.102
@@ -105,6 +108,9 @@ openclaw doctor
 openclaw gateway status
 openclaw dashboard
 
+# Mantener gateway activo sin systemd user
+setsid -f script -q -f -c 'env OPENCLAW_NO_RESPAWN=1 openclaw gateway run --force --verbose' /tmp/openclaw/gateway-run.typescript
+
 # Vincular WhatsApp si falta QR/login
 openclaw channels add --channel whatsapp
 openclaw channels login --channel whatsapp
@@ -113,6 +119,7 @@ openclaw channels login --channel whatsapp
 openclaw config set channels.whatsapp.dmPolicy pairing
 openclaw config set channels.whatsapp.allowFrom '["+56954764325"]'
 openclaw config set commands.ownerAllowFrom '["whatsapp:+56954764325"]'
+openclaw channels status --probe
 
 # Acceder al dashboard de OpenClaw desde otro PC por tunel SSH
 ssh -N -L 18789:127.0.0.1:18789 lucas@192.168.1.89
@@ -121,6 +128,12 @@ ssh -N -L 18789:127.0.0.1:18789 lucas@192.168.1.89
 # Enviar APK final versionada por WhatsApp
 openclaw channels status --probe
 openclaw message send --channel whatsapp --target +56954764325 --message "APK version 3.2.5 lista para instalar." --media /ruta/a/la/app-v3.2.5.apk --force-document
+
+# Omarchy Multi-PC Control actualizado
+~/connect-clients.sh --openclaw-status
+~/connect-clients.sh --openclaw-start
+~/connect-clients.sh --send-apk /tmp/app-v3.2.5.apk 3.2.5
+~/connect-clients.sh --openclaw
 ```
 
 ## Roles de Auditoria
@@ -134,9 +147,10 @@ openclaw message send --channel whatsapp --target +56954764325 --message "APK ve
 ## Estado del Sistema
 
 - **Ultima sincronizacion**: 2026-07-26
-- **OpenClaw**: instalado en Arch, numero WhatsApp +56954764325 registrado como allowFrom y owner
+- **OpenClaw**: instalado en Arch, WhatsApp vinculado por QR, numero +56954764325 registrado como allowFrom y owner
 - **Entrega APK**: enviar APK final versionada por WhatsApp a +56954764325; version esperada actual 3.2.5
-- **Sync OpenClaw/APK**: actualizar Arch, Kali y Mint; tablet omitida por decision operativa actual
+- **Omarchy Multi-PC Control**: actualizado con panel OpenClaw/WhatsApp, estado, arranque detached de gateway y envio de APK
+- **Sync OpenClaw/APK**: actualizar Arch, Kali y Mint; celular owner documentado en 192.168.1.81; tablet omitida por decision operativa actual
 - **Commits en origin/main**: 17+ commits de auditoria
 - **TypeScript**: Clean en las 3 PCs
 - **Tests**: 102/102 en las 3 PCs

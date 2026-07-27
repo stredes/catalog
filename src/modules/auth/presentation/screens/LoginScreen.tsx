@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
-import { spacing, borderRadius, sizes } from '../../../../shared/presentation/theme';
+import { spacing, borderRadius, sizes, borders, typography } from '../../../../shared/presentation/theme';
 import { AppText, PrimaryButton, SecondaryButton } from '../../../../shared/presentation/components/ui';
 
 export function LoginScreen() {
@@ -42,13 +42,13 @@ export function LoginScreen() {
     alignItems: 'center' as const,
     backgroundColor: colors.backgroundSecondary,
     borderRadius: borderRadius.md,
-    borderWidth: 1,
+    borderWidth: borders.thin,
     borderColor: colors.borderDefault,
-    paddingHorizontal: spacing.lg - 2,
+    paddingHorizontal: sizes.inputPaddingHorizontal,
     height: sizes.inputHeight,
   };
 
-  const inputTextStyle = { flex: 1, color: colors.textPrimary, fontSize: 16, padding: 0 };
+  const inputTextStyle = { flex: 1, color: colors.textPrimary, fontSize: typography.bodyLarge.fontSize, lineHeight: typography.bodyLarge.lineHeight, padding: 0 };
 
   return (
     <KeyboardAvoidingView
@@ -70,7 +70,7 @@ export function LoginScreen() {
             style={{
               width: sizes.authAvatar,
               height: sizes.authAvatar,
-              borderRadius: sizes.authAvatar / 2,
+              borderRadius: sizes.authAvatarRadius,
               backgroundColor: colors.primaryLight,
               justifyContent: 'center',
               alignItems: 'center',
@@ -89,7 +89,7 @@ export function LoginScreen() {
           <AppText
             variant="bodyMedium"
             color="muted"
-            style={{ textAlign: 'center', lineHeight: 22 }}
+            style={{ textAlign: 'center', lineHeight: typography.headingSmall.lineHeight }}
           >
             Inicia sesión para acceder a tus catálogos
           </AppText>
@@ -107,7 +107,7 @@ export function LoginScreen() {
               Correo electrónico
             </AppText>
             <View style={inputStyle}>
-              <Ionicons name="mail-outline" size={sizes.authIconInput} color={colors.textDisabled} style={{ marginRight: spacing.sm + 2 }} />
+              <Ionicons name="mail-outline" size={sizes.authIconInput} color={colors.textDisabled} style={{ marginRight: sizes.iconMargin }} />
               <TextInput
                 placeholder="correo@ejemplo.com"
                 placeholderTextColor={colors.textDisabled}
@@ -126,7 +126,7 @@ export function LoginScreen() {
               Contraseña
             </AppText>
             <View style={inputStyle}>
-              <Ionicons name="lock-closed-outline" size={sizes.authIconInput} color={colors.textDisabled} style={{ marginRight: spacing.sm + 2 }} />
+              <Ionicons name="lock-closed-outline" size={sizes.authIconInput} color={colors.textDisabled} style={{ marginRight: sizes.iconMargin }} />
               <TextInput
                 placeholder="Tu contraseña"
                 placeholderTextColor={colors.textDisabled}

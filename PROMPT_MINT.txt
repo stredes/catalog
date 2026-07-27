@@ -1,0 +1,33 @@
+== TAREA ASIGNADA: INTEGRIDAD DE DATOS Y BUGS FUNCIONALES ==
+Maquina: Mint (192.168.1.90) - Especialista en base de datos y logica
+Proyecto: catalog-clean
+
+Lee el .context del proyecto primero. Luego implementa SOLO estas correcciones:
+
+1) BUG purpose: En src/modules/catalogs/infrastructure/repositories/SQLiteCatalogRepository.ts,
+   el INSERT incluye la columna "purpose" pero la tabla catalogs (migration v1) no la tiene.
+   O agregar la columna via migracion, O quitarla del INSERT si no se usa.
+
+2) BUG STOCK: En src/modules/orders/application/use-cases/OrderUseCases.ts,
+   UpdateOrderUseCase (lineas 124-161) recalcula subtotales pero NUNCA ajusta stock.
+   Implementar: al modificar cantidades de items, reversar stock viejo y aplicar stock nuevo.
+
+3) BUG PAGOS PARCIALES: En src/modules/orders/application/use-cases/OrderUseCases.ts,
+   ToggleOrderStatusUseCase (lineas 163-182) alterna pending/paid directamente.
+   Corregir: si esta en "partial", el toggle debe respetar el paidAmount existente
+   y solo marcar paid si paidAmount >= total.
+
+4) BUG CASCADE DELETE: En src/modules/families/application/use-cases/FamilyUseCases.ts,
+   DeleteFamilyUseCase (lineas 43-48) elimina familia sin validar productos asociados.
+   Implementar: antes de borrar, verificar si hay productos con esa familyId. 
+   Si hay, retornar error con la cantidad de productos afectados.
+
+5) BUG IMAGENES: En src/modules/products/infrastructure/repositories/SQLiteProductRepository.ts,
+   delete() (lineas 55-58) solo borra de SQLite pero no la imagen fisica.
+   Copiar el patron de SQLiteCatalogRepository.delete que si elimina el PDF.
+
+Reglas:
+- NO ejecutes npm/npx/tsc (no tienes node en esta sesion)
+- Edita SOLO archivos fuente
+- Haz commit de cada cambio con mensaje descriptivo en ingles
+- Al terminar, escribe un resumen de cambios en ~/mint_changes.txt

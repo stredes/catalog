@@ -12,7 +12,7 @@ type LegacyBackupData = {
   schemaVersion?: number;
   families?: Array<{ id: string; name: string; createdAt: string; updatedAt: string }>;
   products?: Array<{ id: string; name: string; code: string | null; price: number; format: string; photoUri: string | null; familyId: string; stock: number; createdAt: string; updatedAt: string }>;
-  catalogs?: Array<{ id: string; name: string; familyId: string; familyIds: string | null; format: string; productIds: string; pdfUri: string; createdAt: string }>;
+  catalogs?: Array<{ id: string; name: string; familyId: string; familyIds: string | null; format: string; productIds: string; pdfUri: string; purpose?: string | null; createdAt: string }>;
   profile?: Array<{ id: string; businessName: string; ownerName: string | null; phone: string | null; email: string | null; address: string | null; website: string | null; logoUri: string | null; bankName: string | null; bankAccountType: string | null; bankAccountNumber: string | null; updatedAt: string }>;
   orders?: Array<{ id: string; orderNumber: number; clientName: string; items: string; subtotal: number; iva: number; total: number; status?: string; paidAmount?: number; notes: string | null; createdAt: string }>;
   images?: BackupImageMap;
@@ -29,7 +29,7 @@ async function ensureAllTablesExist(db: Awaited<ReturnType<typeof getDatabase>>)
   )`);
   await db.execAsync(`CREATE TABLE IF NOT EXISTS catalogs (
     id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, familyId TEXT NOT NULL, familyIds TEXT,
-    format TEXT NOT NULL, productIds TEXT NOT NULL, pdfUri TEXT NOT NULL, createdAt TEXT NOT NULL
+    format TEXT NOT NULL, productIds TEXT NOT NULL, pdfUri TEXT NOT NULL, purpose TEXT, createdAt TEXT NOT NULL
   )`);
   await db.execAsync(`CREATE TABLE IF NOT EXISTS profile (
     id TEXT PRIMARY KEY NOT NULL, businessName TEXT NOT NULL, ownerName TEXT, phone TEXT, email TEXT,
@@ -158,8 +158,8 @@ export async function importBackupFromFile(filepath: string): Promise<{
     await db.withExclusiveTransactionAsync(async (txn) => {
       for (const c of data.catalogs!) {
         await txn.runAsync(
-          'INSERT OR REPLACE INTO catalogs (id, name, familyId, familyIds, format, productIds, pdfUri, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          c.id, c.name, c.familyId, c.familyIds, c.format, c.productIds, c.pdfUri, c.createdAt,
+          'INSERT OR REPLACE INTO catalogs (id, name, familyId, familyIds, format, productIds, pdfUri, purpose, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          c.id, c.name, c.familyId, c.familyIds, c.format, c.productIds, c.pdfUri, c.purpose ?? null, c.createdAt,
         );
       }
     });

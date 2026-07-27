@@ -17,6 +17,10 @@ const USER_KEY = 'catalog_clean_user';
 const USERS_KEY = 'catalog_clean_users';
 const CREDENTIALS_VERSION_KEY = 'catalog_clean_auth_version';
 const CURRENT_CREDENTIALS_VERSION = 2;
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 5 * 60 * 1000;
+
+const loginAttempts = new Map<string, { attempts: number; lockedUntil: number }>();
 
 interface StoredUser {
   id: string;
@@ -55,17 +59,29 @@ export class LocalAuthAdapter implements AuthPort {
     await this.migrateLegacyStorageIfNeeded();
     await this.migrateOldCredentialsIfNeeded();
 
+    const normalizedEmail = email.toLowerCase();
+
+    const lock = loginAttempts.get(normalizedEmail);
+    if (lock && lock.lockedUntil > Date.now()) {
+      const secondsLeft = Math.ceil((lock.lockedUntil - Date.now()) / 1000);
+      throw new Error(`Cuenta bloqueada. Intenta de nuevo en ${secondsLeft}s`);
+    }
+
     const users = await this.getUsers();
-    const user = users.find((u) => u.email === email.toLowerCase());
+    const user = users.find((u) => u.email === normalizedEmail);
 
     if (!user) {
+      this.recordFailedAttempt(normalizedEmail);
       throw new Error('Email no registrado');
     }
 
     const hash = await this.hashPassword(password, user.salt);
     if (user.passwordHash !== hash) {
+      this.recordFailedAttempt(normalizedEmail);
       throw new Error('Contraseña incorrecta');
     }
+
+    loginAttempts.delete(normalizedEmail);
 
     const loggedIn: User = { id: user.id, email: user.email, name: user.name };
     await SecureStore.setItemAsync(USER_KEY, JSON.stringify(loggedIn));
@@ -107,6 +123,20 @@ export class LocalAuthAdapter implements AuthPort {
     await SecureStore.deleteItemAsync(USER_KEY);
   }
 
+  private recordFailedAttempt(email: string): void {
+    const existing = loginAttempts.get(email);
+    const attempts = (existing?.attempts ?? 0) + 1;
+
+    if (attempts >= MAX_LOGIN_ATTEMPTS) {
+      loginAttempts.set(email, {
+        attempts,
+        lockedUntil: Date.now() + LOCKOUT_DURATION_MS,
+      });
+    } else {
+      loginAttempts.set(email, { attempts, lockedUntil: 0 });
+    }
+  }
+
   private async getUsers(): Promise<StoredUser[]> {
     const data = await SecureStore.getItemAsync(USERS_KEY);
     if (!data) return [];
@@ -119,18 +149,24 @@ export class LocalAuthAdapter implements AuthPort {
   }
 
   private generateSalt(): string {
-    const array = new Uint8Array(16);
-    for (let i = 0; i < 16; i++) {
-      array[i] = Math.floor(Math.random() * 256);
-    }
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
     return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
   }
 
   private async hashPassword(password: string, salt: string): Promise<string> {
-    return Crypto.digestStringAsync(
+    const ITERATIONS = 10000;
+    let hash = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       password + salt,
     );
+    for (let i = 1; i < ITERATIONS; i++) {
+      hash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        hash,
+      );
+    }
+    return hash;
   }
 
   private async migrateOldCredentialsIfNeeded(): Promise<void> {

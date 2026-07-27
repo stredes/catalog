@@ -3,10 +3,11 @@ import { getDatabase } from '../../../../shared/infrastructure/sqlite';
 import { Catalog, CatalogFormat } from '../../domain/entities/Catalog';
 import { CatalogRepository } from '../../domain/repositories/CatalogRepository';
 
-type CatalogRow = Omit<Catalog, 'productIds' | 'familyIds' | 'format'> & {
+type CatalogRow = Omit<Catalog, 'productIds' | 'familyIds' | 'format' | 'purpose'> & {
   format: CatalogFormat;
   productIds: string;
   familyIds?: string | null;
+  purpose?: string | null;
 };
 
 function toCatalog(row: CatalogRow): Catalog {
@@ -14,6 +15,7 @@ function toCatalog(row: CatalogRow): Catalog {
     ...row,
     productIds: JSON.parse(row.productIds) as string[],
     familyIds: row.familyIds ? (JSON.parse(row.familyIds) as string[]) : undefined,
+    purpose: (row.purpose as Catalog['purpose']) ?? undefined,
   };
 }
 
@@ -22,8 +24,8 @@ export class SQLiteCatalogRepository implements CatalogRepository {
     const db = await getDatabase();
     await db.runAsync(
       `INSERT INTO catalogs
-       (id, name, familyId, familyIds, format, productIds, pdfUri, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, name, familyId, familyIds, format, productIds, pdfUri, purpose, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       catalog.id,
       catalog.name,
       catalog.familyId,
@@ -31,6 +33,7 @@ export class SQLiteCatalogRepository implements CatalogRepository {
       catalog.format,
       JSON.stringify(catalog.productIds),
       catalog.pdfUri,
+      catalog.purpose ?? null,
       catalog.createdAt,
     );
   }
@@ -39,7 +42,7 @@ export class SQLiteCatalogRepository implements CatalogRepository {
     const db = await getDatabase();
     await db.runAsync(
       `UPDATE catalogs
-       SET name = ?, familyId = ?, familyIds = ?, format = ?, productIds = ?, pdfUri = ?
+       SET name = ?, familyId = ?, familyIds = ?, format = ?, productIds = ?, pdfUri = ?, purpose = ?
        WHERE id = ?`,
       catalog.name,
       catalog.familyId,
@@ -47,6 +50,7 @@ export class SQLiteCatalogRepository implements CatalogRepository {
       catalog.format,
       JSON.stringify(catalog.productIds),
       catalog.pdfUri,
+      catalog.purpose ?? null,
       catalog.id,
     );
   }

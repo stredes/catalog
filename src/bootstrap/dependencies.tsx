@@ -162,7 +162,7 @@ function buildDependencies() {
         pickProductImage: new PickProductImageUseCase(imagePicker),
         createFamily: new CreateFamilyUseCase(familyRepository),
         updateFamily: new UpdateFamilyUseCase(familyRepository),
-        deleteFamily: new DeleteFamilyUseCase(familyRepository),
+        deleteFamily: new DeleteFamilyUseCase(familyRepository, productRepository),
         generateCatalogPdf: new GenerateCatalogPdfUseCase(
           catalogRepository,
           familyRepository,
@@ -192,7 +192,7 @@ function buildDependencies() {
         generateOrder: new GenerateOrderUseCase(orderRepository, cartRepository, productRepository),
         getOrders: new GetOrdersUseCase(orderRepository),
         deleteOrder: new DeleteOrderUseCase(orderRepository),
-        updateOrder: new UpdateOrderUseCase(orderRepository),
+        updateOrder: new UpdateOrderUseCase(orderRepository, productRepository),
         toggleOrderStatus: new ToggleOrderStatusUseCase(orderRepository),
         recordPayment: new RecordPaymentUseCase(orderRepository),
         generateOrderPdf: new GenerateOrderPdfUseCase(orderPdfGenerator),

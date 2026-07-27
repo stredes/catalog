@@ -132,12 +132,12 @@ export class OrderPdfGenerator {
     <div style="margin-top:6px;display:inline-block;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:0.5px;${statusStyle}">${statusLabel}</div>
   </div>
 
+  ${profileSection}
+
   <div style="display:flex;justify-content:space-between;margin-bottom:20px;font-size:13px;color:#374151">
     <div><strong>Cliente:</strong> ${escapeHtml(order.clientName)}</div>
     <div><strong>Fecha:</strong> ${new Date(order.createdAt).toLocaleString('es-CL')}</div>
   </div>
-
-  ${profileSection}
 
   <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:20px">
     <thead>

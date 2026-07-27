@@ -6,13 +6,13 @@ import { c, styles } from './shared';
 import { AppText } from './text';
 import { LiquidGlassContainer } from '../LiquidGlassContainer';
 
-export function Screen({ children, style }: PropsWithChildren<{ style?: ViewStyle }>) {
+export function Screen({ children, style, contentBottomPadding }: PropsWithChildren<{ style?: ViewStyle; contentBottomPadding?: number }>) {
   const colors = c();
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.safeArea, { backgroundColor: colors.backgroundPrimary, paddingTop: insets.top }]}>
       <ScrollView
-        contentContainerStyle={[styles.container, { paddingBottom: 140 + insets.bottom }, style]}
+        contentContainerStyle={[styles.container, { paddingBottom: contentBottomPadding ?? (140 + insets.bottom) }, style]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

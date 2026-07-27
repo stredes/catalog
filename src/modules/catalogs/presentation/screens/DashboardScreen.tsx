@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
@@ -25,6 +25,10 @@ import { useProfile } from '../../../profile/presentation/hooks/useProfile';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useOrders } from '../../../orders/presentation/hooks/useOrders';
 import { useCart } from '../../../orders/presentation/hooks/useCart';
+
+const FAB_HEIGHT = 48;
+const FAB_BOTTOM_OFFSET = 108;
+const BOTTOM_PADDING_MARGIN = 24;
 
 const formatLabels: Record<string, string> = {
   'grid-2': 'Editorial 2 columnas',
@@ -53,7 +57,19 @@ export function DashboardScreen() {
   const { totalItems } = useCart();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const [seeding, setSeeding] = useState(false);
+
+  const compactLayout = screenWidth < 390;
+  const gridGap = 14;
+  const useSingleColumn = screenWidth < 350;
+  const availableWidth = screenWidth - 40;
+  const cardWidth = useSingleColumn ? availableWidth : (availableWidth - gridGap) / 2;
+  const contentBottomPadding =
+    FAB_BOTTOM_OFFSET +
+    FAB_HEIGHT +
+    insets.bottom +
+    BOTTOM_PADDING_MARGIN;
 
   const inventoryValue = useMemo(
     () => products.reduce((total, product) => total + product.price * product.stock, 0),
@@ -134,7 +150,7 @@ export function DashboardScreen() {
 
   return (
     <>
-      <Screen style={styles.screen}>
+      <Screen style={styles.screen} contentBottomPadding={contentBottomPadding}>
         <View style={styles.hero}>
           <View style={styles.heroCopy}>
             <AppText variant="overline" color="muted">{getGreeting()}</AppText>
@@ -183,11 +199,19 @@ export function DashboardScreen() {
           </View>
         </Card>
 
-        <View style={styles.metricsGrid}>
-          <MetricCard label="Productos" value={String(products.length)} icon="cube-outline" accent={colors.primary} />
-          <MetricCard label="Categorias" value={String(families.length)} icon="folder-outline" accent={colors.info} />
-          <MetricCard label="Catalogos" value={String(catalogs.length)} icon="document-text-outline" accent={colors.success} />
-          <MetricCard label="Inventario" value={formatMoney(inventoryValue)} icon="cash-outline" accent={colors.warning} />
+        <View style={[styles.metricsGrid, { gap: gridGap }]}>
+          <View style={{ width: cardWidth }}>
+            <MetricCard label="Productos" value={String(products.length)} icon="cube-outline" accent={colors.primary} />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <MetricCard label="Categorias" value={String(families.length)} icon="folder-outline" accent={colors.info} />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <MetricCard label="Catalogos" value={String(catalogs.length)} icon="document-text-outline" accent={colors.success} />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <MetricCard label="Inventario" value={formatMoney(inventoryValue)} icon="cash-outline" accent={colors.warning} />
+          </View>
         </View>
 
         <View style={styles.sectionHeader}>
@@ -287,11 +311,19 @@ export function DashboardScreen() {
           </View>
         </View>
 
-        <View style={styles.metricsGrid}>
-          <MetricCard label="Ventas pagadas" value={formatMoney(totalRevenue)} icon="trending-up-outline" accent={colors.success} />
-          <MetricCard label="Total cobrado" value={formatMoney(totalCollected)} icon="wallet-outline" accent={colors.info} />
-          <MetricCard label="Por cobrar" value={formatMoney(totalPending)} icon="hourglass-outline" accent={colors.warning} />
-          <MetricCard label="Pedidos" value={String(orders.length)} icon="receipt-outline" accent={colors.primary} />
+        <View style={[styles.metricsGrid, { gap: gridGap }]}>
+          <View style={{ width: cardWidth }}>
+            <MetricCard label="Ventas pagadas" value={formatMoney(totalRevenue)} icon="trending-up-outline" accent={colors.success} />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <MetricCard label="Total cobrado" value={formatMoney(totalCollected)} icon="wallet-outline" accent={colors.info} />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <MetricCard label="Por cobrar" value={formatMoney(totalPending)} icon="hourglass-outline" accent={colors.warning} />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <MetricCard label="Pedidos" value={String(orders.length)} icon="receipt-outline" accent={colors.primary} />
+          </View>
         </View>
 
         {topProducts.length > 0 ? (
@@ -316,13 +348,13 @@ export function DashboardScreen() {
           </Card>
         ) : null}
 
-        <View style={styles.sectionHeader}>
-          <View>
+        <View style={[styles.sectionHeader, compactLayout && styles.sectionHeaderCompact]}>
+          <View style={styles.sectionHeaderText}>
             <AppText variant="heading3" color="primary">Catalogos recientes</AppText>
             <AppText variant="bodySmall" color="muted">Tus ultimas publicaciones generadas.</AppText>
           </View>
           {recentCatalogs.length > 0 ? (
-            <Pressable accessibilityRole="button" onPress={() => navigate('Catalogs')}>
+            <Pressable accessibilityRole="button" onPress={() => navigate('Catalogs')} style={styles.sectionHeaderAction}>
               <AppText variant="label" color="accent">Ver todos</AppText>
             </Pressable>
           ) : null}
@@ -496,12 +528,23 @@ const styles = StyleSheet.create({
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
   },
   sectionHeader: {
     alignItems: 'flex-end',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  sectionHeaderCompact: {
+    alignItems: 'stretch',
+    flexDirection: 'column',
+  },
+  sectionHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sectionHeaderAction: {
+    marginTop: spacing.xs,
+    alignSelf: 'flex-start',
   },
   quickGrid: {
     flexDirection: 'row',
@@ -513,8 +556,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: borderRadius.large,
     borderWidth: 1,
-    flexBasis: '30%',
-    flexGrow: 1,
+    flex: 1,
+    minWidth: 140,
     minHeight: 96,
     padding: spacing.md,
   },

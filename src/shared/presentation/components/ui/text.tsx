@@ -25,6 +25,9 @@ export function AppText({
   weight,
   style,
   numberOfLines,
+  adjustsFontSizeToFit,
+  minimumFontScale,
+  ellipsizeMode,
   children,
 }: PropsWithChildren<{
   variant?: TypographyVariant;
@@ -32,12 +35,18 @@ export function AppText({
   weight?: keyof typeof fontWeights;
   style?: TextStyle;
   numberOfLines?: number;
+  adjustsFontSizeToFit?: boolean;
+  minimumFontScale?: number;
+  ellipsizeMode?: 'head' | 'middle' | 'tail' | 'clip';
 }>) {
   const colors = c();
   const token = typo[variant];
   return (
     <Text
       numberOfLines={numberOfLines}
+      adjustsFontSizeToFit={adjustsFontSizeToFit}
+      minimumFontScale={minimumFontScale}
+      ellipsizeMode={ellipsizeMode}
       style={[
         {
           fontSize: token.fontSize,

@@ -82,13 +82,32 @@ export function MetricCard({ label, value, icon, accent }: {
       <View style={styles.metricHeader}>
         {icon ? (
           <View style={[styles.metricIconWrap, { backgroundColor: accentColor + '18' }]}>
-            <Ionicons name={icon} size={18} color={accentColor} />
+            <Ionicons name={icon} size={22} color={accentColor} />
           </View>
         ) : null}
         <View style={[styles.metricAccent, { backgroundColor: accentColor }]} />
       </View>
-<AppText variant="metric" color="primary">{value}</AppText>
-      <AppText variant="bodySmall" color="muted" style={{ marginTop: 2 }}>{label}</AppText>
+      <View style={styles.metricContent}>
+        <AppText
+          variant="heading1"
+          color="primary"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+          style={styles.metricValue}
+        >
+          {value}
+        </AppText>
+        <AppText
+          variant="bodySmall"
+          color="muted"
+          numberOfLines={2}
+          ellipsizeMode="tail"
+          style={styles.metricLabel}
+        >
+          {label}
+        </AppText>
+      </View>
     </Card>
   );
 }

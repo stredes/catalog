@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, TextStyle } from 'react-native';
 import { palette, darkPalette, spacing, borderRadius } from '../../theme';
 import { setLiquidGlassScheme } from '../LiquidGlassContainer';
 
@@ -34,10 +34,13 @@ const styles = StyleSheet.create({
   },
   buttonContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
-  metricCard: { width: '47%', padding: spacing.lg },
-  metricHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
-  metricIconWrap: { width: 36, height: 36, borderRadius: borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
-  metricAccent: { width: 4, height: 22, borderRadius: 2 },
+  metricCard: { width: '100%', minHeight: 150, padding: 18, borderRadius: 22, justifyContent: 'space-between' as const },
+  metricHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const },
+  metricIconWrap: { width: 48, height: 48, borderRadius: 14, alignItems: 'center' as const, justifyContent: 'center' as const },
+  metricAccent: { width: 5, height: 32, borderRadius: 3 },
+  metricContent: { marginTop: 22 },
+  metricValue: { fontSize: 27, lineHeight: 34, fontWeight: '700' as TextStyle['fontWeight'], flexShrink: 0, includeFontPadding: false },
+  metricLabel: { fontSize: 16, lineHeight: 21, marginTop: 8, flexShrink: 1 },
 
   fabWrapper: { position: 'absolute', right: 20, zIndex: 100 },
   fab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderRadius: borderRadius.full },

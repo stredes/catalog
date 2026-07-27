@@ -84,7 +84,7 @@ export function BottomMenu() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 6) }]}>
+    <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <LiquidGlassContainer variant="tabBar" style={styles.menu}>
         {items.map((item) => (
           <TabButton

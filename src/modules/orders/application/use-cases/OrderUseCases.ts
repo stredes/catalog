@@ -158,24 +158,38 @@ export class UpdateOrderUseCase {
       notes: notes || undefined,
     };
 
-    await this.orderRepository.update(updated);
-
+    const stockDeltas = new Map<string, number>();
     for (const oldItem of existing.items) {
-      const product = await this.productRepository.findById(oldItem.productId);
-      if (product) {
-        await this.productRepository.updateStock(product.id, product.stock + oldItem.quantity);
-      }
+      stockDeltas.set(oldItem.productId, (stockDeltas.get(oldItem.productId) ?? 0) + oldItem.quantity);
+    }
+    for (const item of orderItems) {
+      stockDeltas.set(item.productId, (stockDeltas.get(item.productId) ?? 0) - item.quantity);
     }
 
-    for (const item of orderItems) {
-      const product = await this.productRepository.findById(item.productId);
-      if (product) {
-        const newStock = product.stock - item.quantity;
-        if (newStock < 0) {
-          throw new Error(`Stock insuficiente para "${item.productName}": disponible ${product.stock}, requerido ${item.quantity}`);
+    const productNames = new Map<string, string>();
+    for (const item of items) {
+      productNames.set(item.productId, item.productName);
+    }
+
+    const changes: Array<{ productId: string; quantity: number }> = [];
+    for (const [productId, delta] of stockDeltas) {
+      if (delta === 0) continue;
+      if (delta < 0) {
+        const product = await this.productRepository.findById(productId);
+        if (!product) {
+          throw new Error(`Producto ${productId} no encontrado en inventario`);
         }
-        await this.productRepository.updateStock(product.id, newStock);
+        if (product.stock < -delta) {
+          const name = productNames.get(productId) ?? productId;
+          throw new Error(`Stock insuficiente para "${name}": disponible ${product.stock}, requerido ${-delta}`);
+        }
       }
+      changes.push({ productId, quantity: delta });
+    }
+
+    await this.orderRepository.update(updated);
+    if (changes.length > 0) {
+      await this.productRepository.batchUpdateStock(changes);
     }
 
     return updated;

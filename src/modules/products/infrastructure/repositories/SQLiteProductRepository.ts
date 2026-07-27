@@ -108,4 +108,19 @@ export class SQLiteProductRepository implements ProductRepository {
       supplierId,
     );
   }
+
+  async batchUpdateStock(changes: Array<{ productId: string; quantity: number }>): Promise<void> {
+    if (changes.length === 0) return;
+    const db = await getDatabase();
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      for (const change of changes) {
+        await txn.runAsync(
+          'UPDATE products SET stock = stock + ?, updatedAt = ? WHERE id = ?',
+          change.quantity,
+          new Date().toISOString(),
+          change.productId,
+        );
+      }
+    });
+  }
 }

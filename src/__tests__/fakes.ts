@@ -64,6 +64,19 @@ export class InMemoryProductRepository implements ProductRepository {
     }
   }
 
+  async batchUpdateStock(changes: Array<{ productId: string; quantity: number }>) {
+    for (const change of changes) {
+      const product = this.products.get(change.productId);
+      if (product) {
+        this.products.set(change.productId, {
+          ...product,
+          stock: product.stock + change.quantity,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+  }
+
   async delete(id: string) {
     this.products.delete(id);
   }

@@ -50,7 +50,6 @@ export class GenerateEditorialContentUseCase {
       const fn = families.find((f) => f.id === p.familyId)?.name ?? '';
       return {
         productId: p.id,
-        savedForFuture: false,
         description: this.generator.generateProductDescription(p, fn),
         benefits: this.generator.generateProductBenefits(p, fn),
         highlights: this.generator.generateProductHighlights(p, fn),

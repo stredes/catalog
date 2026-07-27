@@ -336,7 +336,6 @@ export function EditorialContentScreen({ selectedProductIds, selectedFamilyIds, 
               const familyName = families.find((f) => f.id === product.familyId)?.name ?? '';
               const fallbackContent: EditorialProductContent = {
                 productId: product.id,
-                savedForFuture: false,
                 description: '',
                 benefits: '',
                 highlights: '',

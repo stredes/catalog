@@ -22,7 +22,6 @@ export type EditorialCategoryContent = {
 
 export type EditorialProductContent = {
   productId: string;
-  savedForFuture: boolean;
   description: string;
   benefits: string;
   highlights: string;
@@ -53,7 +52,6 @@ export function createEmptyEditorialContent(): EditorialContent {
 export function createProductEditorialContent(productId: string): EditorialProductContent {
   return {
     productId,
-    savedForFuture: false,
     description: '',
     benefits: '',
     highlights: '',

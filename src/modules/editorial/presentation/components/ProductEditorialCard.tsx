@@ -170,36 +170,7 @@ export function ProductEditorialCard({
             </View>
           ))}
 
-          <Pressable
-            onPress={() => onFieldChange(product.id, 'savedForFuture', !editorial.savedForFuture)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.sm,
-              paddingVertical: spacing.sm,
-              marginTop: spacing.xs,
-            }}
-          >
-            <View
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 4,
-                borderWidth: 1.5,
-                borderColor: editorial.savedForFuture ? colors.primary : colors.textMuted,
-                backgroundColor: editorial.savedForFuture ? colors.primary : 'transparent',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {editorial.savedForFuture && (
-                <Ionicons name="checkmark" size={14} color={colors.textInverse} />
-              )}
-            </View>
-            <AppText variant="caption" color="secondary">
-              Guardar este contenido para futuros catálogos
-            </AppText>
-          </Pressable>
+
         </View>
       )}
     </Card>

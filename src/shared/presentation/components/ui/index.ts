@@ -18,11 +18,9 @@ export {
   AppCard,
   InteractiveCard,
   MetricCard,
-  QuickActionCard,
   ProductCard,
   FamilyCard,
   CatalogHistoryItem,
-  RecentProductCard,
   SkeletonCard,
 } from './cards';
 export type { CardVariant } from './cards';

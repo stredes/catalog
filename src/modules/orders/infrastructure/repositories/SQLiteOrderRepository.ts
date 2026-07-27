@@ -82,7 +82,7 @@ export class SQLiteOrderRepository implements OrderRepository {
   async findAll(): Promise<Order[]> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<OrderRow>(
-      'SELECT * FROM orders ORDER BY createdAt DESC',
+      'SELECT id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders ORDER BY createdAt DESC',
     );
     return rows.map(rowToOrder);
   }
@@ -90,7 +90,7 @@ export class SQLiteOrderRepository implements OrderRepository {
   async findById(id: string): Promise<Order | null> {
     const db = await getDatabase();
     const row = await db.getFirstAsync<OrderRow>(
-      'SELECT * FROM orders WHERE id = ?',
+      'SELECT id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders WHERE id = ?',
       id,
     );
     return row ? rowToOrder(row) : null;
@@ -106,7 +106,7 @@ export class SQLiteOrderRepository implements OrderRepository {
 
     await db.withExclusiveTransactionAsync(async (txn) => {
       const row = await txn.getFirstAsync<OrderRow>(
-        'SELECT * FROM orders WHERE id = ?',
+        'SELECT id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders WHERE id = ?',
         id,
       );
       if (!row) {

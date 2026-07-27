@@ -1,0 +1,34 @@
+== TAREA ASIGNADA: CALIDAD DE CODIGO Y DESDUPLICACION ==
+Maquina: Arch (192.168.1.89) - Especialista en arquitectura y limpieza
+Proyecto: catalog-clean
+
+Lee el .context del proyecto primero. Luego implementa SOLO estas mejoras:
+
+1) UNIFICAR CartItem/PurchaseCartItem:
+   - Crear src/modules/orders/domain/entities/CartItemBase.ts con el tipo generico
+   - Merge CartItem.ts y PurchaseCartItem.ts usando un tipo CartContext = "sale" | "purchase"
+   - Actualizar PurchaseCartRepository, CartRepository y sus implementaciones
+   - Actualizar useCart.ts y usePurchaseCart.ts
+   - Unificar calculateSubtotal en un solo lugar compartido
+
+2) EXTRAER computeChecksum a shared:
+   - Mover computeChecksum() de CreateBackupUseCase.ts a src/shared/utils/checksum.ts
+   - Actualizar imports en CreateBackupUseCase.ts y RestoreBackupUseCase.ts
+   - Verificar que ChangeDetector.ts tambien use la misma funcion
+
+3) FIX useMemo: En src/modules/products/presentation/screens/ProductsScreen.tsx linea 119,
+   agregar filterSupplier al array de dependencias del useMemo que lo necesite.
+
+4) FIX as any: En src/modules/orders/infrastructure/OrderPdfGenerator.ts linea 76,
+   reemplazar (item as any).discountType por item.discountType (ya esta tipado).
+
+5) EXTRAER utils duplicados:
+   - Mover formatMoneyCLP de OrderPdfGenerator.ts a src/shared/utils/money.ts
+   - Mover escapeHtml de OrderPdfGenerator.ts a src/shared/utils/html.ts
+   - Actualizar imports en ambos archivos
+
+Reglas:
+- NO ejecutes npm/npx/tsc (no tienes node en esta sesion)
+- Edita SOLO archivos fuente
+- Haz commit de cada cambio con mensaje descriptivo en ingles
+- Al terminar, escribe un resumen de cambios en ~/arch_changes.txt

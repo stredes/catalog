@@ -88,7 +88,7 @@ export class SQLiteCatalogRepository implements CatalogRepository {
   async findAll() {
     const db = await getDatabase();
     const rows = await db.getAllAsync<CatalogRow>(
-      'SELECT * FROM catalogs ORDER BY createdAt DESC',
+      'SELECT id, name, familyId, familyIds, format, productIds, pdfUri, purpose, createdAt FROM catalogs ORDER BY createdAt DESC'
     );
     return rows.map(toCatalog);
   }
@@ -96,7 +96,7 @@ export class SQLiteCatalogRepository implements CatalogRepository {
   async findById(id: string) {
     const db = await getDatabase();
     const row = await db.getFirstAsync<CatalogRow>(
-      'SELECT * FROM catalogs WHERE id = ?',
+      'SELECT id, name, familyId, familyIds, format, productIds, pdfUri, purpose, createdAt FROM catalogs WHERE id = ?',
       id,
     );
     return row ? toCatalog(row) : null;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { CartItem } from '../../domain/entities/CartItem';
 
@@ -17,8 +17,8 @@ export function useCart() {
     void loadItems();
   }, [loadItems]);
 
-  const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
+  const totalItems = useMemo(() => items.reduce((sum, i) => sum + i.quantity, 0), [items]);
+  const subtotal = useMemo(() => items.reduce((sum, i) => sum + i.subtotal, 0), [items]);
   const total = subtotal;
 
   return { items, loading, reload: loadItems, totalItems, subtotal, total };

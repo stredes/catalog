@@ -58,7 +58,7 @@ export class SQLiteBackupRepository implements BackupRepository {
   async findAll(): Promise<BackupSnapshot[]> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<SnapshotRow>(
-      'SELECT * FROM backup_snapshots ORDER BY createdAt DESC'
+      'SELECT id, label, trigger, familiesCount, productsCount, catalogsCount, ordersCount, suppliersCount, hasProfile, checksum, createdAt FROM backup_snapshots ORDER BY createdAt DESC'
     );
     return rows.map(this.toDomain);
   }
@@ -66,7 +66,7 @@ export class SQLiteBackupRepository implements BackupRepository {
   async findById(id: string): Promise<BackupSnapshot | null> {
     const db = await getDatabase();
     const row = await db.getFirstAsync<SnapshotRow>(
-      'SELECT * FROM backup_snapshots WHERE id = ?',
+      'SELECT id, label, trigger, familiesCount, productsCount, catalogsCount, ordersCount, suppliersCount, hasProfile, checksum, createdAt FROM backup_snapshots WHERE id = ?',
       id
     );
     return row ? this.toDomain(row) : null;
@@ -125,17 +125,29 @@ export class SQLiteBackupRepository implements BackupRepository {
     const db = await getDatabase();
 
     await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.runAsync('PRAGMA foreign_keys = ON');
+
       await txn.runAsync('DELETE FROM orders');
       await txn.runAsync('DELETE FROM catalogs');
       await txn.runAsync('DELETE FROM products');
+      await txn.runAsync('DELETE FROM suppliers');
       await txn.runAsync('DELETE FROM families');
       await txn.runAsync('DELETE FROM profile');
-      await txn.runAsync('DELETE FROM suppliers');
 
       for (const family of data.families) {
         await txn.runAsync(
           'INSERT INTO families (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
           family.id, family.name, family.createdAt, family.updatedAt,
+        );
+      }
+
+      for (const supplier of data.suppliers) {
+        await txn.runAsync(
+          `INSERT INTO suppliers (id, name, phone, email, contactName, notes, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          supplier.id, supplier.name, supplier.phone ?? null, supplier.email ?? null,
+          supplier.contactName ?? null, supplier.notes ?? null,
+          supplier.createdAt, supplier.updatedAt,
         );
       }
 
@@ -179,16 +191,6 @@ export class SQLiteBackupRepository implements BackupRepository {
           order.id, order.orderNumber, order.clientName,
           JSON.stringify(order.items), order.subtotal, order.iva, order.total,
           order.status, order.paidAmount, order.notes ?? null, order.createdAt,
-        );
-      }
-
-      for (const supplier of data.suppliers) {
-        await txn.runAsync(
-          `INSERT INTO suppliers (id, name, phone, email, contactName, notes, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          supplier.id, supplier.name, supplier.phone ?? null, supplier.email ?? null,
-          supplier.contactName ?? null, supplier.notes ?? null,
-          supplier.createdAt, supplier.updatedAt,
         );
       }
     });

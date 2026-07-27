@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Alert, Pressable, View, StyleSheet } from 'react-native';
 import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
@@ -15,11 +15,13 @@ import {
   Screen,
   SecondaryButton,
   Section,
+  ProgressBar,
+  Badge,
 } from '../../../../shared/presentation/components/ui';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { BackupSnapshot } from '../../domain/entities/BackupSnapshot';
 import { useBackupManager } from '../hooks/useBackupManager';
-import { importBackupFromFile } from '../../infrastructure/services/FileImportService';
+import { formatFileSize } from '../../../../shared/utils/money';
 
 const TRIGGER_LABELS: Record<string, string> = {
   manual: 'Manual',
@@ -41,13 +43,33 @@ export function BackupSettingsScreen() {
     restoreBackup,
     deleteBackup,
     shareBackup,
+    exportBackup,
+    verifyChecksum,
+    previewImport,
+    importBackup,
     toggleAutoBackup,
+    createProgress,
+    restoreProgress,
+    importProgress,
+    verifyingChecksum,
+    checksumResults,
+    lastImportPreview,
   } = useBackupManager();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [backupLabel, setBackupLabel] = useState('');
   const [selectedBackup, setSelectedBackup] = useState<BackupSnapshot | null>(null);
-  const [importing, setImporting] = useState(false);
+  const [importPreview, setImportPreview] = useState<{
+    families: number;
+    products: number;
+    catalogs: number;
+    orders: number;
+    suppliers: number;
+    images: number;
+  } | null>(null);
+  const [showImportPreview, setShowImportPreview] = useState(false);
+  const [pendingImportUri, setPendingImportUri] = useState<string | null>(null);
+  const [exportCustomName, setExportCustomName] = useState('');
 
   async function handleCreateBackup() {
     const label = backupLabel.trim() || `Backup manual - ${new Date().toLocaleString('es-CL')}`;
@@ -68,36 +90,30 @@ export function BackupSettingsScreen() {
       const fileUri = result.assets[0].uri;
       const fileName = result.assets[0].name;
 
-      Alert.alert(
-        'Importar backup',
-        `Se reemplazaran TODOS los datos actuales con los del archivo:\n\n${fileName}\n\nEsta accion no se puede deshacer.`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Importar',
-            style: 'destructive',
-            onPress: async () => {
-              setImporting(true);
-              try {
-                const counts = await importBackupFromFile(fileUri);
-                Alert.alert(
-                  'Backup importado',
-                  `Restaurado exitosamente:\n• ${counts.families} familias\n• ${counts.products} productos\n• ${counts.catalogs} catálogos\n• ${counts.orders} pedidos\n• ${counts.suppliers} proveedores\n• ${counts.images} imágenes`,
-                );
-              } catch (err) {
-                Alert.alert(
-                  'Error',
-                  err instanceof Error ? err.message : 'No se pudo importar el backup. Verifica que el archivo sea válido.',
-                );
-              } finally {
-                setImporting(false);
-              }
-            },
-          },
-        ],
-      );
+      // Preview import first
+      try {
+        const preview = await previewImport(fileUri);
+        setImportPreview(preview);
+        setPendingImportUri(fileUri);
+        setShowImportPreview(true);
+      } catch (err) {
+        Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo previsualizar el backup.');
+      }
     } catch (err) {
       Alert.alert('Error', 'No se pudo abrir el archivo.');
+    }
+  }
+
+  async function confirmImport() {
+    if (!pendingImportUri) return;
+    try {
+      await importBackup(pendingImportUri);
+      Alert.alert('Backup importado', 'Datos restaurados exitosamente.');
+      setShowImportPreview(false);
+      setImportPreview(null);
+      setPendingImportUri(null);
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo importar el backup.');
     }
   }
 
@@ -111,6 +127,12 @@ export function BackupSettingsScreen() {
     });
   }
 
+  function getChecksumStatus(backupId: string) {
+    const result = checksumResults[backupId];
+    if (!result) return null;
+    return result.valid ? 'success' : 'error';
+  }
+
   return (
     <>
       <Screen>
@@ -119,6 +141,22 @@ export function BackupSettingsScreen() {
           title="Backup"
           subtitle="Protege tus datos con copias de seguridad automáticas."
         />
+
+        {/* Backup Version Badge */}
+        <Card style={{ marginBottom: 12 }}>
+          <View style={styles.versionBadge}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <AppText variant="caption" color="primary" style={{ fontWeight: '600' as any }}>
+                Esquema de backup v1.0
+              </AppText>
+              <AppText variant="caption" color="muted">
+                Compatible con CatalogClean 3.2+
+              </AppText>
+            </View>
+            <Badge variant="success" size="small">Actualizado</Badge>
+          </View>
+        </Card>
 
         <Card>
           <CardHeader
@@ -174,6 +212,49 @@ export function BackupSettingsScreen() {
           </Pressable>
         </Card>
 
+        {/* Progress bars */}
+        {creating && createProgress !== null && (
+          <Card style={{ marginTop: 12, marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Ionicons name="cloud-upload-outline" size={22} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodySmall" color="primary" style={{ marginBottom: 4 }}>
+                  Creando backup... {createProgress}%
+                </AppText>
+                <ProgressBar progress={createProgress / 100} color={colors.primary} height={6} />
+              </View>
+            </View>
+          </Card>
+        )}
+
+        {restoring && restoreProgress !== null && (
+          <Card style={{ marginTop: 12, marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Ionicons name="cloud-download-outline" size={22} color={colors.warning} />
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodySmall" color="primary" style={{ marginBottom: 4 }}>
+                  Restaurando... {restoreProgress}%
+                </AppText>
+                <ProgressBar progress={restoreProgress / 100} color={colors.warning} height={6} />
+              </View>
+            </View>
+          </Card>
+        )}
+
+        {importProgress !== null && (
+          <Card style={{ marginTop: 12, marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Ionicons name="document-text-outline" size={22} color={colors.success} />
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodySmall" color="primary" style={{ marginBottom: 4 }}>
+                  Importando... {importProgress}%
+                </AppText>
+                <ProgressBar progress={importProgress / 100} color={colors.success} height={6} />
+              </View>
+            </View>
+          </Card>
+        )}
+
         <PrimaryButton
           label={creating ? 'Creando backup...' : 'Crear backup manual'}
           icon="add-circle-outline"
@@ -182,9 +263,9 @@ export function BackupSettingsScreen() {
         />
 
         <PrimaryButton
-          label={importing ? 'Importando...' : 'Importar backup desde archivo'}
+          label={importProgress !== null ? 'Importando...' : 'Importar backup desde archivo'}
           icon="document-outline"
-          disabled={importing}
+          disabled={importProgress !== null}
           onPress={handleImportBackup}
         />
 
@@ -209,119 +290,155 @@ export function BackupSettingsScreen() {
               subtitle="Crea tu primer backup para proteger tus datos."
             />
           ) : (
-            backups.map((backup) => (
-              <Pressable
-                key={backup.id}
-                onPress={() => setSelectedBackup(backup)}
-                style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}
-              >
-                <Card
-                  variant={restoring === backup.id ? 'selected' : 'default'}
-                  style={{ marginBottom: 8 }}
+            backups.map((backup) => {
+              const checksumStatus = getChecksumStatus(backup.id);
+              return (
+                <Pressable
+                  key={backup.id}
+                  onPress={() => setSelectedBackup(backup)}
+                  style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 10,
-                        backgroundColor:
-                          backup.trigger === 'manual'
-                            ? colors.primaryLight
-                            : backup.trigger === 'auto-before-delete'
-                              ? colors.warning + '20'
-                              : colors.successLight,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Ionicons
-                        name={
-                          backup.trigger === 'manual'
-                            ? 'finger-print-outline'
-                            : backup.trigger === 'auto-before-delete'
-                              ? 'warning-outline'
-                              : 'time-outline'
-                        }
-                        size={20}
-                        color={
-                          backup.trigger === 'manual'
-                            ? colors.primary
-                            : backup.trigger === 'auto-before-delete'
-                              ? colors.warning
-                              : colors.success
-                        }
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <AppText variant="bodyMedium" color="primary" numberOfLines={1}>
-                        {backup.label}
-                      </AppText>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                        <AppText variant="caption" color="muted">
-                          {formatBackupDate(backup.createdAt)}
-                        </AppText>
-                        <AppText variant="caption" color="muted">·</AppText>
-                        <AppText variant="caption" color="muted">
-                          {backup.familiesCount} fam. · {backup.productsCount} prod.
-                        </AppText>
+                  <Card
+                    variant={restoring === backup.id ? 'selected' : 'default'}
+                    style={{ marginBottom: 8 }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 10,
+                          backgroundColor:
+                            backup.trigger === 'manual'
+                              ? colors.primaryLight
+                              : backup.trigger === 'auto-before-delete'
+                                ? colors.warning + '20'
+                                : colors.successLight,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Ionicons
+                          name={
+                            backup.trigger === 'manual'
+                              ? 'finger-print-outline'
+                              : backup.trigger === 'auto-before-delete'
+                                ? 'warning-outline'
+                                : 'time-outline'
+                          }
+                          size={20}
+                          color={
+                            backup.trigger === 'manual'
+                              ? colors.primary
+                              : backup.trigger === 'auto-before-delete'
+                                ? colors.warning
+                                : colors.success
+                          }
+                        />
                       </View>
-                      <AppText variant="caption" color="muted">
-                        {TRIGGER_LABELS[backup.trigger] ?? backup.trigger}
-                      </AppText>
+                      <View style={{ flex: 1 }}>
+                        <AppText variant="bodyMedium" color="primary" numberOfLines={1}>
+                          {backup.label}
+                        </AppText>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                          <AppText variant="caption" color="muted">
+                            {formatBackupDate(backup.createdAt)}
+                          </AppText>
+                          <AppText variant="caption" color="muted">·</AppText>
+                          <AppText variant="caption" color="muted">
+                            {backup.familiesCount} fam. · {backup.productsCount} prod.
+                          </AppText>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                          <AppText variant="caption" color="muted">
+                            {TRIGGER_LABELS[backup.trigger] ?? backup.trigger}
+                          </AppText>
+                          {checksumStatus && (
+                            <>
+                              <AppText variant="caption" color="muted">·</AppText>
+                              <Badge
+                                variant={checksumStatus === 'success' ? 'success' : 'error'}
+                                size="small"
+                              >
+                                {checksumStatus === 'success' ? 'Checksum OK' : 'Checksum Inválido'}
+                              </Badge>
+                            </>
+                          )}
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 4 }}>
+                        <Pressable
+                          onPress={() => exportBackup(backup, exportCustomName || undefined)}
+                          style={[
+                            {
+                              width: 32,
+                              height: 32,
+                              borderRadius: 8,
+                              backgroundColor: colors.primaryLight,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            },
+                          ]}
+                        >
+                          <Ionicons name="share-outline" size={16} color={colors.primary} />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => verifyChecksum(backup)}
+                          disabled={verifyingChecksum === backup.id}
+                          style={[
+                            {
+                              width: 32,
+                              height: 32,
+                              borderRadius: 8,
+                              backgroundColor: verifyingChecksum === backup.id ? colors.warning + '20' : colors.successLight,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            },
+                          ]}
+                        >
+                          {verifyingChecksum === backup.id ? (
+                            <Ionicons name="refresh" size={16} color={colors.warning} />
+                          ) : (
+                            <Ionicons name="shield-checkmark-outline" size={16} color={colors.success} />
+                          )}
+                        </Pressable>
+                        <Pressable
+                          onPress={() => restoreBackup(backup)}
+                          disabled={restoring === backup.id}
+                          style={[
+                            {
+                              width: 32,
+                              height: 32,
+                              borderRadius: 8,
+                              backgroundColor: colors.primaryLight,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            },
+                          ]}
+                        >
+                          <Ionicons name="refresh-outline" size={16} color={colors.primary} />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => deleteBackup(backup)}
+                          style={[
+                            {
+                              width: 32,
+                              height: 32,
+                              borderRadius: 8,
+                              backgroundColor: colors.errorLight,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            },
+                          ]}
+                        >
+                          <Ionicons name="trash-outline" size={16} color={colors.error} />
+                        </Pressable>
+                      </View>
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 4 }}>
-                      <Pressable
-                        onPress={() => shareBackup(backup)}
-                        style={[
-                          {
-                            width: 32,
-                            height: 32,
-                            borderRadius: 8,
-                            backgroundColor: colors.primaryLight,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          },
-                        ]}
-                      >
-                        <Ionicons name="share-outline" size={16} color={colors.primary} />
-                      </Pressable>
-                      <Pressable
-                        onPress={() => restoreBackup(backup)}
-                        disabled={restoring === backup.id}
-                        style={[
-                          {
-                            width: 32,
-                            height: 32,
-                            borderRadius: 8,
-                            backgroundColor: colors.primaryLight,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          },
-                        ]}
-                      >
-                        <Ionicons name="refresh-outline" size={16} color={colors.primary} />
-                      </Pressable>
-                      <Pressable
-                        onPress={() => deleteBackup(backup)}
-                        style={[
-                          {
-                            width: 32,
-                            height: 32,
-                            borderRadius: 8,
-                            backgroundColor: colors.errorLight,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          },
-                        ]}
-                      >
-                        <Ionicons name="trash-outline" size={16} color={colors.error} />
-                      </Pressable>
-                    </View>
-                  </View>
-                </Card>
-              </Pressable>
-            ))
+                  </Card>
+                </Pressable>
+              );
+            })
           )}
         </Section>
 
@@ -352,7 +469,7 @@ export function BackupSettingsScreen() {
               onChangeText={setBackupLabel}
             />
             <PrimaryButton
-              label="Crear backup"
+              label={creating ? 'Creando...' : 'Crear backup'}
               icon="save-outline"
               disabled={creating}
               onPress={handleCreateBackup}
@@ -369,6 +486,70 @@ export function BackupSettingsScreen() {
         </View>
       )}
 
+      {showImportPreview && importPreview && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <Card variant="elevated" style={{ padding: 24 }}>
+            <AppText variant="headingSmall" color="primary" style={{ marginBottom: 16 }}>
+              Vista previa de importación
+            </AppText>
+            <View style={styles.previewItem}>
+              <AppText variant="bodyMedium" color="primary">{importPreview.families}</AppText>
+              <AppText variant="bodySmall" color="muted">Familias</AppText>
+            </View>
+            <View style={styles.previewItem}>
+              <AppText variant="bodyMedium" color="primary">{importPreview.products}</AppText>
+              <AppText variant="bodySmall" color="muted">Productos</AppText>
+            </View>
+            <View style={styles.previewItem}>
+              <AppText variant="bodyMedium" color="primary">{importPreview.catalogs}</AppText>
+              <AppText variant="bodySmall" color="muted">Catálogos</AppText>
+            </View>
+            <View style={styles.previewItem}>
+              <AppText variant="bodyMedium" color="primary">{importPreview.orders}</AppText>
+              <AppText variant="bodySmall" color="muted">Pedidos</AppText>
+            </View>
+            <View style={styles.previewItem}>
+              <AppText variant="bodyMedium" color="primary">{importPreview.suppliers}</AppText>
+              <AppText variant="bodySmall" color="muted">Proveedores</AppText>
+            </View>
+            <View style={styles.previewItem}>
+              <AppText variant="bodyMedium" color="primary">{importPreview.images}</AppText>
+              <AppText variant="bodySmall" color="muted">Imágenes</AppText>
+            </View>
+            <View style={{ height: 16 }} />
+            <AppText variant="caption" color="error" style={{ textAlign: 'center', marginBottom: 12 }}>
+              ⚠ Esta acción reemplazará TODOS los datos actuales. No se puede deshacer.
+            </AppText>
+            <PrimaryButton
+              label={importProgress !== null ? 'Importando...' : 'Confirmar importación'}
+              icon="checkmark-outline"
+              disabled={importProgress !== null}
+              onPress={confirmImport}
+            />
+            <View style={{ height: 8 }} />
+            <SecondaryButton
+              label="Cancelar"
+              onPress={() => {
+                setShowImportPreview(false);
+                setImportPreview(null);
+                setPendingImportUri(null);
+              }}
+            />
+          </Card>
+        </View>
+      )}
+
       <ConfirmDialog
         visible={selectedBackup !== null}
         title="Detalle del backup"
@@ -379,6 +560,8 @@ export function BackupSettingsScreen() {
               `Familias: ${selectedBackup.familiesCount}\n` +
               `Productos: ${selectedBackup.productsCount}\n` +
               `Catálogos: ${selectedBackup.catalogsCount}\n` +
+              `Pedidos: ${selectedBackup.ordersCount}\n` +
+              `Proveedores: ${selectedBackup.suppliersCount}\n` +
               `Perfil: ${selectedBackup.hasProfile ? 'Sí' : 'No'}\n` +
               `Tipo: ${TRIGGER_LABELS[selectedBackup.trigger]}`
             : ''
@@ -394,3 +577,19 @@ export function BackupSettingsScreen() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  versionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  previewItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+});

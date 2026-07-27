@@ -5,7 +5,10 @@ import { ProfileRepository } from '../../domain/repositories/ProfileRepository';
 export class SQLiteProfileRepository implements ProfileRepository {
   async find() {
     const db = await getDatabase();
-    return db.getFirstAsync<Profile>('SELECT * FROM profile WHERE id = ?', 'profile');
+    return db.getFirstAsync<Profile>(
+      'SELECT id, businessName, ownerName, phone, email, address, website, logoUri, bankName, bankAccountType, bankAccountNumber, updatedAt FROM profile WHERE id = ?',
+      'profile',
+    );
   }
 
   async save(profile: Profile) {

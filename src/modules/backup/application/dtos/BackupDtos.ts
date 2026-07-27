@@ -12,6 +12,7 @@ export const RestoreBackupSchema = z.object({
   confirmRestore: z.literal(true).refine((val) => val === true, {
     message: 'Debes confirmar la restauración',
   }),
+  createPreventiveBackup: z.boolean().optional().default(false),
 });
 
 export type RestoreBackupInput = z.infer<typeof RestoreBackupSchema>;

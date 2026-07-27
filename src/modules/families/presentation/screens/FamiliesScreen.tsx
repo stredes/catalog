@@ -32,16 +32,19 @@ export function FamiliesScreen() {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
 
-  const familyColors = [
-    colors.primary,
-    colors.secondary,
-    colors.success,
-    colors.warning,
-    colors.error,
-    '#8B5CF6',
-    '#EC4899',
-    '#14B8A6',
-  ];
+  const familyColors = useMemo(
+    () => [
+      colors.primary,
+      colors.secondary,
+      colors.success,
+      colors.warning,
+      colors.error,
+      '#8B5CF6',
+      '#EC4899',
+      '#14B8A6',
+    ],
+    [colors.primary, colors.secondary, colors.success, colors.warning, colors.error],
+  );
   const form = useForm<FamilyInputDto>({
     defaultValues: { name: '' },
     resolver: zodResolver(familySchema),

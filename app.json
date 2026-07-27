@@ -2,7 +2,7 @@
   "expo": {
     "name": "catalog-clean",
     "slug": "catalog-clean",
-    "version": "3.2.4",
+    "version": "3.2.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,7 +16,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "versionCode": 24,
+      "versionCode": 25,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.catalogclean"
     },

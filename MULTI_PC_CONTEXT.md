@@ -134,6 +134,11 @@ openclaw message send --channel whatsapp --target +56954764325 --message "APK ve
 ~/connect-clients.sh --openclaw-start
 ~/connect-clients.sh --send-apk /tmp/app-v3.2.5.apk 3.2.5
 ~/connect-clients.sh --openclaw
+
+# Apagado sistematico multi-PC
+# Orden: Mint -> Kali -> Arch/local. Requiere confirmacion escrita: APAGAR.
+~/connect-clients.sh --shutdown-systematic
+~/connect-clients.sh --shutdown-systematic APAGAR
 ```
 
 ## Roles de Auditoria
@@ -149,7 +154,8 @@ openclaw message send --channel whatsapp --target +56954764325 --message "APK ve
 - **Ultima sincronizacion**: 2026-07-26
 - **OpenClaw**: instalado en Arch, WhatsApp vinculado por QR, numero +56954764325 registrado como allowFrom y owner
 - **Entrega APK**: enviar APK final versionada por WhatsApp a +56954764325; version esperada actual 3.2.5
-- **Omarchy Multi-PC Control**: actualizado con panel OpenClaw/WhatsApp, estado, arranque detached de gateway y envio de APK
+- **Omarchy Multi-PC Control**: actualizado con panel OpenClaw/WhatsApp, estado, arranque detached de gateway, envio de APK y apagado sistematico
+- **Apagado sistematico**: orden configurado Mint -> Kali -> Arch/local; requiere escribir APAGAR
 - **Sync OpenClaw/APK**: actualizar Arch, Kali y Mint; celular owner documentado en 192.168.1.81; tablet omitida por decision operativa actual
 - **Commits en origin/main**: 17+ commits de auditoria
 - **TypeScript**: Clean en las 3 PCs

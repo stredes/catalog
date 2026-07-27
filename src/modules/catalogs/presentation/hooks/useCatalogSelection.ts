@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Product } from '../../../products/domain/entities/product';
 import { Family } from '../../../families/domain/entities/Family';
 import {
@@ -79,16 +79,16 @@ export function useCatalogSelection(products: Product[], families: Family[]) {
     return result;
   }, [products, state.familyFilter, state.searchQuery]);
 
-  function toggleFamily(familyId: string) {
+  const toggleFamily = useCallback((familyId: string) => {
     setState((prev) => ({
       ...prev,
       selectedFamilyIds: prev.selectedFamilyIds.includes(familyId)
         ? prev.selectedFamilyIds.filter((id) => id !== familyId)
         : [...prev.selectedFamilyIds, familyId],
     }));
-  }
+  }, []);
 
-  function toggleProduct(productId: string) {
+  const toggleProduct = useCallback((productId: string) => {
     setState((prev) => {
       const product = products.find((p) => p.id === productId);
       if (!product) return prev;
@@ -123,9 +123,9 @@ export function useCatalogSelection(products: Product[], families: Family[]) {
         manuallySelectedProductIds: [...prev.manuallySelectedProductIds, productId],
       };
     });
-  }
+  }, [products]);
 
-  function selectAllFamilies() {
+  const selectAllFamilies = useCallback(() => {
     setState((prev) => ({
       ...prev,
       selectedFamilyIds:
@@ -133,21 +133,21 @@ export function useCatalogSelection(products: Product[], families: Family[]) {
           ? []
           : families.map((f) => f.id),
     }));
-  }
+  }, [families]);
 
-  function setActiveTab(tab: 'families' | 'products') {
+  const setActiveTab = useCallback((tab: 'families' | 'products') => {
     setState((prev) => ({ ...prev, activeTab: tab }));
-  }
+  }, []);
 
-  function setSearchQuery(query: string) {
+  const setSearchQuery = useCallback((query: string) => {
     setState((prev) => ({ ...prev, searchQuery: query }));
-  }
+  }, []);
 
-  function setFamilyFilter(familyId: string | null) {
+  const setFamilyFilter = useCallback((familyId: string | null) => {
     setState((prev) => ({ ...prev, familyFilter: familyId }));
-  }
+  }, []);
 
-  function resetSelection() {
+  const resetSelection = useCallback(() => {
     setState({
       selectedFamilyIds: [],
       manuallySelectedProductIds: [],
@@ -156,13 +156,13 @@ export function useCatalogSelection(products: Product[], families: Family[]) {
       familyFilter: null,
       activeTab: 'families',
     });
-  }
+  }, []);
 
-  function getProductStatus(productId: string): 'included' | 'excluded' | 'none' {
+  const getProductStatus = useCallback((productId: string): 'included' | 'excluded' | 'none' => {
     if (state.excludedProductIds.includes(productId)) return 'excluded';
     if (selectionResult.selectedProductIds.includes(productId)) return 'included';
     return 'none';
-  }
+  }, [state.excludedProductIds, selectionResult.selectedProductIds]);
 
   return {
     state,

@@ -99,9 +99,9 @@ export function OrderHistoryScreen() {
     return result;
   }, [orders, search, sortBy, statusFilter]);
 
-  const pendingCount = orders.filter((o) => o.status === 'pending').length;
-  const partialCount = orders.filter((o) => o.status === 'partial').length;
-  const paidCount = orders.filter((o) => o.status === 'paid').length;
+  const pendingCount = useMemo(() => orders.filter((o) => o.status === 'pending').length, [orders]);
+  const partialCount = useMemo(() => orders.filter((o) => o.status === 'partial').length, [orders]);
+  const paidCount = useMemo(() => orders.filter((o) => o.status === 'paid').length, [orders]);
 
   const calDaysInMonth = getDaysInMonth(calYear, calMonth);
   const calFirstDay = getFirstDayOfMonth(calYear, calMonth);

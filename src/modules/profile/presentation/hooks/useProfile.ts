@@ -11,7 +11,7 @@ export function useProfile() {
     setLoading(true);
     setProfile(await useCases.getProfile.execute());
     setLoading(false);
-  }, [useCases]);
+  }, [useCases.getProfile]);
 
   useEffect(() => {
     reload();

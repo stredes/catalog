@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Alert, Pressable, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,7 +39,7 @@ export function EditOrderScreen() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+  const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.subtotal, 0), [items]);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, View, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -42,8 +42,14 @@ export function EditorialContentScreen({ selectedProductIds, selectedFamilyIds, 
   const { products } = useProducts();
   const { profile } = useProfile();
 
-  const selectedFamilies = families.filter((f) => selectedFamilyIds.includes(f.id));
-  const selectedProducts = products.filter((p) => selectedProductIds.includes(p.id));
+  const selectedFamilies = useMemo(
+    () => families.filter((f) => selectedFamilyIds.includes(f.id)),
+    [families, selectedFamilyIds],
+  );
+  const selectedProducts = useMemo(
+    () => products.filter((p) => selectedProductIds.includes(p.id)),
+    [products, selectedProductIds],
+  );
 
   const businessName = profile?.businessName ?? 'Nuestro negocio';
 

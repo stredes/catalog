@@ -1,10 +1,33 @@
 import { useRef, useEffect } from 'react';
-import { View, Animated, ViewStyle } from 'react-native';
+import { View, Animated, ViewStyle, StyleSheet } from 'react-native';
 import { Ionicons } from '../Icon';
 import { spacing } from '../../theme';
 import { c, styles } from './shared';
 import { AppText } from './text';
 import { Button } from './buttons';
+
+export function ProgressBar({ progress, color, height = 4, style }: {
+  progress: number;
+  color?: string;
+  height?: number;
+  style?: ViewStyle;
+}) {
+  const colors = c();
+  const barColor = color ?? colors.primary;
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+  
+  return (
+    <View style={[styles.progressBar, { height }, style]}>
+      <Animated.View
+        style={[
+          styles.progressFill,
+          { backgroundColor: barColor },
+          { transform: [{ scaleX: clampedProgress }] },
+        ]}
+      />
+    </View>
+  );
+}
 
 export function SkeletonLoader({ width, height, style }: {
   width?: number;

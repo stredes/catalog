@@ -143,7 +143,7 @@ export function BackupSettingsScreen() {
         />
 
         {/* Backup Version Badge */}
-        <Card style={{ marginBottom: 12 }}>
+        <Card style={{ marginBottom: 12 }} testID="backup-version-badge">
           <View style={styles.versionBadge}>
             <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
             <View style={{ flex: 1 }}>
@@ -154,7 +154,7 @@ export function BackupSettingsScreen() {
                 Compatible con CatalogClean 3.2+
               </AppText>
             </View>
-            <Badge variant="success" size="small">Actualizado</Badge>
+            <Badge color={colors.success}>Actualizado</Badge>
           </View>
         </Card>
 
@@ -165,6 +165,7 @@ export function BackupSettingsScreen() {
           />
           <Pressable
             onPress={toggleAutoBackup}
+            testID="auto-backup-toggle"
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -214,7 +215,7 @@ export function BackupSettingsScreen() {
 
         {/* Progress bars */}
         {creating && createProgress !== null && (
-          <Card style={{ marginTop: 12, marginBottom: 8 }}>
+          <Card style={{ marginTop: 12, marginBottom: 8 }} testID="create-progress-bar">
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Ionicons name="cloud-upload-outline" size={22} color={colors.primary} />
               <View style={{ flex: 1 }}>
@@ -228,7 +229,7 @@ export function BackupSettingsScreen() {
         )}
 
         {restoring && restoreProgress !== null && (
-          <Card style={{ marginTop: 12, marginBottom: 8 }}>
+          <Card style={{ marginTop: 12, marginBottom: 8 }} testID="restore-progress-bar">
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Ionicons name="cloud-download-outline" size={22} color={colors.warning} />
               <View style={{ flex: 1 }}>
@@ -242,7 +243,7 @@ export function BackupSettingsScreen() {
         )}
 
         {importProgress !== null && (
-          <Card style={{ marginTop: 12, marginBottom: 8 }}>
+          <Card style={{ marginTop: 12, marginBottom: 8 }} testID="import-progress-bar">
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Ionicons name="document-text-outline" size={22} color={colors.success} />
               <View style={{ flex: 1 }}>
@@ -259,6 +260,7 @@ export function BackupSettingsScreen() {
           label={creating ? 'Creando backup...' : 'Crear backup manual'}
           icon="add-circle-outline"
           disabled={creating}
+          testID="create-manual-backup-btn"
           onPress={() => setShowCreateForm(true)}
         />
 
@@ -266,6 +268,7 @@ export function BackupSettingsScreen() {
           label={importProgress !== null ? 'Importando...' : 'Importar backup desde archivo'}
           icon="document-outline"
           disabled={importProgress !== null}
+          testID="import-backup-btn"
           onPress={handleImportBackup}
         />
 
@@ -357,8 +360,8 @@ export function BackupSettingsScreen() {
                             <>
                               <AppText variant="caption" color="muted">·</AppText>
                               <Badge
-                                variant={checksumStatus === 'success' ? 'success' : 'error'}
-                                size="small"
+                                color={checksumStatus === 'success' ? colors.success : colors.error}
+                                testID="checksum-badge"
                               >
                                 {checksumStatus === 'success' ? 'Checksum OK' : 'Checksum Inválido'}
                               </Badge>
@@ -369,6 +372,7 @@ export function BackupSettingsScreen() {
                       <View style={{ flexDirection: 'row', gap: 4 }}>
                         <Pressable
                           onPress={() => exportBackup(backup, exportCustomName || undefined)}
+                          testID="export-backup-btn"
                           style={[
                             {
                               width: 32,
@@ -385,6 +389,7 @@ export function BackupSettingsScreen() {
                         <Pressable
                           onPress={() => verifyChecksum(backup)}
                           disabled={verifyingChecksum === backup.id}
+                          testID="verify-checksum-btn"
                           style={[
                             {
                               width: 32,
@@ -405,6 +410,7 @@ export function BackupSettingsScreen() {
                         <Pressable
                           onPress={() => restoreBackup(backup)}
                           disabled={restoring === backup.id}
+                          testID="restore-backup-btn"
                           style={[
                             {
                               width: 32,
@@ -420,6 +426,7 @@ export function BackupSettingsScreen() {
                         </Pressable>
                         <Pressable
                           onPress={() => deleteBackup(backup)}
+                          testID="delete-backup-btn"
                           style={[
                             {
                               width: 32,
@@ -447,6 +454,7 @@ export function BackupSettingsScreen() {
 
       {showCreateForm && (
         <View
+          testID="backup-create-form"
           style={{
             position: 'absolute',
             top: 0,
@@ -467,16 +475,19 @@ export function BackupSettingsScreen() {
               placeholder="Ej: Antes de actualizar"
               value={backupLabel}
               onChangeText={setBackupLabel}
+              testID="backup-label-input"
             />
             <PrimaryButton
               label={creating ? 'Creando...' : 'Crear backup'}
               icon="save-outline"
               disabled={creating}
+              testID="confirm-create-backup-btn"
               onPress={handleCreateBackup}
             />
             <View style={{ height: 8 }} />
             <SecondaryButton
               label="Cancelar"
+              testID="cancel-create-backup-btn"
               onPress={() => {
                 setShowCreateForm(false);
                 setBackupLabel('');
@@ -488,6 +499,7 @@ export function BackupSettingsScreen() {
 
       {showImportPreview && importPreview && (
         <View
+          testID="import-preview-modal"
           style={{
             position: 'absolute',
             top: 0,
@@ -535,11 +547,13 @@ export function BackupSettingsScreen() {
               label={importProgress !== null ? 'Importando...' : 'Confirmar importación'}
               icon="checkmark-outline"
               disabled={importProgress !== null}
+              testID="confirm-import-btn"
               onPress={confirmImport}
             />
             <View style={{ height: 8 }} />
             <SecondaryButton
               label="Cancelar"
+              testID="cancel-import-btn"
               onPress={() => {
                 setShowImportPreview(false);
                 setImportPreview(null);

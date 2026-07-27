@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Crypto from 'expo-crypto';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { BackupSnapshot } from '../../domain/entities/BackupSnapshot';
@@ -142,13 +142,11 @@ export function useBackupManager() {
       // Custom filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const fileName = `CatalogClean_${safeLabel}_${timestamp}.json`;
-      const tempUri = `${FileSystem.cacheDirectory}${fileName}`;
+      const tempFile = new File(Paths.cache, fileName);
       
-      await FileSystem.writeAsStringAsync(tempUri, JSON.stringify(payload), {
-        encoding: 'utf8',
-      });
+      await tempFile.write(JSON.stringify(payload));
 
-      await services.share.shareFile(tempUri, `Backup: ${snapshot.label}`, 'application/json');
+      await services.share.shareFile(tempFile.uri, `Backup: ${snapshot.label}`, 'application/json');
     } catch (err) {
       Alert.alert(
         'Error al compartir',
@@ -174,13 +172,11 @@ export function useBackupManager() {
       
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const fileName = `CatalogClean_${safeLabel}_${timestamp}.json`;
-      const tempUri = `${FileSystem.cacheDirectory}${fileName}`;
+      const tempFile = new File(Paths.cache, fileName);
       
-      await FileSystem.writeAsStringAsync(tempUri, JSON.stringify(payload), {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      await tempFile.write(JSON.stringify(payload));
 
-      await services.share.shareFile(tempUri, `Backup: ${snapshot.label}`, 'application/json');
+      await services.share.shareFile(tempFile.uri, `Backup: ${snapshot.label}`, 'application/json');
     } catch (err) {
       Alert.alert(
         'Error al exportar',
@@ -242,9 +238,8 @@ export function useBackupManager() {
     setImportProgress(0);
     try {
       // We need to read the file and validate without importing
-      const content = await FileSystem.readAsStringAsync(fileUri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      const file = new File(fileUri);
+      const content = await file.text();
       setImportProgress(30);
 
       let raw: unknown;
@@ -282,7 +277,7 @@ export function useBackupManager() {
         catalogs: (data.catalogs as unknown[] | undefined)?.length ?? 0,
         orders: (data.orders as unknown[] | undefined)?.length ?? 0,
         suppliers: (data.suppliers as unknown[] | undefined)?.length ?? 0,
-        images: (data.images as Record<string, string> | undefined) ? Object.keys(data.images).length : 0,
+        images: (data.images && typeof data.images === 'object') ? Object.keys(data.images as Record<string, string>).length : 0,
       };
       setImportProgress(100);
       setLastImportPreview(preview);

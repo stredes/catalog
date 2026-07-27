@@ -41,6 +41,7 @@ export {
   EmptyState,
   EmptyStateIllustrated,
   SkeletonLoader,
+  ProgressBar,
 } from './feedback';
 
 export {

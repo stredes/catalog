@@ -99,6 +99,9 @@ const styles = StyleSheet.create({
 
   wizardProgress: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   wizardDot: { height: 8, borderRadius: 4 },
+
+  progressBar: { flex: 1, borderRadius: borderRadius.sm, overflow: 'hidden', backgroundColor: '#E2E8F0' },
+  progressFill: { height: '100%', borderRadius: borderRadius.sm, transformOrigin: 'left' },
 });
 
 export { styles };

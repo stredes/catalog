@@ -6,7 +6,7 @@ import { c, styles } from './shared';
 import { AppText } from './text';
 import { LiquidGlassContainer } from '../LiquidGlassContainer';
 
-export function Button({ label, onPress, disabled, loading, icon, variant = 'primary', color, fullWidth, accessibilityLabel }: {
+export function Button({ label, onPress, disabled, loading, icon, variant = 'primary', color, fullWidth, accessibilityLabel, testID }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
@@ -16,6 +16,7 @@ export function Button({ label, onPress, disabled, loading, icon, variant = 'pri
   color?: string;
   fullWidth?: boolean;
   accessibilityLabel?: string;
+  testID?: string;
 }) {
   const colors = c();
   const btnColor = color ?? colors.primary;
@@ -28,6 +29,7 @@ export function Button({ label, onPress, disabled, loading, icon, variant = 'pri
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityState={{ disabled: Boolean(disabled) }}
+        testID={testID}
         style={({ pressed }) => [
           {
             opacity: disabled ? opacityTokens.disabled : pressed ? opacityTokens.pressed : 1,
@@ -54,6 +56,7 @@ export function Button({ label, onPress, disabled, loading, icon, variant = 'pri
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(loading) }}
+        testID={testID}
         style={({ pressed }) => [
           styles.secondaryButton,
           {
@@ -84,6 +87,7 @@ export function Button({ label, onPress, disabled, loading, icon, variant = 'pri
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(loading) }}
+      testID={testID}
       style={({ pressed }) => [
         shadows.md,
         styles.primaryButton,

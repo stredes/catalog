@@ -18,10 +18,11 @@ const FORMAT_LABELS: Record<string, string> = {
   'premium-cover': 'Premium',
 };
 
-export function Card({ children, style, onPress, variant = 'default' }: PropsWithChildren<{
+export function Card({ children, style, onPress, variant = 'default', testID }: PropsWithChildren<{
   style?: ViewStyle | ViewStyle[];
   onPress?: () => void;
   variant?: CardVariant;
+  testID?: string;
 }>) {
   const colors = c();
   const variantStyle: ViewStyle = {
@@ -38,12 +39,12 @@ export function Card({ children, style, onPress, variant = 'default' }: PropsWit
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}>
+      <Pressable onPress={onPress} testID={testID} style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}>
         {content}
       </Pressable>
     );
   }
-  return content;
+  return <View testID={testID}>{content}</View>;
 }
 
 export function CardHeader({ title, subtitle, action }: {

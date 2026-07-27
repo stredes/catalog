@@ -54,22 +54,27 @@ export function AppText({
   );
 }
 
-export function Badge({ label, color }: {
-  label: string;
+export function Badge({ label, children, color, testID }: {
+  label?: string;
+  children?: React.ReactNode;
   color?: string;
+  testID?: string;
 }) {
   const colors = c();
   const badgeColor = color ?? colors.primary;
+  const content = label ?? children ?? '';
   return (
-    <View style={[styles.badge, { backgroundColor: badgeColor + '18' }]}>
-      <AppText variant="caption" color="muted" style={{ color: badgeColor } as TextStyle}>{label}</AppText>
+    <View style={[styles.badge, { backgroundColor: badgeColor + '18' }]} testID={testID}>
+      <AppText variant="caption" color="muted" style={{ color: badgeColor } as TextStyle}>{content}</AppText>
     </View>
   );
 }
 
-export function StatusBadge({ label, tone = 'info' }: {
+export function StatusBadge({ label, tone = 'info', variant, size }: {
   label: string;
   tone?: 'info' | 'success' | 'warning' | 'danger';
+  variant?: 'success' | 'error' | 'info' | 'warning';
+  size?: 'small' | 'medium' | 'large';
 }) {
   const colors = c();
   const toneColor = {

@@ -1,22 +1,23 @@
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import React, { Suspense, createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { DashboardScreen } from '../modules/catalogs/presentation/screens/DashboardScreen';
-import { CatalogBuilderScreen } from '../modules/catalogs/presentation/screens/CatalogBuilderScreen';
-import { FamiliesScreen } from '../modules/families/presentation/screens/FamiliesScreen';
-import { ProfileScreen } from '../modules/profile/presentation/screens/ProfileScreen';
-import { ProductsScreen } from '../modules/products/presentation/screens/ProductsScreen';
-import { HistoryScreen } from '../modules/history/presentation/screens/HistoryScreen';
-import { OnboardingScreen } from '../modules/onboarding/presentation/screens/OnboardingScreen';
-import { LoginScreen } from '../modules/auth/presentation/screens/LoginScreen';
-import { RegisterScreen } from '../modules/auth/presentation/screens/RegisterScreen';
-import { CartScreen } from '../modules/orders/presentation/screens/CartScreen';
-import { OrderHistoryScreen } from '../modules/orders/presentation/screens/OrderHistoryScreen';
-import { EditOrderScreen } from '../modules/orders/presentation/screens/EditOrderScreen';
-import { BackupSettingsScreen } from '../modules/backup/presentation/screens/BackupSettingsScreen';
-import { SuppliersScreen } from '../modules/suppliers/presentation/screens/SuppliersScreen';
-import { SupplierPurchaseScreen } from '../modules/suppliers/presentation/screens/SupplierPurchaseScreen';
 import { useDependencies } from './dependencies';
 import { AUTHENTICATION_ENABLED } from '../shared/config/features';
+
+const DashboardScreen = React.lazy(() => import('../modules/catalogs/presentation/screens/DashboardScreen').then(m => ({ default: m.DashboardScreen })));
+const CatalogBuilderScreen = React.lazy(() => import('../modules/catalogs/presentation/screens/CatalogBuilderScreen').then(m => ({ default: m.CatalogBuilderScreen })));
+const FamiliesScreen = React.lazy(() => import('../modules/families/presentation/screens/FamiliesScreen').then(m => ({ default: m.FamiliesScreen })));
+const ProfileScreen = React.lazy(() => import('../modules/profile/presentation/screens/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
+const ProductsScreen = React.lazy(() => import('../modules/products/presentation/screens/ProductsScreen').then(m => ({ default: m.ProductsScreen })));
+const HistoryScreen = React.lazy(() => import('../modules/history/presentation/screens/HistoryScreen').then(m => ({ default: m.HistoryScreen })));
+const OnboardingScreen = React.lazy(() => import('../modules/onboarding/presentation/screens/OnboardingScreen').then(m => ({ default: m.OnboardingScreen })));
+const LoginScreen = React.lazy(() => import('../modules/auth/presentation/screens/LoginScreen').then(m => ({ default: m.LoginScreen })));
+const RegisterScreen = React.lazy(() => import('../modules/auth/presentation/screens/RegisterScreen').then(m => ({ default: m.RegisterScreen })));
+const CartScreen = React.lazy(() => import('../modules/orders/presentation/screens/CartScreen').then(m => ({ default: m.CartScreen })));
+const OrderHistoryScreen = React.lazy(() => import('../modules/orders/presentation/screens/OrderHistoryScreen').then(m => ({ default: m.OrderHistoryScreen })));
+const EditOrderScreen = React.lazy(() => import('../modules/orders/presentation/screens/EditOrderScreen').then(m => ({ default: m.EditOrderScreen })));
+const BackupSettingsScreen = React.lazy(() => import('../modules/backup/presentation/screens/BackupSettingsScreen').then(m => ({ default: m.BackupSettingsScreen })));
+const SuppliersScreen = React.lazy(() => import('../modules/suppliers/presentation/screens/SuppliersScreen').then(m => ({ default: m.SuppliersScreen })));
+const SupplierPurchaseScreen = React.lazy(() => import('../modules/suppliers/presentation/screens/SupplierPurchaseScreen').then(m => ({ default: m.SupplierPurchaseScreen })));
 
 export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'OrderHistory' | 'PurchaseCart' | 'EditOrder' | 'Backup' | 'Suppliers';
 
@@ -147,7 +148,15 @@ export function AppNavigator() {
 
   return (
     <NavigationContext.Provider value={navigation}>
-      {renderRoute(activeRoute)}
+      <Suspense
+        fallback={
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" />
+          </View>
+        }
+      >
+        {renderRoute(activeRoute)}
+      </Suspense>
     </NavigationContext.Provider>
   );
 }

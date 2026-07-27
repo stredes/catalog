@@ -1,0 +1,24 @@
+== TAREA ASIGNADA: SEGURIDAD Y AUTENTICACION ==
+Maquina: Kali (192.168.1.100) - Especialista en seguridad
+Proyecto: catalog-clean
+
+Lee el .context del proyecto primero. Luego implementa SOLO estas correcciones de seguridad:
+
+1) AUTH BYPASS: En src/bootstrap/navigation.tsx o donde se controle el auth check, 
+   restaurar la verificacion de sesion antes de navegar al Dashboard. 
+   Actualmente "Init siempre va a Dashboard (auth check bypassed)". 
+   Implementar el check real usando LocalAuthAdapter.
+
+2) PASSWORD SECURITY: En src/modules/auth/infrastructure/LocalAuthAdapter.ts:
+   - Reemplazar Math.random() por expo-crypto para generar salt criptografico
+   - Cambiar SHA-256 simple por PBKDF2 o al menos iteraciones hash
+   - Implementar rate limiting basico en el login (max 5 intentos, lockout 5 min)
+
+3) REVISAR que Sentry este correctamente instalado o eliminar el modulo completo 
+   (SentryErrorReporter.ts + sentry.d.ts) si el paquete no esta en dependencies.
+
+Reglas:
+- NO ejecutes npm/npx/tsc (no tienes node en esta sesion)
+- Edita SOLO archivos fuente
+- Haz commit de cada cambio con mensaje descriptivo en ingles
+- Al terminar, escribe un resumen de cambios en ~/kali_changes.txt

@@ -5,7 +5,6 @@ import * as Crypto from 'expo-crypto';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { BackupSnapshot } from '../../domain/entities/BackupSnapshot';
 import { assertBackupIsComplete } from '../../infrastructure/services/BackupImageCollector';
-import * as FileSystem from 'expo-file-system';
 
 export function useBackupManager() {
   const { useCases, autoBackupService, services, repositories } = useDependencies();
@@ -146,7 +145,7 @@ export function useBackupManager() {
       const tempUri = `${FileSystem.cacheDirectory}${fileName}`;
       
       await FileSystem.writeAsStringAsync(tempUri, JSON.stringify(payload), {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8',
       });
 
       await services.share.shareFile(tempUri, `Backup: ${snapshot.label}`, 'application/json');
@@ -203,9 +202,8 @@ export function useBackupManager() {
       }
 
       // Compute checksum from payload
-      const crypto = await import('expo-crypto');
-      const computedChecksum = await crypto.digestStringAsync(
-        crypto.CryptoDigestAlgorithm.SHA256,
+      const computedChecksum = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
         JSON.stringify(payload),
       );
 

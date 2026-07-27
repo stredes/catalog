@@ -52,7 +52,7 @@ export function EditorialContentScreen({ selectedProductIds, selectedFamilyIds, 
   useEffect(() => {
     editorial.initCategories();
     editorial.initProducts();
-  }, []);
+  }, [editorial.initCategories, editorial.initProducts]);
 
   const handleModeChange = (mode: EditorialMode) => {
     editorial.setMode(mode);

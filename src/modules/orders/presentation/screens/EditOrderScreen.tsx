@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Alert, Pressable, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { useAppNavigation } from '../../../../bootstrap/navigation';

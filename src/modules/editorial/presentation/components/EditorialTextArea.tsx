@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { AppText } from '../../../../shared/presentation/components/ui';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { spacing } from '../../../../shared/presentation/theme/spacing';

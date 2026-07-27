@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Pressable, View, Animated, ActivityIndicator, TextStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../Icon';
 import { spacing, sizes, opacity as opacityTokens, shadows } from '../../theme';
 import { c, styles } from './shared';
 import { AppText } from './text';

@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Pressable, View, FlatList } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import {
   AppText,
   Card,

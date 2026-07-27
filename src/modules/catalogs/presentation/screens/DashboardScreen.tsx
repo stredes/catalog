@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
 import { useDependencies } from '../../../../bootstrap/dependencies';

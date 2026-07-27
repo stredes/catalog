@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState as useStateReact } from 'react';
 import { useState } from 'react';
 import { Resolver, useForm } from 'react-hook-form';
 import { Alert, Image, Pressable, ScrollView, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
 import { AUTHENTICATION_ENABLED } from '../../../../shared/config/features';

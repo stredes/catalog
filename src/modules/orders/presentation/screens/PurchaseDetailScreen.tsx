@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, TextInput, View, ActivityIndicator, FlatList } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
 import { BottomMenu } from '../../../../shared/presentation/components/BottomMenu';

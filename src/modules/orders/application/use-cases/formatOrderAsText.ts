@@ -27,13 +27,27 @@ export function formatOrderAsText(order: Order, profile: Profile | null): string
   lines.push(`  Cliente: ${order.clientName}`);
   lines.push(`  Fecha:   ${new Date(order.createdAt).toLocaleString('es-CL')}`);
   lines.push(`  N° Pedido: ${String(order.orderNumber).padStart(4, '0')}`);
+  lines.push(`  Estado: ${order.status === 'paid' ? 'PAGADO' : order.status === 'partial' ? 'PAGO PARCIAL' : 'PENDIENTE'}`);
+  if (order.paidAmount > 0) {
+    lines.push(`  Pagado: $${order.paidAmount.toLocaleString('es-CL')}`);
+    lines.push(`  Saldo:  $${Math.max(0, order.total - order.paidAmount).toLocaleString('es-CL')}`);
+  }
   lines.push('');
   lines.push('───────────────────────────────────────');
 
   order.items.forEach((item, index) => {
+    const hasDiscount = item.discountType !== 'none' && item.discountValue > 0;
     lines.push(`  ${index + 1}. ${item.productName}`);
     if (item.productCode) lines.push(`     Codigo: ${item.productCode}`);
-    lines.push(`     Cant: ${item.quantity} x $${item.unitPrice.toLocaleString('es-CL')} = $${item.subtotal.toLocaleString('es-CL')}`);
+    if (hasDiscount) {
+      const discountLabel = item.discountType === 'currency'
+        ? `-$${item.discountValue.toLocaleString('es-CL')}`
+        : `-${item.discountValue}%`;
+      lines.push(`     Cant: ${item.quantity} x $${item.unitPrice.toLocaleString('es-CL')} = $${(item.unitPrice * item.quantity).toLocaleString('es-CL')} → Descuento ${discountLabel}`);
+      lines.push(`     Subtotal: $${item.subtotal.toLocaleString('es-CL')}`);
+    } else {
+      lines.push(`     Cant: ${item.quantity} x $${item.unitPrice.toLocaleString('es-CL')} = $${item.subtotal.toLocaleString('es-CL')}`);
+    }
     lines.push('');
   });
 

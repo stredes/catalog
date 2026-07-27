@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
+import { spacing, borderRadius, sizes, borders, typography } from '../../../../shared/presentation/theme';
 import { AppText, PrimaryButton, SecondaryButton } from '../../../../shared/presentation/components/ui';
 
 export function LoginScreen() {
@@ -36,6 +37,19 @@ export function LoginScreen() {
     }
   }
 
+  const inputStyle = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.md,
+    borderWidth: borders.thin,
+    borderColor: colors.borderDefault,
+    paddingHorizontal: sizes.inputPaddingHorizontal,
+    height: sizes.inputHeight,
+  };
+
+  const inputTextStyle = { flex: 1, color: colors.textPrimary, fontSize: typography.bodyLarge.fontSize, lineHeight: typography.bodyLarge.lineHeight, padding: 0 };
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -45,43 +59,43 @@ export function LoginScreen() {
         style={{
           flex: 1,
           backgroundColor: colors.backgroundPrimary,
-          paddingTop: insets.top + 40,
-          paddingBottom: insets.bottom + 24,
-          paddingHorizontal: 32,
+          paddingTop: insets.top + spacing.xxxxl,
+          paddingBottom: insets.bottom + spacing.xxl,
+          paddingHorizontal: spacing.xxxl,
           justifyContent: 'space-between',
         }}
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <View
             style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
+              width: sizes.authAvatar,
+              height: sizes.authAvatar,
+              borderRadius: sizes.authAvatarRadius,
               backgroundColor: colors.primaryLight,
               justifyContent: 'center',
               alignItems: 'center',
-              marginBottom: 32,
+              marginBottom: spacing.xxxl,
             }}
           >
-            <Ionicons name="person-outline" size={48} color={colors.primary} />
+            <Ionicons name="person-outline" size={sizes.authIconLarge} color={colors.primary} />
           </View>
           <AppText
             variant="headingLarge"
             color="primary"
-            style={{ textAlign: 'center', marginBottom: 12 }}
+            style={{ textAlign: 'center', marginBottom: spacing.md }}
           >
             Bienvenido
           </AppText>
           <AppText
             variant="bodyMedium"
             color="muted"
-            style={{ textAlign: 'center', lineHeight: 22 }}
+            style={{ textAlign: 'center', lineHeight: typography.headingSmall.lineHeight }}
           >
             Inicia sesión para acceder a tus catálogos
           </AppText>
         </View>
 
-        <View style={{ gap: 16 }}>
+        <View style={{ gap: spacing.lg }}>
           {error && (
             <AppText variant="bodySmall" color="error" style={{ textAlign: 'center' }}>
               {error}
@@ -89,22 +103,11 @@ export function LoginScreen() {
           )}
 
           <View>
-            <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 6 }}>
+            <AppText variant="labelMedium" color="secondary" style={{ marginBottom: spacing.xs + 2 }}>
               Correo electrónico
             </AppText>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: colors.backgroundSecondary,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: colors.borderDefault,
-                paddingHorizontal: 14,
-                height: 48,
-              }}
-            >
-              <Ionicons name="mail-outline" size={20} color={colors.textDisabled} style={{ marginRight: 10 }} />
+            <View style={inputStyle}>
+              <Ionicons name="mail-outline" size={sizes.authIconInput} color={colors.textDisabled} style={{ marginRight: sizes.iconMargin }} />
               <TextInput
                 placeholder="correo@ejemplo.com"
                 placeholderTextColor={colors.textDisabled}
@@ -113,28 +116,17 @@ export function LoginScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoComplete="email"
-                style={{ flex: 1, color: colors.textPrimary, fontSize: 16, padding: 0 }}
+                style={inputTextStyle}
               />
             </View>
           </View>
 
           <View>
-            <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 6 }}>
+            <AppText variant="labelMedium" color="secondary" style={{ marginBottom: spacing.xs + 2 }}>
               Contraseña
             </AppText>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: colors.backgroundSecondary,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: colors.borderDefault,
-                paddingHorizontal: 14,
-                height: 48,
-              }}
-            >
-              <Ionicons name="lock-closed-outline" size={20} color={colors.textDisabled} style={{ marginRight: 10 }} />
+            <View style={inputStyle}>
+              <Ionicons name="lock-closed-outline" size={sizes.authIconInput} color={colors.textDisabled} style={{ marginRight: sizes.iconMargin }} />
               <TextInput
                 placeholder="Tu contraseña"
                 placeholderTextColor={colors.textDisabled}
@@ -142,12 +134,12 @@ export function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoComplete="password"
-                style={{ flex: 1, color: colors.textPrimary, fontSize: 16, padding: 0 }}
+                style={inputTextStyle}
               />
               <Pressable onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
+                  size={sizes.authIconInput}
                   color={colors.textDisabled}
                 />
               </Pressable>

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, PropsWithChildren } from 'react';
+import { memo, useMemo, useRef, useState, PropsWithChildren } from 'react';
 import { Pressable, View, Image, Animated, useWindowDimensions, TextInput, TextStyle, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, borderRadius, shadows, fontWeights } from '../../theme';
@@ -8,6 +8,15 @@ import { LiquidGlassContainer } from '../LiquidGlassContainer';
 import { SkeletonLoader } from './feedback';
 
 export type CardVariant = 'default' | 'elevated' | 'interactive' | 'selected' | 'metric';
+
+const FORMAT_LABELS: Record<string, string> = {
+  'grid-2': 'Grilla 2',
+  'grid-3': 'Grilla 3',
+  'grid-4x5': 'Grilla 4×5',
+  'grid-3x7': 'Grilla 3×7',
+  'simple-list': 'Lista',
+  'premium-cover': 'Premium',
+};
 
 export function Card({ children, style, onPress, variant = 'default' }: PropsWithChildren<{
   style?: ViewStyle | ViewStyle[];
@@ -105,7 +114,7 @@ export function QuickActionCard({ icon, label, onPress, color }: {
   );
 }
 
-export function ProductCard({ name, price, format, family, supplier, photoUri, stock, onPress, onEdit, onDelete, onIncrement, onDecrement, onStockChange }: {
+export const ProductCard = memo(function ProductCard({ name, price, format, family, supplier, photoUri, stock, onPress, onEdit, onDelete, onIncrement, onDecrement, onStockChange }: {
   name: string;
   price: string;
   format: string;
@@ -240,9 +249,9 @@ export function ProductCard({ name, price, format, family, supplier, photoUri, s
       </Card>
     </AnimatedPressable>
   );
-}
+});
 
-export function FamilyCard({ name, productCount, color, onEdit, onDelete, onPress }: {
+export const FamilyCard = memo(function FamilyCard({ name, productCount, color, onEdit, onDelete, onPress }: {
   name: string;
   productCount: number;
   color?: string;
@@ -279,9 +288,9 @@ export function FamilyCard({ name, productCount, color, onEdit, onDelete, onPres
       </Card>
     </Pressable>
   );
-}
+});
 
-export function CatalogHistoryItem({ name, format, purpose, date, productCount, onShare, onDuplicate, onDelete }: {
+export const CatalogHistoryItem = memo(function CatalogHistoryItem({ name, format, purpose, date, productCount, onShare, onDuplicate, onDelete }: {
   name: string;
   format: string;
   purpose?: string;
@@ -292,14 +301,6 @@ export function CatalogHistoryItem({ name, format, purpose, date, productCount, 
   onDelete?: () => void;
 }) {
   const colors = c();
-  const formatLabels: Record<string, string> = {
-    'grid-2': 'Grilla 2',
-    'grid-3': 'Grilla 3',
-    'grid-4x5': 'Grilla 4×5',
-    'grid-3x7': 'Grilla 3×7',
-    'simple-list': 'Lista',
-    'premium-cover': 'Premium',
-  };
 
   const isPurchaseDetail = purpose === 'purchase-detail';
   const iconBg = isPurchaseDetail ? colors.primaryLight : colors.errorLight;
@@ -317,7 +318,7 @@ export function CatalogHistoryItem({ name, format, purpose, date, productCount, 
           {isPurchaseDetail ? (
             <AppText variant="caption" color="accent" style={{ fontWeight: '600' as any }}>COMPRA</AppText>
           ) : (
-            <AppText variant="caption" color="muted">{formatLabels[format] ?? format}</AppText>
+            <AppText variant="caption" color="muted">{FORMAT_LABELS[format] ?? format}</AppText>
           )}
           <AppText variant="caption" color="muted" style={{ marginHorizontal: 4 }}>·</AppText>
           <AppText variant="caption" color="muted">{date}</AppText>
@@ -344,7 +345,7 @@ export function CatalogHistoryItem({ name, format, purpose, date, productCount, 
       </View>
     </Card>
   );
-}
+});
 
 export function RecentProductCard({ name, format, price, onPress }: {
   name: string;

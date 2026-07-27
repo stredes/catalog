@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from './Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppRoute, useAppNavigation } from '../../../bootstrap/navigation';
 import { borderRadius, sizes, spacing } from '../theme';

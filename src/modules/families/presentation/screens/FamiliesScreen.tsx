@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert, Pressable, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { BottomMenu } from '../../../../shared/presentation/components/BottomMenu';
 import {

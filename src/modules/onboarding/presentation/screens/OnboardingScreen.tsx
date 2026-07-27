@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
 import { useDependencies } from '../../../../bootstrap/dependencies';

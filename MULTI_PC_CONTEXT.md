@@ -7,6 +7,7 @@
 | Kali Linux | 192.168.1.100 | stredes | 19921351-2 | 22 | Seguridad + Bundle Audit |
 | Linux Mint | 192.168.1.90 | stredesmers | 19921351-2 | 22 | Bugs Funcionales + SQLite |
 | Arch Linux (Omarchy) | 192.168.1.89 | lucas | 19921351-2 | 22 | Calidad/DRY + Memoization |
+| Celular owner WhatsApp | 192.168.1.181 | u0_a445 | 199213 | 8022 | WhatsApp + recepcion APK |
 | Samsung Tab A8 | 192.168.1.102 | u0_a273 | 199213 | 8022 | Coordinator |
 | Router | 192.168.1.1 | - | - | - | Gateway |
 
@@ -24,6 +25,7 @@
 | Acceso remoto recomendado | SSH tunnel hacia Arch: ssh -N -L 18789:127.0.0.1:18789 lucas@192.168.1.89 |
 | WhatsApp allowFrom | +56954764325 |
 | WhatsApp ownerAllowFrom | whatsapp:+56954764325 |
+| IP celular owner | 192.168.1.181 |
 | WhatsApp dmPolicy | pairing |
 | Estado | CLI instalado y numero WhatsApp autorizado; pendiente login QR si el canal aun no fue vinculado |
 
@@ -35,6 +37,7 @@ Objetivo operativo: cuando termine el trabajo de codigo y se genere una APK corr
 |-------|-------|
 | Version APK actual esperada | 3.2.5 |
 | Destino WhatsApp | +56954764325 |
+| IP celular destino | 192.168.1.181 |
 | Canal OpenClaw | whatsapp |
 | Formato de envio | Documento adjunto para evitar compresion o tratamiento como media |
 | Host que debe enviar | Arch Linux (Omarchy) con OpenClaw |
@@ -82,7 +85,11 @@ Checklist antes de enviar:
 sshpass -p '19921351-2' ssh stredes@192.168.1.100    # Kali
 sshpass -p '19921351-2' ssh stredesmers@192.168.1.90  # Mint
 sshpass -p '19921351-2' ssh lucas@192.168.1.89        # Arch
-sshpass -p '199213' ssh -p 8022 u0_a273@192.168.1.102 # Tablet
+# Celular owner WhatsApp / APK
+sshpass -p '199213' ssh -p 8022 u0_a445@192.168.1.181
+
+# Tablet omitida del sync OpenClaw/APK por decision operativa actual.
+# sshpass -p '199213' ssh -p 8022 u0_a273@192.168.1.102
 
 # Abrir opencode con tmux en cada PC
 tmux new-session -d -s audit "cd ~/Workspace/catalog && ~/.local/share/opencode-fixed/opencode"

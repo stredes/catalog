@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
 import {

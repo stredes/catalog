@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { View, Animated, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../Icon';
 import { spacing } from '../../theme';
 import { c, styles } from './shared';
 import { AppText } from './text';

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, PropsWithChildren } from 'react';
 import { Pressable, View, Image, Animated, useWindowDimensions, TextInput, TextStyle, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../Icon';
 import { spacing, borderRadius, shadows, fontWeights } from '../../theme';
 import { c, styles } from './shared';
 import { AppText } from './text';

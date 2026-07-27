@@ -1,5 +1,5 @@
 import { View, TextInput, Pressable, TextStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../Icon';
 import { spacing } from '../../theme';
 import { c, styles } from './shared';
 import { AppText } from './text';

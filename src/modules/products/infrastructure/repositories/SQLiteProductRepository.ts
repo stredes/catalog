@@ -85,18 +85,23 @@ export class SQLiteProductRepository implements ProductRepository {
 
   async findAll() {
     const db = await getDatabase();
-    return db.getAllAsync<Product>('SELECT * FROM products ORDER BY createdAt DESC');
+    return db.getAllAsync<Product>(
+      'SELECT id, name, code, price, stock, format, photoUri, familyId, supplierId, createdAt, updatedAt FROM products ORDER BY createdAt DESC'
+    );
   }
 
   async findById(id: string) {
     const db = await getDatabase();
-    return db.getFirstAsync<Product>('SELECT * FROM products WHERE id = ?', id);
+    return db.getFirstAsync<Product>(
+      'SELECT id, name, code, price, stock, format, photoUri, familyId, supplierId, createdAt, updatedAt FROM products WHERE id = ?',
+      id,
+    );
   }
 
   async findByFamily(familyId: string) {
     const db = await getDatabase();
     return db.getAllAsync<Product>(
-      'SELECT * FROM products WHERE familyId = ? ORDER BY createdAt DESC',
+      'SELECT id, name, code, price, stock, format, photoUri, familyId, supplierId, createdAt, updatedAt FROM products WHERE familyId = ? ORDER BY createdAt DESC',
       familyId,
     );
   }
@@ -104,7 +109,7 @@ export class SQLiteProductRepository implements ProductRepository {
   async findBySupplier(supplierId: string) {
     const db = await getDatabase();
     return db.getAllAsync<Product>(
-      'SELECT * FROM products WHERE supplierId = ? ORDER BY createdAt DESC',
+      'SELECT id, name, code, price, stock, format, photoUri, familyId, supplierId, createdAt, updatedAt FROM products WHERE supplierId = ? ORDER BY createdAt DESC',
       supplierId,
     );
   }

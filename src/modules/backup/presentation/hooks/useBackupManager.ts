@@ -52,6 +52,7 @@ export function useBackupManager() {
               const result = await useCases.restoreBackup.execute({
                 backupId: snapshot.id,
                 confirmRestore: true,
+                createPreventiveBackup: false,
               });
               Alert.alert(
                 'Backup restaurado',

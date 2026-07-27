@@ -31,11 +31,16 @@ export class SQLiteFamilyRepository implements FamilyRepository {
 
   async findAll() {
     const db = await getDatabase();
-    return db.getAllAsync<Family>('SELECT * FROM families ORDER BY createdAt DESC');
+    return db.getAllAsync<Family>(
+      'SELECT id, name, createdAt, updatedAt FROM families ORDER BY createdAt DESC'
+    );
   }
 
   async findById(id: string) {
     const db = await getDatabase();
-    return db.getFirstAsync<Family>('SELECT * FROM families WHERE id = ?', id);
+    return db.getFirstAsync<Family>(
+      'SELECT id, name, createdAt, updatedAt FROM families WHERE id = ?',
+      id,
+    );
   }
 }

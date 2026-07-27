@@ -23,6 +23,7 @@ import { useProducts } from '../../../products/presentation/hooks/useProducts';
 import { useProfile } from '../../../profile/presentation/hooks/useProfile';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { usePurchaseCart } from '../../../orders/presentation/hooks/usePurchaseCart';
+import { createId } from '../../../../shared/utils/ids';
 import { Product } from '../../../products/domain/entities/product';
 import { PurchaseCartItem, PurchaseDiscountType } from '../../../orders/domain/entities/PurchaseCartItem';
 
@@ -160,7 +161,7 @@ export function SupplierPurchaseScreen() {
       }));
 
       const order = {
-        id: `pc_${Date.now()}`,
+        id: createId('pc'),
         orderNumber: 0,
         clientName: supplierName.trim(),
         items: cartItems,

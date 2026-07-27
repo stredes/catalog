@@ -48,6 +48,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
     await expect(useCase.execute({
       backupId: 'nonexistent',
       confirmRestore: true,
+      createPreventiveBackup: false,
     })).rejects.toThrow('Backup no encontrado');
   });
 
@@ -74,6 +75,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
     await expect(useCase.execute({
       backupId: 'bkp_1',
       confirmRestore: false as true,
+      createPreventiveBackup: false,
     })).rejects.toThrow();
   });
 
@@ -104,6 +106,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
     const result = await useCase.execute({
       backupId: 'bkp_valid',
       confirmRestore: true,
+      createPreventiveBackup: false,
     });
 
     expect(result.familiesRestored).toBe(1);
@@ -158,6 +161,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
     const result = await useCase.execute({
       backupId: 'bkp_mixed',
       confirmRestore: true,
+      createPreventiveBackup: false,
     });
 
     expect(result.warnings.length).toBeGreaterThan(0);
@@ -192,6 +196,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
       await useCase.execute({
         backupId: 'bkp_broken',
         confirmRestore: true,
+        createPreventiveBackup: false,
       });
     } catch {
       // Expected to throw
@@ -225,6 +230,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
     const result = await useCase.execute({
       backupId: 'bkp_valid',
       confirmRestore: true,
+      createPreventiveBackup: false,
     });
 
     expect(result.warnings).toHaveLength(0);
@@ -277,6 +283,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
     await expect(useCase.execute({
       backupId: 'bkp_bad_ver',
       confirmRestore: true,
+      createPreventiveBackup: false,
     })).rejects.toThrow('versión de esquema inválida');
   });
 
@@ -304,6 +311,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
     await expect(useCase.execute({
       backupId: 'bkp_bad_checksum',
       confirmRestore: true,
+      createPreventiveBackup: false,
     })).rejects.toThrow('checksum');
   });
 
@@ -333,6 +341,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
     const result = await useCase.execute({
       backupId: 'bkp_real',
       confirmRestore: true,
+      createPreventiveBackup: true,
     });
 
     expect(result.familiesRestored).toBe(1);
@@ -377,6 +386,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
     const result = await useCase.execute({
       backupId: 'bkp_images',
       confirmRestore: true,
+      createPreventiveBackup: false,
     });
 
     expect(result.imagesRestored).toBe(1);

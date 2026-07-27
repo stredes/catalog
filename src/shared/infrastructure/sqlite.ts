@@ -140,6 +140,13 @@ const migrations: Record<number, string[]> = {
     `CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`,
     `CREATE INDEX IF NOT EXISTS idx_catalogs_purpose ON catalogs(purpose)`,
   ],
+  18: [
+    `CREATE INDEX IF NOT EXISTS idx_products_supplierId ON products(supplierId)`,
+    `CREATE INDEX IF NOT EXISTS idx_backup_snapshots_createdAt ON backup_snapshots(createdAt)`,
+    `CREATE INDEX IF NOT EXISTS idx_backup_payloads_snapshotId ON backup_payloads(snapshotId)`,
+    `CREATE INDEX IF NOT EXISTS idx_orders_clientName ON orders(clientName)`,
+    `CREATE INDEX IF NOT EXISTS idx_orders_createdAt ON orders(createdAt)`,
+  ],
 };
 
 async function columnExists(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {
@@ -269,13 +276,13 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
     const hasOrders = await tableExists(db, 'orders');
     const hasSuppliers = await tableExists(db, 'suppliers');
 
-    const families = hasFamilies ? await db.getAllAsync('SELECT * FROM families') : [];
-    const products = hasProducts ? await db.getAllAsync('SELECT * FROM products') : [];
-    const catalogs = hasCatalogs ? await db.getAllAsync('SELECT * FROM catalogs') : [];
-    const profile = hasProfile ? await db.getAllAsync('SELECT * FROM profile') : [];
-    const orders = hasOrders ? await db.getAllAsync('SELECT * FROM orders') : [];
-    const suppliers = hasSuppliers ? await db.getAllAsync('SELECT * FROM suppliers') : [];
-    const migrations = await db.getAllAsync('SELECT * FROM schema_migrations').catch(() => []);
+    const families = hasFamilies ? await db.getAllAsync('SELECT id, name, createdAt, updatedAt FROM families') : [];
+    const products = hasProducts ? await db.getAllAsync('SELECT id, name, code, price, stock, format, photoUri, familyId, supplierId, createdAt, updatedAt FROM products') : [];
+    const catalogs = hasCatalogs ? await db.getAllAsync('SELECT id, name, familyId, familyIds, format, productIds, pdfUri, purpose, createdAt FROM catalogs') : [];
+    const profile = hasProfile ? await db.getAllAsync('SELECT id, businessName, ownerName, phone, email, address, website, logoUri, bankName, bankAccountType, bankAccountNumber, updatedAt FROM profile') : [];
+    const orders = hasOrders ? await db.getAllAsync('SELECT id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders') : [];
+    const suppliers = hasSuppliers ? await db.getAllAsync('SELECT id, name, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers') : [];
+    const migrations = await db.getAllAsync('SELECT version, appliedAt FROM schema_migrations').catch(() => []);
 
     const backupData = {
       version: '3.2.2',

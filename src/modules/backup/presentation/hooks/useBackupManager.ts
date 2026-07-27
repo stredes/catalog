@@ -82,6 +82,7 @@ export function useBackupManager() {
               const result = await useCases.restoreBackup.execute({
                 backupId: snapshot.id,
                 confirmRestore: true,
+                createPreventiveBackup: false,
               });
               for (let i = 60; i <= 90; i += 10) {
                 await new Promise((r) => setTimeout(r, 150));

@@ -40,16 +40,29 @@ async function ensureAllTablesExist(db: Awaited<ReturnType<typeof getDatabase>>)
     items TEXT NOT NULL, subtotal REAL NOT NULL, iva REAL NOT NULL, total REAL NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending', paidAmount REAL NOT NULL DEFAULT 0, notes TEXT, createdAt TEXT NOT NULL
   )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS suppliers (
+    id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, phone TEXT, email TEXT, contactName TEXT, notes TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+  )`);
 }
 
 async function clearAllTables(db: Awaited<ReturnType<typeof getDatabase>>) {
-  const tables = ['orders', 'catalogs', 'products', 'families', 'profile'];
+  await db.execAsync('PRAGMA foreign_keys = ON');
+  const tables = ['orders', 'catalogs', 'products', 'families', 'profile', 'suppliers'];
   for (const table of tables) {
     try {
       await db.runAsync('DELETE FROM ' + table);
     } catch {
       // Table may not exist
     }
+  }
+}
+
+async function checkSchemaVersion(db: Awaited<ReturnType<typeof getDatabase>>): Promise<number> {
+  try {
+    const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+    return row?.user_version ?? 0;
+  } catch {
+    return 0;
   }
 }
 
@@ -121,13 +134,24 @@ export async function importBackupFromFile(filepath: string): Promise<{
   }
 
   const db = await getDatabase();
+
+  const currentVersion = await checkSchemaVersion(db);
+  if (currentVersion > DATABASE_SCHEMA_VERSION) {
+    throw new Error(
+      `La base de datos está en versión ${currentVersion}, pero la app soporta hasta ${DATABASE_SCHEMA_VERSION}. Actualiza la app.`
+    );
+  }
+
   let counts = { families: 0, products: 0, catalogs: 0, orders: 0, suppliers: 0, images: 0 };
 
   await ensureAllTablesExist(db);
   await clearAllTables(db);
 
+  await db.execAsync('PRAGMA foreign_keys = ON');
+
   if (data.families?.length) {
     await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.execAsync('PRAGMA foreign_keys = ON');
       for (const f of data.families!) {
         await txn.runAsync(
           'INSERT OR REPLACE INTO families (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
@@ -138,15 +162,21 @@ export async function importBackupFromFile(filepath: string): Promise<{
     counts.families = data.families.length;
   }
 
+  const restoredImages = await restoreBackupImages(data.images);
+
   if (data.products?.length) {
     const BATCH = 50;
     for (let i = 0; i < data.products.length; i += BATCH) {
       const batch = data.products.slice(i, i + BATCH);
       await db.withExclusiveTransactionAsync(async (txn) => {
+        await txn.execAsync('PRAGMA foreign_keys = ON');
         for (const p of batch) {
+          const photoUri = p.photoUri
+            ? (restoredImages[p.photoUri] ?? p.photoUri)
+            : null;
           await txn.runAsync(
             'INSERT OR REPLACE INTO products (id, name, code, price, format, photoUri, familyId, stock, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            p.id, p.name, p.code, p.price, p.format, p.photoUri, p.familyId, p.stock, p.createdAt, p.updatedAt,
+            p.id, p.name, p.code ?? null, p.price, p.format, photoUri, p.familyId, p.stock ?? 0, p.createdAt, p.updatedAt,
           );
         }
       });
@@ -156,10 +186,11 @@ export async function importBackupFromFile(filepath: string): Promise<{
 
   if (data.catalogs?.length) {
     await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.execAsync('PRAGMA foreign_keys = ON');
       for (const c of data.catalogs!) {
         await txn.runAsync(
           'INSERT OR REPLACE INTO catalogs (id, name, familyId, familyIds, format, productIds, pdfUri, purpose, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          c.id, c.name, c.familyId, c.familyIds, c.format, c.productIds, c.pdfUri, c.purpose ?? null, c.createdAt,
+          c.id, c.name, c.familyId, c.familyIds ?? null, c.format, c.productIds, c.pdfUri, c.purpose ?? null, c.createdAt,
         );
       }
     });
@@ -168,11 +199,12 @@ export async function importBackupFromFile(filepath: string): Promise<{
 
   if (data.orders?.length) {
     await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.execAsync('PRAGMA foreign_keys = ON');
       for (const o of data.orders!) {
         await txn.runAsync(
           'INSERT OR REPLACE INTO orders (id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           o.id, o.orderNumber ?? 0, o.clientName, o.items, o.subtotal, o.iva, o.total,
-          o.status ?? 'pending', o.paidAmount ?? (o.status === 'paid' ? o.total : 0), o.notes, o.createdAt,
+          o.status ?? 'pending', o.paidAmount ?? (o.status === 'paid' ? o.total : 0), o.notes ?? null, o.createdAt,
         );
       }
     });
@@ -181,10 +213,16 @@ export async function importBackupFromFile(filepath: string): Promise<{
 
   if (data.profile?.length) {
     await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.execAsync('PRAGMA foreign_keys = ON');
       for (const p of data.profile!) {
+        const logoUri = p.logoUri
+          ? (restoredImages[p.logoUri] ?? p.logoUri)
+          : null;
         await txn.runAsync(
           'INSERT OR REPLACE INTO profile (id, businessName, ownerName, phone, email, address, website, logoUri, bankName, bankAccountType, bankAccountNumber, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          p.id, p.businessName, p.ownerName, p.phone, p.email, p.address, p.website, p.logoUri, p.bankName, p.bankAccountType, p.bankAccountNumber, p.updatedAt,
+          p.id, p.businessName, p.ownerName ?? null, p.phone ?? null, p.email ?? null,
+          p.address ?? null, p.website ?? null, logoUri, p.bankName ?? null,
+          p.bankAccountType ?? null, p.bankAccountNumber ?? null, p.updatedAt,
         );
       }
     });
@@ -192,16 +230,7 @@ export async function importBackupFromFile(filepath: string): Promise<{
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_SCHEMA_VERSION}`);
 
-  const restoredImages = await restoreBackupImages(data.images);
   counts.images = Object.keys(restoredImages).length;
-  if (Object.keys(restoredImages).length > 0) {
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      for (const [oldUri, newUri] of Object.entries(restoredImages)) {
-        await txn.runAsync('UPDATE products SET photoUri = ? WHERE photoUri = ?', newUri, oldUri);
-        await txn.runAsync('UPDATE profile SET logoUri = ? WHERE logoUri = ?', newUri, oldUri);
-      }
-    });
-  }
 
   return counts;
 }

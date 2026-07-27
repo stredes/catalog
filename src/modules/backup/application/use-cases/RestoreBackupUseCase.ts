@@ -96,46 +96,47 @@ export class RestoreBackupUseCase {
       this.supplierRepo.findAll(),
     ]);
 
-    const preventiveImages = await this.collectImages(currentProducts, currentProfile);
-    const preventivePayload: BackupPayload = {
-      schemaVersion: DATABASE_SCHEMA_VERSION,
-      createdAt: nowIso(),
-      families: currentFamilies,
-      products: currentProducts,
-      catalogs: currentCatalogs,
-      profile: currentProfile,
-      orders: currentOrders,
-      suppliers: currentSuppliers,
-      images: preventiveImages,
-    };
-
-    await this.backupRepo.saveSnapshot(
-      {
-        id: createId('bkp'),
-        label: 'Backup preventivo antes de restauración',
-        trigger: 'auto-before-delete',
-        familiesCount: currentFamilies.length,
-        productsCount: currentProducts.length,
-        catalogsCount: currentCatalogs.length,
-        ordersCount: currentOrders.length,
-        suppliersCount: currentSuppliers.length,
-        hasProfile: currentProfile !== null,
-        checksum: computeChecksum({
-          fc: currentFamilies.length,
-          pc: currentProducts.length,
-          cc: currentCatalogs.length,
-          oc: currentOrders.length,
-          sc: currentSuppliers.length,
-          fp: currentProfile !== null,
-          fn: currentFamilies.map((f) => f.id).sort(),
-          pn: currentProducts.map((p) => p.id).sort(),
-          cn: currentCatalogs.map((c) => c.id).sort(),
-        }),
-        filePath: '',
+    if (validated.createPreventiveBackup) {
+      const preventivePayload: BackupPayload = {
+        schemaVersion: DATABASE_SCHEMA_VERSION,
         createdAt: nowIso(),
-      },
-      preventivePayload,
-    );
+        families: currentFamilies,
+        products: currentProducts,
+        catalogs: currentCatalogs,
+        profile: currentProfile,
+        orders: currentOrders,
+        suppliers: currentSuppliers,
+        images: {},
+      };
+
+      await this.backupRepo.saveSnapshot(
+        {
+          id: createId('bkp'),
+          label: 'Backup preventivo antes de restauración',
+          trigger: 'auto-before-delete',
+          familiesCount: currentFamilies.length,
+          productsCount: currentProducts.length,
+          catalogsCount: currentCatalogs.length,
+          ordersCount: currentOrders.length,
+          suppliersCount: currentSuppliers.length,
+          hasProfile: currentProfile !== null,
+          checksum: computeChecksum({
+            fc: currentFamilies.length,
+            pc: currentProducts.length,
+            cc: currentCatalogs.length,
+            oc: currentOrders.length,
+            sc: currentSuppliers.length,
+            fp: currentProfile !== null,
+            fn: currentFamilies.map((f) => f.id).sort(),
+            pn: currentProducts.map((p) => p.id).sort(),
+            cn: currentCatalogs.map((c) => c.id).sort(),
+          }),
+          filePath: '',
+          createdAt: nowIso(),
+        },
+        preventivePayload,
+      );
+    }
 
     const { valid: validSuppliers, failures: supplierFailures } = this.validateSuppliers(payload.suppliers ?? []);
     if (supplierFailures.length > 0) {

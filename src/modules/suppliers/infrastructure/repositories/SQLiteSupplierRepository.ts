@@ -42,11 +42,16 @@ export class SQLiteSupplierRepository implements SupplierRepository {
 
   async findAll() {
     const db = await getDatabase();
-    return db.getAllAsync<Supplier>('SELECT * FROM suppliers ORDER BY createdAt DESC');
+    return db.getAllAsync<Supplier>(
+      'SELECT id, name, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers ORDER BY createdAt DESC'
+    );
   }
 
   async findById(id: string) {
     const db = await getDatabase();
-    return db.getFirstAsync<Supplier>('SELECT * FROM suppliers WHERE id = ?', id);
+    return db.getFirstAsync<Supplier>(
+      'SELECT id, name, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers WHERE id = ?',
+      id,
+    );
   }
 }

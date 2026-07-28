@@ -185,6 +185,10 @@ const migrations: Record<number, string[]> = {
   ],
   21: [`ALTER TABLE orders ADD COLUMN clientId TEXT`],
   22: [`ALTER TABLE quotations ADD COLUMN clientRut TEXT`],
+  23: [
+    `UPDATE quotations SET status = 'pending' WHERE status = 'draft' OR status = 'sent'`,
+    `CREATE INDEX IF NOT EXISTS idx_quotations_status ON quotations(status)`,
+  ],
 }
 
 async function columnExists(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {

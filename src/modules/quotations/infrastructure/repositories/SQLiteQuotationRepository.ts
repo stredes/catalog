@@ -118,6 +118,15 @@ export class SQLiteQuotationRepository implements QuotationRepository {
     return row ? rowToQuotation(row) : null;
   }
 
+  async findByStatus(status: QuotationStatus): Promise<Quotation[]> {
+    const db = await getDatabase();
+    const rows = await db.getAllAsync<QuotationRow>(
+      'SELECT id, quotationNumber, clientName, clientRut, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt FROM quotations WHERE status = ? ORDER BY createdAt DESC',
+      status,
+    );
+    return rows.map(rowToQuotation);
+  }
+
   async delete(id: string): Promise<void> {
     const db = await getDatabase();
     await db.runAsync('DELETE FROM quotations WHERE id = ?', id);

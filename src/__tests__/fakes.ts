@@ -20,7 +20,7 @@ import { PurchaseCartRepository } from '../modules/orders/domain/repositories/Pu
 import { OrderPdfGeneratorPort } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
 import { Supplier } from '../modules/suppliers/domain/entities/Supplier';
 import { SupplierRepository } from '../modules/suppliers/domain/repositories/SupplierRepository';
-import { Quotation } from '../modules/quotations/domain/entities/Quotation';
+import { Quotation, QuotationStatus } from '../modules/quotations/domain/entities/Quotation';
 import { QuotationRepository } from '../modules/quotations/domain/repositories/QuotationRepository';
 import { computeChecksum } from '../shared/utils/checksum';
 
@@ -521,6 +521,10 @@ export class InMemoryQuotationRepository implements QuotationRepository {
 
   async findById(id: string) {
     return this.quotations.get(id) ?? null;
+  }
+
+  async findByStatus(status: QuotationStatus) {
+    return [...this.quotations.values()].filter((q) => q.status === status);
   }
 
   async delete(id: string) {

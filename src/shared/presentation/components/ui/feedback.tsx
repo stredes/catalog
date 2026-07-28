@@ -1,5 +1,6 @@
-import { useRef, useEffect } from 'react';
-import { View, Animated, ViewStyle, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { View, ViewStyle } from 'react-native';
+import Animated, { useSharedValue, withRepeat, withTiming, useAnimatedStyle, Easing } from 'react-native-reanimated';
 import { Ionicons } from '../Icon';
 import { spacing } from '../../theme';
 import { c, styles } from './shared';
@@ -18,7 +19,7 @@ export function ProgressBar({ progress, color, height = 4, style }: {
   
   return (
     <View style={[styles.progressBar, { height }, style]}>
-      <Animated.View
+      <View
         style={[
           styles.progressFill,
           { backgroundColor: barColor },
@@ -35,27 +36,23 @@ export function SkeletonLoader({ width, height, style }: {
   style?: ViewStyle;
 }) {
   const colors = c();
-  const shimmer = useRef(new Animated.Value(0)).current;
+  const shimmer = useSharedValue(0);
 
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 1000, useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0, duration: 1000, useNativeDriver: true }),
-      ]),
+    shimmer.value = withRepeat(
+      withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
     );
-    animation.start();
-    return () => animation.stop();
   }, [shimmer]);
 
-  const opacity = shimmer.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
-  });
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: 0.3 + shimmer.value * 0.4,
+  }));
 
   return (
     <Animated.View
-      style={[styles.skeleton, { width: width ?? '100%' as any, height: height ?? 16, backgroundColor: colors.borderDefault, opacity }, style]}
+      style={[styles.skeleton, { width: width ?? '100%' as any, height: height ?? 16, backgroundColor: colors.borderDefault }, animatedStyle, style]}
     />
   );
 }

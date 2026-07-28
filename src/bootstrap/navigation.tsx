@@ -1,6 +1,8 @@
 import React, { Suspense, createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import Animated, { Easing, FadeIn, FadeOut } from 'react-native-reanimated';
 import { useDependencies } from './dependencies';
+import { motion } from '../shared/presentation/theme';
 import { AUTHENTICATION_ENABLED } from '../shared/config/features';
 
 const DashboardScreen = React.lazy(() => import('../modules/catalogs/presentation/screens/DashboardScreen').then(m => ({ default: m.DashboardScreen })));
@@ -169,7 +171,14 @@ export function AppNavigator() {
           </View>
         }
       >
-        {renderRoute(activeRoute)}
+        <Animated.View
+          key={activeRoute}
+          entering={FadeIn.duration(100).easing(Easing.out(Easing.quad))}
+          exiting={FadeOut.duration(80).easing(Easing.out(Easing.quad))}
+          style={{ flex: 1 }}
+        >
+          {renderRoute(activeRoute)}
+        </Animated.View>
       </Suspense>
     </NavigationContext.Provider>
   );

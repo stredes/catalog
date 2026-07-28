@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react';
-import { Animated, PanResponder, View } from 'react-native';
+import { PanResponder, View } from 'react-native';
+import Animated, { useSharedValue, withSpring, useAnimatedStyle } from 'react-native-reanimated';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 
 function distanceBetweenTouches(touches: Array<{ pageX: number; pageY: number }>) {
@@ -14,10 +15,14 @@ function clamp(value: number, min: number, max: number) {
 
 export function PinchZoomImage({ uri }: { uri: string }) {
   const colors = useThemeColors();
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
   const lastScale = useRef(1);
   const initialDistance = useRef(0);
   const initialScale = useRef(1);
+
+  const imageStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   const panResponder = useMemo(
     () => PanResponder.create({
@@ -37,26 +42,18 @@ export function PinchZoomImage({ uri }: { uri: string }) {
           4,
         );
         lastScale.current = nextScale;
-        scale.setValue(nextScale);
+        scale.value = nextScale;
       },
       onPanResponderRelease: () => {
         if (lastScale.current <= 1.03) {
           lastScale.current = 1;
-          Animated.spring(scale, {
-            toValue: 1,
-            useNativeDriver: true,
-            friction: 6,
-          }).start();
+          scale.value = withSpring(1, { damping: 14, stiffness: 120 });
         }
       },
       onPanResponderTerminate: () => {
         if (lastScale.current <= 1.03) {
           lastScale.current = 1;
-          Animated.spring(scale, {
-            toValue: 1,
-            useNativeDriver: true,
-            friction: 6,
-          }).start();
+          scale.value = withSpring(1, { damping: 14, stiffness: 120 });
         }
       },
     }),
@@ -77,11 +74,7 @@ export function PinchZoomImage({ uri }: { uri: string }) {
     >
       <Animated.Image
         source={{ uri }}
-        style={{
-          width: '100%',
-          height: '100%',
-          transform: [{ scale }],
-        }}
+        style={[{ width: '100%', height: '100%' }, imageStyle]}
         resizeMode="contain"
       />
     </View>

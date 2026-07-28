@@ -1,10 +1,10 @@
-import { memo, useMemo, useRef, useState, PropsWithChildren } from 'react';
-import { Pressable, View, Image, Animated, useWindowDimensions, TextInput, TextStyle, ViewStyle } from 'react-native';
+import { memo, useCallback, useRef, useState, PropsWithChildren } from 'react';
+import { Pressable, View, Image, useWindowDimensions, TextInput, TextStyle, ViewStyle } from 'react-native';
+import Animated, { useSharedValue, withSpring, useAnimatedStyle, Layout as ReanimatedLayout } from 'react-native-reanimated';
 import { Ionicons } from '../Icon';
-import { spacing, borderRadius, shadows, fontWeights } from '../../theme';
+import { spacing, borderRadius, shadows, motion, fontWeights } from '../../theme';
 import { c, styles } from './shared';
 import { AppText } from './text';
-import { LiquidGlassContainer } from '../LiquidGlassContainer';
 import { SkeletonLoader } from './feedback';
 
 export type CardVariant = 'default' | 'elevated' | 'interactive' | 'selected' | 'metric';
@@ -25,23 +25,39 @@ export function Card({ children, style, onPress, variant = 'default', testID }: 
   testID?: string;
 }>) {
   const colors = c();
+  const cardScale = useSharedValue(1);
+
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cardScale.value }],
+  }));
+
   const variantStyle: ViewStyle = {
     backgroundColor: variant === 'selected' ? colors.primaryLight : colors.backgroundSurface,
-    borderColor: variant === 'selected' ? colors.borderActive : variant === 'metric' ? 'transparent' : colors.borderDefault,
-    ...(variant === 'elevated' ? shadows.lg : variant === 'metric' ? shadows.sm : shadows.md),
+    borderColor: variant === 'selected' ? colors.borderActive : 'transparent',
+    ...(variant === 'elevated' ? shadows.lg : shadows.md),
   };
 
+  const handlePressIn = useCallback(() => {
+    cardScale.value = withSpring(motion.pressScale, { damping: motion.springDamping, stiffness: motion.springStiffness });
+  }, [cardScale]);
+
+  const handlePressOut = useCallback(() => {
+    cardScale.value = withSpring(1, { damping: motion.springDamping, stiffness: motion.springStiffness });
+  }, [cardScale]);
+
   const content = (
-    <LiquidGlassContainer variant={variant === 'metric' ? 'cardSubtle' : 'cardSubtle'} style={[styles.card, variantStyle, style] as unknown as ViewStyle}>
+    <View style={[styles.card, variantStyle, style]}>
       {children}
-    </LiquidGlassContainer>
+    </View>
   );
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} testID={testID} style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}>
-        {content}
-      </Pressable>
+      <Animated.View style={cardAnimatedStyle}>
+        <Pressable onPress={onPress} testID={testID} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+          {content}
+        </Pressable>
+      </Animated.View>
     );
   }
   return <View testID={testID}>{content}</View>;
@@ -78,13 +94,13 @@ export function MetricCard({ label, value, icon, accent }: {
   const colors = c();
   const accentColor = accent ?? colors.primary;
   return (
-    <Card variant="metric" style={styles.metricCard}>
+    <View style={[styles.metricCard, { backgroundColor: colors.backgroundSurface, ...shadows.sm }]}>
       <View style={styles.metricHeader}>
         {icon ? (
-          <View style={[styles.metricIconWrap, { backgroundColor: accentColor + '18' }]}>
+          <View style={[styles.metricIconWrap, { backgroundColor: accentColor + '12' }]}>
             <Ionicons name={icon} size={22} color={accentColor} />
           </View>
-        ) : null}
+        ) : <View style={{ width: 1 }} />}
         <View style={[styles.metricAccent, { backgroundColor: accentColor }]} />
       </View>
       <View style={styles.metricContent}>
@@ -108,7 +124,7 @@ export function MetricCard({ label, value, icon, accent }: {
           {label}
         </AppText>
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -134,10 +150,14 @@ export const ProductCard = memo(function ProductCard({ name, price, format, fami
   const columns = 2;
   const cardWidth = Math.floor((width - horizontalPadding * 2 - gap * (columns - 1)) / columns);
 
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
 
-  const animateIn = () => Animated.spring(scale, { toValue: 1.05, useNativeDriver: true, friction: 4 }).start();
-  const animateOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 4 }).start();
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const animateIn = useCallback(() => { scale.value = withSpring(1.05, { damping: 10, stiffness: 150 }); }, [scale]);
+  const animateOut = useCallback(() => { scale.value = withSpring(1, { damping: 10, stiffness: 150 }); }, [scale]);
 
   const formatColors: Record<string, string> = {
     unit: colors.secondary,
@@ -147,7 +167,6 @@ export const ProductCard = memo(function ProductCard({ name, price, format, fami
   };
   const fmtColor = formatColors[format] ?? colors.primary;
 
-  const AnimatedPressable = useMemo(() => Animated.createAnimatedComponent(Pressable), []);
   const [editingStock, setEditingStock] = useState(false);
   const [stockInputValue, setStockInputValue] = useState('');
   const stockInputRef = useRef<TextInput>(null);
@@ -168,12 +187,12 @@ export const ProductCard = memo(function ProductCard({ name, price, format, fami
   };
 
   return (
-    <AnimatedPressable
-      onPress={onPress}
-      onPressIn={animateIn}
-      onPressOut={animateOut}
-      style={{ transform: [{ scale }], width: cardWidth, marginBottom: spacing.md }}
-    >
+    <Animated.View style={[cardAnimatedStyle, { width: cardWidth, marginBottom: spacing.md }]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={animateIn}
+        onPressOut={animateOut}
+      >
       <Card variant="default" style={{ width: '100%', padding: 0, overflow: 'hidden' }}>
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={styles.productImage} resizeMode="cover" />
@@ -245,7 +264,8 @@ export const ProductCard = memo(function ProductCard({ name, price, format, fami
           </View>
         </View>
       </Card>
-    </AnimatedPressable>
+      </Pressable>
+    </Animated.View>
   );
 });
 

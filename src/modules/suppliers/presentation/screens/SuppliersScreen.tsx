@@ -257,7 +257,7 @@ export function SuppliersScreen() {
                         style={{
                           width: 42,
                           height: 42,
-                          borderRadius: borderRadius.medium,
+                          borderRadius: borderRadius.md,
                           backgroundColor: color + '18',
                           alignItems: 'center',
                           justifyContent: 'center',

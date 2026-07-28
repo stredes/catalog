@@ -37,9 +37,12 @@ export class OrderPdfGenerator {
     const source = new File(file.uri);
     const destination = new File(
       pdfDirectory,
-      `pedido-${formatOrderNumber(order.orderNumber)}-${order.clientName.replace(/\s+/g, '-').toLowerCase()}.pdf`,
+      `pedido-${formatOrderNumber(order.orderNumber)}-${order.clientName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`,
     );
 
+    if (destination.exists) {
+      destination.delete();
+    }
     source.copy(destination);
 
     if (!destination.exists || destination.size === 0) {

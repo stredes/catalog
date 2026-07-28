@@ -809,7 +809,7 @@ export function OrderHistoryScreen() {
 const styles = StyleSheet.create({
   orderIcon: {
     alignItems: 'center' as const,
-    borderRadius: borderRadius.medium,
+    borderRadius: borderRadius.md,
     height: 36,
     justifyContent: 'center' as const,
     width: 36,
@@ -844,7 +844,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: borderRadius.medium,
+    borderRadius: borderRadius.md,
   },
   calDayHeader: {
     width: '14.28%',
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    borderRadius: borderRadius.medium,
+    borderRadius: borderRadius.md,
     marginVertical: 1,
   },
   calDot: {

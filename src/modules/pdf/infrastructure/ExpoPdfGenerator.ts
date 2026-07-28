@@ -180,6 +180,9 @@ export class ExpoPdfGenerator implements PdfGenerator {
         `${sanitizeFileName(input.catalogName)}-${Date.now()}.pdf`,
       );
 
+      if (destination.exists) {
+        destination.delete();
+      }
       source.copy(destination);
 
       if (!destination.exists || destination.size === 0) {

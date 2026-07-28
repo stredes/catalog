@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { useCallback } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import ReAnimated, { FadeInUp, useAnimatedStyle, withSpring, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from './Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppRoute, useAppNavigation } from '../../../bootstrap/navigation';
@@ -27,25 +28,29 @@ function TabButton({ item, isActive, onPress }: {
   isActive: boolean;
   onPress: () => void;
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
+  const scale = useSharedValue(1);
+  const translateY = useSharedValue(0);
+  const activeScale = useSharedValue(isActive ? 1 : 0.96);
 
-  useEffect(() => {
-    Animated.spring(translateY, {
-      toValue: isActive ? -2 : 0,
-      useNativeDriver: true,
-      friction: 6,
-      tension: 80,
-    }).start();
-  }, [isActive, translateY]);
+  if (isActive && translateY.value === 0) {
+    translateY.value = withSpring(-2, { damping: 14, stiffness: 100 });
+    activeScale.value = withTiming(1, { duration: 200 });
+  } else if (!isActive && translateY.value !== 0) {
+    translateY.value = withSpring(0, { damping: 14, stiffness: 100 });
+    activeScale.value = withTiming(0.96, { duration: 150 });
+  }
 
-  const handlePressIn = () => {
-    Animated.spring(scale, { toValue: 0.92, useNativeDriver: true, friction: 8 }).start();
-  };
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value * activeScale.value }, { translateY: translateY.value }],
+  }));
 
-  const handlePressOut = () => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 8 }).start();
-  };
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.92, { damping: 14 });
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, { damping: 14 });
+  }, [scale]);
 
   return (
     <Pressable
@@ -57,7 +62,7 @@ function TabButton({ item, isActive, onPress }: {
       onPressOut={handlePressOut}
       style={styles.tabTouchable}
     >
-      <Animated.View style={[styles.tabItem, { transform: [{ scale }, { translateY }] }]}>
+      <ReAnimated.View style={[styles.tabItem, animatedStyle]}>
         {isActive ? (
           <LiquidGlassContainer variant="floating" style={styles.tabItemActiveContent}>
             <Ionicons name={item.iconActive} size={22} color={c().primary} />
@@ -74,7 +79,7 @@ function TabButton({ item, isActive, onPress }: {
             </AppText>
           </>
         )}
-      </Animated.View>
+      </ReAnimated.View>
     </Pressable>
   );
 }
@@ -84,7 +89,7 @@ export function BottomMenu() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+    <ReAnimated.View entering={FadeInUp.duration(500).springify()} style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <LiquidGlassContainer variant="tabBar" style={styles.menu}>
         {items.map((item) => (
           <TabButton
@@ -95,7 +100,7 @@ export function BottomMenu() {
           />
         ))}
       </LiquidGlassContainer>
-    </View>
+    </ReAnimated.View>
   );
 }
 

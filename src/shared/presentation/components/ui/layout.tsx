@@ -1,5 +1,6 @@
 import { PropsWithChildren } from 'react';
-import { ScrollView, View, ViewStyle } from 'react-native';
+import { View, ViewStyle } from 'react-native';
+import Animated, { Layout as ReanimatedLayout } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing } from '../../theme';
 import { c, styles } from './shared';
@@ -11,13 +12,16 @@ export function Screen({ children, style, contentBottomPadding }: PropsWithChild
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.safeArea, { backgroundColor: colors.backgroundPrimary, paddingTop: insets.top }]}>
-      <ScrollView
+      <Animated.ScrollView
         contentContainerStyle={[styles.container, { paddingBottom: contentBottomPadding ?? (140 + insets.bottom) }, style]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
       >
-        {children}
-      </ScrollView>
+        <Animated.View layout={ReanimatedLayout.springify().damping(18).stiffness(140)}>
+          {children}
+        </Animated.View>
+      </Animated.ScrollView>
     </View>
   );
 }

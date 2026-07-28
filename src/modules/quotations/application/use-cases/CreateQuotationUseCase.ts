@@ -27,6 +27,7 @@ export class CreateQuotationUseCase {
       id: createId('qt'),
       quotationNumber,
       clientName: input.clientName,
+      clientRut: input.clientRut || undefined,
       clientPhone: input.clientPhone || undefined,
       clientEmail: input.clientEmail || undefined,
       clientAddress: input.clientAddress || undefined,

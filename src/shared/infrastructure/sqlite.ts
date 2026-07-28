@@ -185,7 +185,6 @@ const migrations: Record<number, string[]> = {
   ],
   21: [`ALTER TABLE orders ADD COLUMN clientId TEXT`],
 }
-};
 
 async function columnExists(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {
   try {

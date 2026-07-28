@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
   header: { padding: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.xl },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
 
-  card: { borderRadius: borderRadius.xl, padding: spacing.xl, overflow: 'hidden' },
+  card: { borderRadius: borderRadius.xl, borderWidth: 1, padding: spacing.xl, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.md },
 
   primaryButton: {
@@ -34,13 +34,13 @@ const styles = StyleSheet.create({
   },
   buttonContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
-  metricCard: { width: '100%', minHeight: 130, padding: spacing.xl, borderRadius: borderRadius.xxl, justifyContent: 'space-between', overflow: 'hidden' },
-  metricHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  metricIconWrap: { width: 44, height: 44, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
-  metricAccent: { width: 4, height: 28, borderRadius: 2 },
-  metricContent: { marginTop: spacing.md },
-  metricValue: { fontSize: 26, lineHeight: 32, fontWeight: '800' as TextStyle['fontWeight'], flexShrink: 0, includeFontPadding: false, letterSpacing: -0.5 },
-  metricLabel: { fontSize: 14, lineHeight: 18, marginTop: 6, flexShrink: 1 },
+  metricCard: { width: '100%', minHeight: 150, padding: 18, borderRadius: 22, justifyContent: 'space-between' as const },
+  metricHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const },
+  metricIconWrap: { width: 48, height: 48, borderRadius: 14, alignItems: 'center' as const, justifyContent: 'center' as const },
+  metricAccent: { width: 5, height: 32, borderRadius: 3 },
+  metricContent: { marginTop: 22 },
+  metricValue: { fontSize: 27, lineHeight: 34, fontWeight: '700' as TextStyle['fontWeight'], flexShrink: 0, includeFontPadding: false },
+  metricLabel: { fontSize: 16, lineHeight: 21, marginTop: 8, flexShrink: 1 },
 
   fabWrapper: { position: 'absolute', right: 20, zIndex: 100 },
   fab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderRadius: borderRadius.full },
@@ -88,9 +88,9 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: borderRadius.full, borderWidth: 1.5 },
 
   overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', zIndex: 200 },
-  overlayBg: { ...StyleSheet.absoluteFillObject },
-  dialog: { margin: 20, borderRadius: borderRadius.xxl, padding: 28, alignItems: 'center' },
-  dialogActions: { flexDirection: 'row', gap: 12, marginTop: 28, width: '100%' },
+  overlayBg: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  dialog: { margin: 24, borderRadius: borderRadius.xxl, padding: 24, alignItems: 'center' },
+  dialogActions: { flexDirection: 'row', gap: 12, marginTop: 24, width: '100%' },
   dialogButton: { flex: 1, paddingVertical: 14, borderRadius: borderRadius.lg, alignItems: 'center' },
 
   bottomSheet: { borderTopLeftRadius: borderRadius.xxl, borderTopRightRadius: borderRadius.xxl, height: '100%', maxHeight: '90%' },

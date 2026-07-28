@@ -5,6 +5,7 @@ import { Ionicons } from '../Icon';
 import { spacing, borderRadius, shadows, motion, fontWeights } from '../../theme';
 import { c, styles } from './shared';
 import { AppText } from './text';
+import { LiquidGlassContainer } from '../LiquidGlassContainer';
 import { SkeletonLoader } from './feedback';
 
 export type CardVariant = 'default' | 'elevated' | 'interactive' | 'selected' | 'metric';
@@ -33,8 +34,8 @@ export function Card({ children, style, onPress, variant = 'default', testID }: 
 
   const variantStyle: ViewStyle = {
     backgroundColor: variant === 'selected' ? colors.primaryLight : colors.backgroundSurface,
-    borderColor: variant === 'selected' ? colors.borderActive : 'transparent',
-    ...(variant === 'elevated' ? shadows.lg : shadows.md),
+    borderColor: variant === 'selected' ? colors.borderActive : colors.borderDefault,
+    ...(variant === 'elevated' ? shadows.lg : variant === 'metric' ? shadows.sm : shadows.md),
   };
 
   const handlePressIn = useCallback(() => {
@@ -46,9 +47,9 @@ export function Card({ children, style, onPress, variant = 'default', testID }: 
   }, [cardScale]);
 
   const content = (
-    <View style={[styles.card, variantStyle, style]}>
+    <LiquidGlassContainer variant="cardSubtle" style={[styles.card, variantStyle, style] as unknown as ViewStyle}>
       {children}
-    </View>
+    </LiquidGlassContainer>
   );
 
   if (onPress) {
@@ -94,13 +95,13 @@ export function MetricCard({ label, value, icon, accent }: {
   const colors = c();
   const accentColor = accent ?? colors.primary;
   return (
-    <View style={[styles.metricCard, { backgroundColor: colors.backgroundSurface, ...shadows.sm }]}>
+    <Card variant="metric" style={styles.metricCard}>
       <View style={styles.metricHeader}>
         {icon ? (
-          <View style={[styles.metricIconWrap, { backgroundColor: accentColor + '12' }]}>
+          <View style={[styles.metricIconWrap, { backgroundColor: accentColor + '18' }]}>
             <Ionicons name={icon} size={22} color={accentColor} />
           </View>
-        ) : <View style={{ width: 1 }} />}
+        ) : null}
         <View style={[styles.metricAccent, { backgroundColor: accentColor }]} />
       </View>
       <View style={styles.metricContent}>
@@ -124,7 +125,7 @@ export function MetricCard({ label, value, icon, accent }: {
           {label}
         </AppText>
       </View>
-    </View>
+    </Card>
   );
 }
 

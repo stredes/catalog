@@ -26,16 +26,16 @@ import { formatDate } from '../../../../shared/utils/dates';
 import { useQuotations } from '../hooks/useQuotations';
 import { Quotation, QuotationStatus } from '../../domain/entities/Quotation';
 
-type SortOption = 'newest' | 'name';
+type SortOption = 'newest' | 'name' | 'highest';
 type StatusFilter = 'all' | QuotationStatus;
 
 const statusColors: Record<QuotationStatus, string> = {
   pending: 'info',
   accepted: 'success',
-  paid: 'accent',
+  paid: 'warning',
   rejected: 'error',
   deleted: 'muted',
-} as const;
+};
 
 const statusLabels: Record<QuotationStatus, string> = {
   pending: 'EN ESPERA',
@@ -53,6 +53,7 @@ export function QuotationHistoryScreen() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [showDeleted, setShowDeleted] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -60,6 +61,10 @@ export function QuotationHistoryScreen() {
 
   const sortedQuotations = useMemo(() => {
     let result = [...quotations];
+
+    if (!showDeleted) {
+      result = result.filter((q) => q.status !== 'deleted');
+    }
 
     if (statusFilter !== 'all') {
       result = result.filter((q) => q.status === statusFilter);
@@ -79,6 +84,9 @@ export function QuotationHistoryScreen() {
       case 'name':
         result.sort((a, b) => a.clientName.localeCompare(b.clientName));
         break;
+      case 'highest':
+        result.sort((a, b) => b.total - a.total);
+        break;
       case 'newest':
       default:
         result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -86,10 +94,13 @@ export function QuotationHistoryScreen() {
     }
 
     return result;
-  }, [quotations, search, sortBy, statusFilter]);
+  }, [quotations, search, sortBy, statusFilter, showDeleted]);
 
   const pendingCount = useMemo(() => quotations.filter((q) => q.status === 'pending').length, [quotations]);
   const acceptedCount = useMemo(() => quotations.filter((q) => q.status === 'accepted').length, [quotations]);
+  const paidCount = useMemo(() => quotations.filter((q) => q.status === 'paid').length, [quotations]);
+  const rejectedCount = useMemo(() => quotations.filter((q) => q.status === 'rejected').length, [quotations]);
+  const deletedCount = useMemo(() => quotations.filter((q) => q.status === 'deleted').length, [quotations]);
 
   async function shareQuotation(quotation: Quotation) {
     try {
@@ -107,7 +118,7 @@ export function QuotationHistoryScreen() {
   async function changeStatus(quotation: Quotation, newStatus: QuotationStatus) {
     try {
       setError('');
-      await useCases.updateQuotation.execute({ ...quotation, status: newStatus });
+      await useCases.updateQuotationStatus.execute(quotation.id, newStatus);
       setStatusMenuId(null);
       await reload();
     } catch (currentError) {
@@ -124,7 +135,7 @@ export function QuotationHistoryScreen() {
   async function executeDelete() {
     if (!deleteId) return;
     try {
-      await useCases.deleteQuotation.execute(deleteId);
+      await useCases.updateQuotationStatus.execute(deleteId, 'deleted');
       setDeleteId(null);
       await reload();
     } catch (currentError) {
@@ -147,7 +158,7 @@ export function QuotationHistoryScreen() {
           title="Historial de cotizaciones"
           subtitle={
             quotations.length > 0
-              ? `${quotations.length} cotizacion${quotations.length !== 1 ? 'es' : ''}`
+              ? `${sortedQuotations.length} de ${quotations.length} cotizacion${quotations.length !== 1 ? 'es' : ''}`
               : 'Tus cotizaciones apareceran aqui'
           }
           action={
@@ -161,9 +172,9 @@ export function QuotationHistoryScreen() {
           <>
             <SearchBar value={search} onChange={setSearch} placeholder="Buscar por cliente o servicio..." />
 
-            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
               <ChoiceChip
-                label={`Todos (${quotations.length})`}
+                label={`Todos (${quotations.length - deletedCount})`}
                 selected={statusFilter === 'all'}
                 onPress={() => setStatusFilter('all')}
                 color={colors.textSecondary}
@@ -180,9 +191,29 @@ export function QuotationHistoryScreen() {
                 onPress={() => setStatusFilter('accepted')}
                 color={colors.success}
               />
+              <ChoiceChip
+                label={`Pagadas (${paidCount})`}
+                selected={statusFilter === 'paid'}
+                onPress={() => setStatusFilter('paid')}
+                color={colors.warning}
+              />
+              <ChoiceChip
+                label={`Rechazadas (${rejectedCount})`}
+                selected={statusFilter === 'rejected'}
+                onPress={() => setStatusFilter('rejected')}
+                color={colors.error}
+              />
+              {deletedCount > 0 ? (
+                <ChoiceChip
+                  label={`Eliminadas (${deletedCount})`}
+                  selected={statusFilter === 'deleted'}
+                  onPress={() => setStatusFilter('deleted')}
+                  color={colors.textMuted}
+                />
+              ) : null}
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
               <ChoiceChip
                 label="Mas recientes"
                 selected={sortBy === 'newest'}
@@ -195,7 +226,29 @@ export function QuotationHistoryScreen() {
                 onPress={() => setSortBy('name')}
                 color={colors.textSecondary}
               />
+              <ChoiceChip
+                label="Mayor monto"
+                selected={sortBy === 'highest'}
+                onPress={() => setSortBy('highest')}
+                color={colors.textSecondary}
+              />
             </View>
+
+            {deletedCount > 0 ? (
+              <Pressable
+                onPress={() => setShowDeleted(!showDeleted)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, paddingHorizontal: 4 }}
+              >
+                <Ionicons
+                  name={showDeleted ? 'eye-outline' : 'eye-off-outline'}
+                  size={16}
+                  color={colors.textMuted}
+                />
+                <AppText variant="caption" color="muted">
+                  {showDeleted ? 'Ocultar eliminadas' : 'Ver eliminadas'}
+                </AppText>
+              </Pressable>
+            ) : null}
           </>
         ) : null}
 
@@ -235,7 +288,7 @@ export function QuotationHistoryScreen() {
             {sortedQuotations.map((quotation) => {
               const isExpanded = expandedId === quotation.id;
               const sc = statusColors[quotation.status] ?? 'info';
-              const sl = statusLabels[quotation.status] ?? 'BORRADOR';
+              const sl = statusLabels[quotation.status] ?? 'EN ESPERA';
 
               return (
                 <Card key={quotation.id} style={{ marginBottom: 8 }}>
@@ -285,6 +338,40 @@ export function QuotationHistoryScreen() {
                   {isExpanded ? (
                     <View style={styles.expandedContent}>
                       <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                      <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 6 }}>Cliente</AppText>
+                      <View style={styles.itemRow}>
+                        <AppText variant="caption" color="muted">Nombre</AppText>
+                        <AppText variant="bodySmall" color="primary" style={{ fontWeight: '600' as any }}>{quotation.clientName}</AppText>
+                      </View>
+                      {quotation.clientRut ? (
+                        <View style={styles.itemRow}>
+                          <AppText variant="caption" color="muted">RUT</AppText>
+                          <AppText variant="bodySmall" color="primary">{quotation.clientRut}</AppText>
+                        </View>
+                      ) : null}
+                      {quotation.clientPhone ? (
+                        <View style={styles.itemRow}>
+                          <AppText variant="caption" color="muted">Telefono</AppText>
+                          <AppText variant="bodySmall" color="primary">{quotation.clientPhone}</AppText>
+                        </View>
+                      ) : null}
+                      {quotation.clientEmail ? (
+                        <View style={styles.itemRow}>
+                          <AppText variant="caption" color="muted">Email</AppText>
+                          <AppText variant="bodySmall" color="primary">{quotation.clientEmail}</AppText>
+                        </View>
+                      ) : null}
+                      {quotation.clientAddress ? (
+                        <View style={styles.itemRow}>
+                          <AppText variant="caption" color="muted">Direccion</AppText>
+                          <AppText variant="bodySmall" color="primary">{quotation.clientAddress}</AppText>
+                        </View>
+                      ) : null}
+
+                      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                      <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 6 }}>Servicios</AppText>
                       {quotation.items.map((item, idx) => (
                         <View key={idx} style={styles.itemRow}>
                           <View style={{ flex: 1, minWidth: 0 }}>
@@ -298,7 +385,10 @@ export function QuotationHistoryScreen() {
                           </AppText>
                         </View>
                       ))}
+
                       <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                      <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 6 }}>Totales</AppText>
                       <View style={styles.itemRow}>
                         <AppText variant="bodySmall" color="muted">Precio Neto</AppText>
                         <AppText variant="bodySmall" color="primary">{formatMoney(quotation.subtotal)}</AppText>
@@ -313,13 +403,33 @@ export function QuotationHistoryScreen() {
                           {formatMoney(quotation.total)}
                         </AppText>
                       </View>
+
                       {quotation.notes ? (
-                        <AppText variant="caption" color="muted" style={{ marginTop: 6 }}>Notas: {quotation.notes}</AppText>
+                        <>
+                          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                          <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 4 }}>Notas</AppText>
+                          <AppText variant="caption" color="muted">{quotation.notes}</AppText>
+                        </>
                       ) : null}
+
                       {quotation.validUntil ? (
-                        <AppText variant="caption" color="muted" style={{ marginTop: 2 }}>Vigente hasta: {new Date(quotation.validUntil).toLocaleDateString('es-CL')}</AppText>
+                        <>
+                          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                          <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 4 }}>Vigencia</AppText>
+                          <AppText variant="caption" color="muted">Vigente hasta: {new Date(quotation.validUntil).toLocaleDateString('es-CL')}</AppText>
+                        </>
                       ) : null}
+
+                      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
                       <View style={styles.actionRow}>
+                        <Pressable
+                          onPress={() => navigate('QuotationEdit', { quotationId: quotation.id })}
+                          style={[styles.actionButton, { backgroundColor: colors.primarySoft }]}
+                        >
+                          <Ionicons name="create-outline" size={16} color={colors.primary} />
+                          <AppText variant="caption" color="accent">Editar</AppText>
+                        </Pressable>
                         <Pressable
                           onPress={() => setStatusMenuId(statusMenuId === quotation.id ? null : quotation.id)}
                           style={[styles.actionButton, { backgroundColor: colors[sc as keyof typeof colors] + '18' }]}
@@ -354,7 +464,7 @@ export function QuotationHistoryScreen() {
       <ConfirmDialog
         visible={deleteId !== null}
         title="Eliminar cotizacion"
-        message="Se eliminara del historial. Esta accion no se puede deshacer."
+        message="La cotizacion se marcara como eliminada. Puedes restaurarla despues desde el historial."
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         destructive

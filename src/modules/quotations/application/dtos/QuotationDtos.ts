@@ -28,10 +28,10 @@ export const quotationUpdateSchema = z.object({
   clientPhone: z.string().optional(),
   clientEmail: z.string().email('Email invalido').optional().or(z.literal('')).optional(),
   clientAddress: z.string().optional(),
-  items: z.array(serviceItemInputSchema).min(1, 'Agrega al menos un servicio').optional(),
+  items: z.array(serviceItemInputSchema).optional(),
   notes: z.string().optional(),
   validUntil: z.string().optional(),
-  status: z.enum(['pending', 'accepted', 'paid', 'rejected', 'deleted']),
+  status: z.enum(['pending', 'accepted', 'paid', 'rejected', 'deleted']).optional(),
 });
 
 export type QuotationUpdateDto = z.infer<typeof quotationUpdateSchema>;

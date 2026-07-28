@@ -51,14 +51,13 @@ describe('quotationInputSchema clientRut field', () => {
 });
 
 describe('quotationUpdateSchema', () => {
-  const validUpdate = { status: 'pending' as const };
-
-  it('accepts each valid status value', () => {
-    for (const status of ['pending', 'accepted', 'paid', 'rejected', 'deleted']) {
+  it.each(['pending', 'accepted', 'paid', 'rejected', 'deleted'] as const)(
+    'accepts status "%s"',
+    (status) => {
       const result = quotationUpdateSchema.safeParse({ status });
       expect(result.success).toBe(true);
-    }
-  });
+    },
+  );
 
   it('rejects invalid status value', () => {
     const result = quotationUpdateSchema.safeParse({ status: 'draft' });
@@ -110,16 +109,16 @@ describe('quotationUpdateSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects update with empty items array', () => {
+  it('accepts update with empty items array', () => {
     const result = quotationUpdateSchema.safeParse({
       items: [],
       status: 'pending',
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
-  it('rejects when status is missing', () => {
+  it('accepts update without status', () => {
     const result = quotationUpdateSchema.safeParse({ clientName: 'Test' });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 });

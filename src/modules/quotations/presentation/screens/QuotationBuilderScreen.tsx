@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, TextInput, View, ActivityIndicator } from 'react-native';
 import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { useDependencies } from '../../../../bootstrap/dependencies';
@@ -24,9 +24,12 @@ import { createId } from '../../../../shared/utils/ids';
 
 export function QuotationBuilderScreen() {
   const colors = useThemeColors();
-  const { useCases } = useDependencies();
-  const { navigate } = useAppNavigation();
+  const { useCases, repositories } = useDependencies();
+  const { navigate, routeParams } = useAppNavigation();
   const { profile } = useProfile();
+
+  const editingId = routeParams?.quotationId;
+  const isEditing = !!editingId;
 
   const [clientName, setClientName] = useState('');
   const [clientRut, setClientRut] = useState('');
@@ -37,11 +40,29 @@ export function QuotationBuilderScreen() {
   const [validUntil, setValidUntil] = useState('');
   const [items, setItems] = useState<ServiceItemInputDto[]>([]);
   const [error, setError] = useState('');
+  const [loadingEdit, setLoadingEdit] = useState(false);
 
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [lastQuotation, setLastQuotation] = useState<Quotation | null>(null);
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+
+  useEffect(() => {
+    if (!editingId) return;
+    setLoadingEdit(true);
+    repositories.quotations.findById(editingId).then((q) => {
+      if (q) {
+        setClientName(q.clientName);
+        setClientRut(q.clientRut ?? '');
+        setClientPhone(q.clientPhone ?? '');
+        setClientEmail(q.clientEmail ?? '');
+        setClientAddress(q.clientAddress ?? '');
+        setNotes(q.notes ?? '');
+        setValidUntil(q.validUntil ?? '');
+        setItems(q.items.map((i) => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice })));
+      }
+    }).catch(() => {}).finally(() => setLoadingEdit(false));
+  }, [editingId, repositories.quotations]);
 
   function addItem() {
     setItems([...items, { description: '', quantity: 1, unitPrice: 0 }]);
@@ -59,7 +80,7 @@ export function QuotationBuilderScreen() {
   const ivaAmount = Math.round(subtotal * IVA_RATE / 100);
   const total = subtotal + ivaAmount;
 
-  async function generateQuotation() {
+  async function saveQuotation() {
     if (!clientName.trim()) {
       setError('Ingresa el nombre del cliente');
       return;
@@ -83,37 +104,75 @@ export function QuotationBuilderScreen() {
 
     try {
       setError('');
-      const quotation = await useCases.createQuotation.execute({
-        clientName: clientName.trim(),
-        clientRut: clientRut.trim() || undefined,
-        clientPhone: clientPhone.trim() || undefined,
-        clientEmail: clientEmail.trim() || undefined,
-        clientAddress: clientAddress.trim() || undefined,
-        items: items.map((item) => ({
+
+      if (isEditing && editingId) {
+        const existing = await repositories.quotations.findById(editingId);
+        if (!existing) throw new Error('Cotizacion no encontrada');
+
+        const mappedItems = items.map((item) => ({
+          id: createId('svc'),
           description: item.description.trim(),
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-        })),
-        notes: notes.trim() || undefined,
-        validUntil: validUntil.trim() || undefined,
-      });
+          subtotal: calculateServiceSubtotal(item.quantity, item.unitPrice),
+        }));
 
-      setLastQuotation(quotation);
+        const updatedSubtotal = mappedItems.reduce((s, i) => s + i.subtotal, 0);
+        const updatedIva = Math.round(updatedSubtotal * IVA_RATE / 100);
+
+        const updated: Quotation = {
+          ...existing,
+          clientName: clientName.trim(),
+          clientRut: clientRut.trim() || undefined,
+          clientPhone: clientPhone.trim() || undefined,
+          clientEmail: clientEmail.trim() || undefined,
+          clientAddress: clientAddress.trim() || undefined,
+          items: mappedItems,
+          subtotal: updatedSubtotal,
+          ivaAmount: updatedIva,
+          total: updatedSubtotal + updatedIva,
+          notes: notes.trim() || undefined,
+          validUntil: validUntil.trim() || undefined,
+        };
+
+        await useCases.updateQuotation.execute(updated);
+        setLastQuotation(updated);
+      } else {
+        const quotation = await useCases.createQuotation.execute({
+          clientName: clientName.trim(),
+          clientRut: clientRut.trim() || undefined,
+          clientPhone: clientPhone.trim() || undefined,
+          clientEmail: clientEmail.trim() || undefined,
+          clientAddress: clientAddress.trim() || undefined,
+          items: items.map((item) => ({
+            description: item.description.trim(),
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          })),
+          notes: notes.trim() || undefined,
+          validUntil: validUntil.trim() || undefined,
+        });
+        setLastQuotation(quotation);
+      }
+
       setPdfUri(null);
       setShowBreakdown(true);
 
       try {
         setPdfLoading(true);
-        const uri = await useCases.generateQuotationPdf.execute(quotation, profile);
-        setPdfUri(uri);
+        const quotationToShare = lastQuotation ?? (await repositories.quotations.findById(editingId ?? ''));
+        if (quotationToShare) {
+          const uri = await useCases.generateQuotationPdf.execute(quotationToShare, profile);
+          setPdfUri(uri);
+        }
       } catch {
-        // PDF generation failed but quotation was created
+        // PDF generation failed but quotation was saved
       } finally {
         setPdfLoading(false);
       }
     } catch (currentError) {
       setError(
-        currentError instanceof Error ? currentError.message : 'No se pudo generar la cotizacion.',
+        currentError instanceof Error ? currentError.message : 'No se pudo guardar la cotizacion.',
       );
     }
   }
@@ -129,13 +188,30 @@ export function QuotationBuilderScreen() {
     }
   }
 
+  if (loadingEdit) {
+    return (
+      <Screen>
+        <Header
+          eyebrow="Cotizaciones"
+          title="Cargando..."
+          subtitle="Editando cotizacion existente"
+        />
+        <View style={{ padding: 40, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <AppText variant="bodySmall" color="muted" style={{ marginTop: 12 }}>Cargando datos de la cotizacion...</AppText>
+        </View>
+        <BottomMenu />
+      </Screen>
+    );
+  }
+
   return (
     <>
       <Screen>
         <Header
           eyebrow="Cotizaciones"
-          title="Nueva cotizacion"
-          subtitle="Completa los datos para generar la cotizacion"
+          title={isEditing ? 'Editar cotizacion' : 'Nueva cotizacion'}
+          subtitle={isEditing ? 'Modifica los datos de la cotizacion' : 'Completa los datos para generar la cotizacion'}
           action={
             <Pressable onPress={() => navigate('Quotations')} style={{ padding: 8 }}>
               <Ionicons name="list-outline" size={20} color="#FFFFFF" />
@@ -404,9 +480,9 @@ export function QuotationBuilderScreen() {
         ) : null}
 
         <PrimaryButton
-          label="Generar cotizacion"
+          label={isEditing ? 'Actualizar cotizacion' : 'Generar cotizacion'}
           icon="document-text-outline"
-          onPress={generateQuotation}
+          onPress={saveQuotation}
         />
 
         <SecondaryButton
@@ -420,7 +496,7 @@ export function QuotationBuilderScreen() {
       <BottomSheet
         visible={showBreakdown}
         onClose={() => setShowBreakdown(false)}
-        title="Cotizacion generada"
+        title={isEditing ? 'Cotizacion actualizada' : 'Cotizacion generada'}
         stickyFooter={
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}>
@@ -497,7 +573,7 @@ export function QuotationBuilderScreen() {
                 <>
                   <Ionicons name="alert-circle-outline" size={32} color={colors.error} style={{ marginBottom: 8 }} />
                   <AppText variant="bodyMedium" color="error" style={{ fontWeight: '600' as any }}>No se pudo generar el PDF</AppText>
-                  <AppText variant="caption" color="muted" style={{ marginTop: 4, textAlign: 'center' }}>La cotizacion se creo pero el PDF no se pudo generar</AppText>
+                  <AppText variant="caption" color="muted" style={{ marginTop: 4, textAlign: 'center' }}>La cotizacion se guardo pero el PDF no se pudo generar</AppText>
                 </>
               )}
             </Card>

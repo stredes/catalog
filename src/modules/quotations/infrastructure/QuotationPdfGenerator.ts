@@ -37,9 +37,12 @@ export class QuotationPdfGenerator {
     const source = new File(file.uri);
     const destination = new File(
       pdfDirectory,
-      `cotizacion-${formatQuotationNumber(quotation.quotationNumber)}-${quotation.clientName.replace(/\s+/g, '-').toLowerCase()}.pdf`,
+      `cotizacion-${formatQuotationNumber(quotation.quotationNumber)}-${quotation.clientName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`,
     );
 
+    if (destination.exists) {
+      destination.delete();
+    }
     source.copy(destination);
 
     if (!destination.exists || destination.size === 0) {
@@ -51,20 +54,22 @@ export class QuotationPdfGenerator {
 
   private buildHtml(quotation: Quotation, profile: Profile | null, logoDataUri: string): string {
     const statusStyles: Record<string, string> = {
-      draft: 'background:#dbeafe;color:#1d4ed8',
-      sent: 'background:#fef3c7;color:#92400e',
+      pending: 'background:#dbeafe;color:#1d4ed8',
       accepted: 'background:#dcfce7;color:#166534',
+      paid: 'background:#fef3c7;color:#92400e',
       rejected: 'background:#fee2e2;color:#991b1b',
+      deleted: 'background:#f3f4f6;color:#6b7280',
     };
     const statusLabels: Record<string, string> = {
-      draft: 'BORRADOR',
-      sent: 'ENVIADA',
+      pending: 'EN ESPERA',
       accepted: 'ACEPTADA',
+      paid: 'PAGADA',
       rejected: 'RECHAZADA',
+      deleted: 'ELIMINADA',
     };
 
-    const statusStyle = statusStyles[quotation.status] ?? statusStyles.draft;
-    const statusLabel = statusLabels[quotation.status] ?? 'BORRADOR';
+    const statusStyle = statusStyles[quotation.status] ?? statusStyles.pending;
+    const statusLabel = statusLabels[quotation.status] ?? 'EN ESPERA';
 
     const rows = quotation.items.map((item, index) => `
       <tr>

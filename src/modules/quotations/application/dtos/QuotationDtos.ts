@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { rutValidator } from '../../../clients/application/dtos/ClientDtos';
 
 export const serviceItemInputSchema = z.object({
   description: z.string().min(1, 'Descripcion requerida'),
@@ -13,6 +14,7 @@ export const quotationInputSchema = z.object({
   clientPhone: z.string().optional(),
   clientEmail: z.string().email('Email invalido').optional().or(z.literal('')).optional(),
   clientAddress: z.string().optional(),
+  clientRut: rutValidator.optional(),
   items: z.array(serviceItemInputSchema).min(1, 'Agrega al menos un servicio'),
   notes: z.string().optional(),
   validUntil: z.string().optional(),

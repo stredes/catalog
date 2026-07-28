@@ -82,6 +82,12 @@ import {
 } from '../modules/suppliers/application/use-cases/SupplierUseCases';
 import { SQLiteSupplierRepository } from '../modules/suppliers/infrastructure/repositories/SQLiteSupplierRepository';
 import {
+  CreateClientUseCase,
+  UpdateClientUseCase,
+  DeleteClientUseCase,
+} from '../modules/clients/application/use-cases/ClientUseCases';
+import { SQLiteClientRepository } from '../modules/clients/infrastructure/repositories/SQLiteClientRepository';
+import {
   CreateQuotationUseCase,
 } from '../modules/quotations/application/use-cases/CreateQuotationUseCase';
 import { GetQuotationsUseCase } from '../modules/quotations/application/use-cases/GetQuotationsUseCase';
@@ -106,6 +112,7 @@ function buildDependencies() {
   const backupRepository = new SQLiteBackupRepository();
   const supplierRepository = new SQLiteSupplierRepository();
   const quotationRepository = new SQLiteQuotationRepository();
+  const clientRepository = new SQLiteClientRepository();
   const pdfGenerator = new ExpoPdfGenerator();
   const shareService = new ExpoNativeShareService();
   const imagePicker = new ExpoImagePickerService();
@@ -157,6 +164,7 @@ function buildDependencies() {
         backup: backupRepository,
         suppliers: supplierRepository,
         quotations: quotationRepository,
+        clients: clientRepository,
       },
       services: {
         preferences,
@@ -232,6 +240,9 @@ function buildDependencies() {
         deleteQuotation: new DeleteQuotationUseCase(quotationRepository),
         updateQuotation: new UpdateQuotationUseCase(quotationRepository),
         generateQuotationPdf: new GenerateQuotationPdfUseCase(quotationPdfGenerator),
+        createClient: new CreateClientUseCase(clientRepository),
+        updateClient: new UpdateClientUseCase(clientRepository),
+        deleteClient: new DeleteClientUseCase(clientRepository),
       },
       autoBackupService,
     };

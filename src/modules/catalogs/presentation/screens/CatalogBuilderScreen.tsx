@@ -717,6 +717,7 @@ export function CatalogBuilderScreen() {
                   format={p.format}
                   familyName={familyName}
                   photoUri={p.photoUri}
+                  stock={p.stock}
                   included={status === 'included'}
                   excluded={status === 'excluded'}
                   onPress={() => sel.toggleProduct(p.id)}

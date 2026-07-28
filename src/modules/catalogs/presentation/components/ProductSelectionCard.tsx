@@ -11,6 +11,7 @@ type ProductSelectionCardProps = {
   format: string;
   familyName: string;
   photoUri?: string | null;
+  stock?: number;
   included: boolean;
   excluded: boolean;
   onPress: () => void;
@@ -22,6 +23,7 @@ export function ProductSelectionCard({
   format,
   familyName,
   photoUri,
+  stock,
   included,
   excluded,
   onPress,
@@ -116,6 +118,21 @@ export function ProductSelectionCard({
       >
         {price}
       </AppText>
+
+      {stock === 0 ? (
+        <View
+          style={{
+            backgroundColor: colors.error,
+            borderRadius: 6,
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+          }}
+        >
+          <AppText variant="caption" color="inverse" style={{ fontWeight: '700' as any, fontSize: 9 }}>
+            SIN STOCK
+          </AppText>
+        </View>
+      ) : null}
 
       {excluded ? (
         <Ionicons name="close-circle" size={20} color={colors.error} />

@@ -66,7 +66,7 @@ export function useCatalogSelection(products: Product[], families: Family[]) {
   );
 
   const filteredProducts = useMemo(() => {
-    let result = products;
+    let result = products.filter((p) => p.stock > 0);
     if (state.familyFilter) {
       result = result.filter((p) => p.familyId === state.familyFilter);
     }

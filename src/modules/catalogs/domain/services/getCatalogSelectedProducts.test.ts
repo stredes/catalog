@@ -115,4 +115,79 @@ describe('getCatalogSelectedProducts', () => {
     expect(result.totalProductsCount).toBe(2);
     expect(result.excludedProductsCount).toBe(1);
   });
+
+  describe('stock filtering', () => {
+    const productsWithStock = [
+      makeProduct({ id: 'prd_1', name: 'Taza blanca', familyId: 'fam_tazas', stock: 10 }),
+      makeProduct({ id: 'prd_2', name: 'Taza sin stock', familyId: 'fam_tazas', stock: 0 }),
+      makeProduct({ id: 'prd_3', name: 'Polera algodon', familyId: 'fam_poleras', stock: 5 }),
+      makeProduct({ id: 'prd_4', name: 'Polera sin stock', familyId: 'fam_poleras', stock: 0 }),
+      makeProduct({ id: 'prd_5', name: 'Llavero metal', familyId: 'fam_llaveros', stock: 20 }),
+    ];
+
+    it('excludes products with stock === 0 from selected families', () => {
+      const result = getCatalogSelectedProducts({
+        products: productsWithStock,
+        selectedFamilyIds: ['fam_tazas'],
+        manuallySelectedProductIds: [],
+        excludedProductIds: [],
+      });
+
+      expect(result.selectedProductIds).toEqual(['prd_1']);
+      expect(result.totalProductsCount).toBe(1);
+    });
+
+    it('excludes products with stock === 0 from multiple families', () => {
+      const result = getCatalogSelectedProducts({
+        products: productsWithStock,
+        selectedFamilyIds: ['fam_tazas', 'fam_poleras'],
+        manuallySelectedProductIds: [],
+        excludedProductIds: [],
+      });
+
+      expect(result.selectedProductIds).toEqual(['prd_1', 'prd_3']);
+      expect(result.totalProductsCount).toBe(2);
+    });
+
+    it('excludes manually selected products with stock === 0', () => {
+      const result = getCatalogSelectedProducts({
+        products: productsWithStock,
+        selectedFamilyIds: [],
+        manuallySelectedProductIds: ['prd_2', 'prd_5'],
+        excludedProductIds: [],
+      });
+
+      expect(result.selectedProductIds).toEqual(['prd_5']);
+      expect(result.totalProductsCount).toBe(1);
+    });
+
+    it('returns empty when all selected products have stock === 0', () => {
+      const allZeroStock = [
+        makeProduct({ id: 'prd_1', name: 'Taza', familyId: 'fam_tazas', stock: 0 }),
+        makeProduct({ id: 'prd_2', name: 'Taza 2', familyId: 'fam_tazas', stock: 0 }),
+      ];
+
+      const result = getCatalogSelectedProducts({
+        products: allZeroStock,
+        selectedFamilyIds: ['fam_tazas'],
+        manuallySelectedProductIds: [],
+        excludedProductIds: [],
+      });
+
+      expect(result.selectedProductIds).toEqual([]);
+      expect(result.totalProductsCount).toBe(0);
+    });
+
+    it('combines stock filtering with manual exclusions', () => {
+      const result = getCatalogSelectedProducts({
+        products: productsWithStock,
+        selectedFamilyIds: ['fam_tazas', 'fam_poleras'],
+        manuallySelectedProductIds: [],
+        excludedProductIds: ['prd_1'],
+      });
+
+      expect(result.selectedProductIds).toEqual(['prd_3']);
+      expect(result.totalProductsCount).toBe(1);
+    });
+  });
 });

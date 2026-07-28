@@ -7,6 +7,7 @@ type QuotationRow = {
   id: string;
   quotationNumber: number;
   clientName: string;
+  clientRut: string | null;
   clientPhone: string | null;
   clientEmail: string | null;
   clientAddress: string | null;
@@ -38,6 +39,7 @@ function rowToQuotation(row: QuotationRow): Quotation {
     id: row.id,
     quotationNumber: row.quotationNumber,
     clientName: row.clientName,
+    clientRut: row.clientRut ?? undefined,
     clientPhone: row.clientPhone ?? undefined,
     clientEmail: row.clientEmail ?? undefined,
     clientAddress: row.clientAddress ?? undefined,
@@ -57,11 +59,12 @@ export class SQLiteQuotationRepository implements QuotationRepository {
   async save(quotation: Quotation): Promise<void> {
     const db = await getDatabase();
     await db.runAsync(
-      `INSERT INTO quotations (id, quotationNumber, clientName, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO quotations (id, quotationNumber, clientName, clientRut, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       quotation.id,
       quotation.quotationNumber,
       quotation.clientName,
+      quotation.clientRut ?? null,
       quotation.clientPhone ?? null,
       quotation.clientEmail ?? null,
       quotation.clientAddress ?? null,
@@ -80,8 +83,9 @@ export class SQLiteQuotationRepository implements QuotationRepository {
   async update(quotation: Quotation): Promise<void> {
     const db = await getDatabase();
     await db.runAsync(
-      `UPDATE quotations SET clientName = ?, clientPhone = ?, clientEmail = ?, clientAddress = ?, items = ?, subtotal = ?, ivaRate = ?, ivaAmount = ?, total = ?, status = ?, notes = ?, validUntil = ? WHERE id = ?`,
+      `UPDATE quotations SET clientName = ?, clientRut = ?, clientPhone = ?, clientEmail = ?, clientAddress = ?, items = ?, subtotal = ?, ivaRate = ?, ivaAmount = ?, total = ?, status = ?, notes = ?, validUntil = ? WHERE id = ?`,
       quotation.clientName,
+      quotation.clientRut ?? null,
       quotation.clientPhone ?? null,
       quotation.clientEmail ?? null,
       quotation.clientAddress ?? null,
@@ -100,7 +104,7 @@ export class SQLiteQuotationRepository implements QuotationRepository {
   async findAll(): Promise<Quotation[]> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<QuotationRow>(
-      'SELECT id, quotationNumber, clientName, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt FROM quotations ORDER BY createdAt DESC',
+      'SELECT id, quotationNumber, clientName, clientRut, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt FROM quotations ORDER BY createdAt DESC',
     );
     return rows.map(rowToQuotation);
   }
@@ -108,7 +112,7 @@ export class SQLiteQuotationRepository implements QuotationRepository {
   async findById(id: string): Promise<Quotation | null> {
     const db = await getDatabase();
     const row = await db.getFirstAsync<QuotationRow>(
-      'SELECT id, quotationNumber, clientName, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt FROM quotations WHERE id = ?',
+      'SELECT id, quotationNumber, clientName, clientRut, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt FROM quotations WHERE id = ?',
       id,
     );
     return row ? rowToQuotation(row) : null;

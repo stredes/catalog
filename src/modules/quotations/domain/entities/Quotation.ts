@@ -6,6 +6,7 @@ export type Quotation = {
   id: string;
   quotationNumber: number;
   clientName: string;
+  clientRut?: string;
   clientPhone?: string;
   clientEmail?: string;
   clientAddress?: string;

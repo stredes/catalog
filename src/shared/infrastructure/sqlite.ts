@@ -184,6 +184,7 @@ const migrations: Record<number, string[]> = {
     `CREATE INDEX IF NOT EXISTS idx_clients_rut ON clients(rut)`,
   ],
   21: [`ALTER TABLE orders ADD COLUMN clientId TEXT`],
+  22: [`ALTER TABLE quotations ADD COLUMN clientRut TEXT`],
 }
 
 async function columnExists(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {
@@ -321,7 +322,7 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
     const profile = hasProfile ? await db.getAllAsync('SELECT id, businessName, ownerName, phone, email, address, website, logoUri, bankName, bankAccountType, bankAccountNumber, updatedAt FROM profile') : [];
     const orders = hasOrders ? await db.getAllAsync('SELECT id, orderNumber, clientName, clientId, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders') : [];
     const suppliers = hasSuppliers ? await db.getAllAsync('SELECT id, name, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers') : [];
-    const quotations = hasQuotations ? await db.getAllAsync('SELECT id, quotationNumber, clientName, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt FROM quotations') : [];
+    const quotations = hasQuotations ? await db.getAllAsync('SELECT id, quotationNumber, clientName, clientRut, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt FROM quotations') : [];
     const clients = hasClients ? await db.getAllAsync('SELECT id, name, rut, phone, email, notes, createdAt, updatedAt FROM clients') : [];
     const migrations = await db.getAllAsync('SELECT version, appliedAt FROM schema_migrations').catch(() => []);
 

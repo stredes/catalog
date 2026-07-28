@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, View, StyleSheet } from 'react-native';
 import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
@@ -172,7 +172,7 @@ export function QuotationHistoryScreen() {
           <>
             <SearchBar value={search} onChange={setSearch} placeholder="Buscar por cliente o servicio..." />
 
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+            <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 6 }} decelerationRate="fast" snapToAlignment="center">
               <ChoiceChip
                 label={`Todos (${quotations.length - deletedCount})`}
                 selected={statusFilter === 'all'}
@@ -211,9 +211,9 @@ export function QuotationHistoryScreen() {
                   color={colors.textMuted}
                 />
               ) : null}
-            </View>
+            </ScrollView>
 
-            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+            <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 6 }} decelerationRate="fast" snapToAlignment="center">
               <ChoiceChip
                 label="Mas recientes"
                 selected={sortBy === 'newest'}
@@ -232,7 +232,7 @@ export function QuotationHistoryScreen() {
                 onPress={() => setSortBy('highest')}
                 color={colors.textSecondary}
               />
-            </View>
+            </ScrollView>
 
             {deletedCount > 0 ? (
               <Pressable

@@ -11,6 +11,7 @@ export const sizes = {
   inputHeight: 48,
   inputPaddingHorizontal: 14,
   inputIconGap: 10,
+  iconMargin: 8,
   labelMarginBottom: 6,
   authFieldGap: 14,
   maxContentWidth: 720,

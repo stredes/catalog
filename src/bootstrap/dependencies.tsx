@@ -95,6 +95,7 @@ import { DeleteQuotationUseCase } from '../modules/quotations/application/use-ca
 import { UpdateQuotationUseCase } from '../modules/quotations/application/use-cases/UpdateQuotationUseCase';
 import { UpdateQuotationStatusUseCase } from '../modules/quotations/application/use-cases/UpdateQuotationStatusUseCase';
 import { GenerateQuotationPdfUseCase } from '../modules/quotations/application/use-cases/GenerateQuotationPdfUseCase';
+import { UpdateQuotationStatusUseCase } from '../modules/quotations/application/use-cases/UpdateQuotationStatusUseCase';
 import { SQLiteQuotationRepository } from '../modules/quotations/infrastructure/repositories/SQLiteQuotationRepository';
 import { QuotationPdfGenerator } from '../modules/quotations/infrastructure/QuotationPdfGenerator';
 

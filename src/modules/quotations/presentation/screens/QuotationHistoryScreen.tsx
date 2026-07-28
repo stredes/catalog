@@ -26,14 +26,23 @@ import { formatDate } from '../../../../shared/utils/dates';
 import { useQuotations } from '../hooks/useQuotations';
 import { Quotation, QuotationStatus } from '../../domain/entities/Quotation';
 
+type SortOption = 'newest' | 'name';
 type StatusFilter = 'all' | QuotationStatus;
 
-const statusConfig: Record<QuotationStatus, { label: string; color: string }> = {
-  pending: { label: 'EN ESPERA', color: 'info' },
-  accepted: { label: 'ACEPTADA', color: 'success' },
-  paid: { label: 'PAGADA', color: 'accent' },
-  rejected: { label: 'RECHAZADA', color: 'error' },
-  deleted: { label: 'ELIMINADA', color: 'muted' },
+const statusColors: Record<QuotationStatus, string> = {
+  pending: 'info',
+  accepted: 'success',
+  paid: 'accent',
+  rejected: 'error',
+  deleted: 'muted',
+} as const;
+
+const statusLabels: Record<QuotationStatus, string> = {
+  pending: 'EN ESPERA',
+  accepted: 'ACEPTADA',
+  paid: 'PAGADA',
+  rejected: 'RECHAZADA',
+  deleted: 'ELIMINADA',
 };
 
 export function QuotationHistoryScreen() {
@@ -42,18 +51,17 @@ export function QuotationHistoryScreen() {
   const { navigate } = useAppNavigation();
   const { quotations, loading, reload } = useQuotations();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
 
-  const filteredQuotations = useMemo(() => {
+  const sortedQuotations = useMemo(() => {
     let result = [...quotations];
 
-    if (statusFilter === 'all') {
-      result = result.filter((q) => q.status !== 'deleted');
-    } else {
+    if (statusFilter !== 'all') {
       result = result.filter((q) => q.status === statusFilter);
     }
 
@@ -67,17 +75,21 @@ export function QuotationHistoryScreen() {
       );
     }
 
-    result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return result;
-  }, [quotations, search, statusFilter]);
-
-  const statusCounts = useMemo(() => {
-    const counts: Record<QuotationStatus, number> = { pending: 0, accepted: 0, paid: 0, rejected: 0, deleted: 0 };
-    for (const q of quotations) {
-      counts[q.status]++;
+    switch (sortBy) {
+      case 'name':
+        result.sort((a, b) => a.clientName.localeCompare(b.clientName));
+        break;
+      case 'newest':
+      default:
+        result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
     }
-    return counts;
-  }, [quotations]);
+
+    return result;
+  }, [quotations, search, sortBy, statusFilter]);
+
+  const pendingCount = useMemo(() => quotations.filter((q) => q.status === 'pending').length, [quotations]);
+  const acceptedCount = useMemo(() => quotations.filter((q) => q.status === 'accepted').length, [quotations]);
 
   async function shareQuotation(quotation: Quotation) {
     try {
@@ -95,7 +107,7 @@ export function QuotationHistoryScreen() {
   async function changeStatus(quotation: Quotation, newStatus: QuotationStatus) {
     try {
       setError('');
-      await useCases.updateQuotationStatus.execute(quotation.id, newStatus);
+      await useCases.updateQuotation.execute({ ...quotation, status: newStatus });
       setStatusMenuId(null);
       await reload();
     } catch (currentError) {
@@ -112,7 +124,7 @@ export function QuotationHistoryScreen() {
   async function executeDelete() {
     if (!deleteId) return;
     try {
-      await useCases.updateQuotationStatus.execute(deleteId, 'deleted');
+      await useCases.deleteQuotation.execute(deleteId);
       setDeleteId(null);
       await reload();
     } catch (currentError) {
@@ -135,7 +147,7 @@ export function QuotationHistoryScreen() {
           title="Historial de cotizaciones"
           subtitle={
             quotations.length > 0
-              ? `${quotations.length} cotizacion${quotations.length !== 1 ? 'es' : ''} · ${statusCounts.pending} en espera`
+              ? `${quotations.length} cotizacion${quotations.length !== 1 ? 'es' : ''}`
               : 'Tus cotizaciones apareceran aqui'
           }
           action={
@@ -149,22 +161,40 @@ export function QuotationHistoryScreen() {
           <>
             <SearchBar value={search} onChange={setSearch} placeholder="Buscar por cliente o servicio..." />
 
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
               <ChoiceChip
-                label={`Todos (${quotations.filter((q) => q.status !== 'deleted').length})`}
+                label={`Todos (${quotations.length})`}
                 selected={statusFilter === 'all'}
                 onPress={() => setStatusFilter('all')}
                 color={colors.textSecondary}
               />
-              {(Object.keys(statusConfig) as QuotationStatus[]).map((s) => (
-                <ChoiceChip
-                  key={s}
-                  label={`${statusConfig[s].label} (${statusCounts[s]})`}
-                  selected={statusFilter === s}
-                  onPress={() => setStatusFilter(s)}
-                  color={colors[statusConfig[s].color as keyof typeof colors]}
-                />
-              ))}
+              <ChoiceChip
+                label={`En espera (${pendingCount})`}
+                selected={statusFilter === 'pending'}
+                onPress={() => setStatusFilter('pending')}
+                color={colors.info}
+              />
+              <ChoiceChip
+                label={`Aceptadas (${acceptedCount})`}
+                selected={statusFilter === 'accepted'}
+                onPress={() => setStatusFilter('accepted')}
+                color={colors.success}
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+              <ChoiceChip
+                label="Mas recientes"
+                selected={sortBy === 'newest'}
+                onPress={() => setSortBy('newest')}
+                color={colors.textSecondary}
+              />
+              <ChoiceChip
+                label="Cliente"
+                selected={sortBy === 'name'}
+                onPress={() => setSortBy('name')}
+                color={colors.textSecondary}
+              />
             </View>
           </>
         ) : null}
@@ -194,19 +224,18 @@ export function QuotationHistoryScreen() {
               />
             }
           />
-        ) : filteredQuotations.length === 0 ? (
+        ) : sortedQuotations.length === 0 ? (
           <EmptyStateIllustrated
             icon="document-text-outline"
             title="Sin resultados"
             subtitle="Ninguna cotizacion coincide con tu busqueda."
           />
         ) : (
-          <Section title={`${filteredQuotations.length} resultado${filteredQuotations.length !== 1 ? 's' : ''}`}>
-            {filteredQuotations.map((quotation) => {
+          <Section title={`${sortedQuotations.length} resultado${sortedQuotations.length !== 1 ? 's' : ''}`}>
+            {sortedQuotations.map((quotation) => {
               const isExpanded = expandedId === quotation.id;
-              const sc = statusConfig[quotation.status];
-              const sl = sc.label;
-              const colorToken = sc.color;
+              const sc = statusColors[quotation.status] ?? 'info';
+              const sl = statusLabels[quotation.status] ?? 'BORRADOR';
 
               return (
                 <Card key={quotation.id} style={{ marginBottom: 8 }}>
@@ -215,13 +244,13 @@ export function QuotationHistoryScreen() {
                       <View
                         style={[
                           styles.orderIcon,
-                          { backgroundColor: colors[colorToken as keyof typeof colors] + '18' },
+                          { backgroundColor: colors[sc as keyof typeof colors] + '18' },
                         ]}
                       >
                         <Ionicons
                           name="document-text-outline"
                           size={18}
-                          color={colors[colorToken as keyof typeof colors]}
+                          color={colors[sc as keyof typeof colors]}
                         />
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
@@ -230,12 +259,12 @@ export function QuotationHistoryScreen() {
                             N° {String(quotation.quotationNumber).padStart(4, '0')} - {quotation.clientName}
                           </AppText>
                           <View style={{
-                            backgroundColor: colors[colorToken as keyof typeof colors] + '18',
+                            backgroundColor: colors[sc as keyof typeof colors] + '18',
                             borderRadius: 8,
                             paddingHorizontal: 6,
                             paddingVertical: 1,
                           }}>
-                            <AppText variant="caption" color={colorToken as any} style={{ fontWeight: '700' as any, fontSize: 10 }}>
+                            <AppText variant="caption" color={sc as any} style={{ fontWeight: '700' as any, fontSize: 10 }}>
                               {sl}
                             </AppText>
                           </View>
@@ -292,18 +321,11 @@ export function QuotationHistoryScreen() {
                       ) : null}
                       <View style={styles.actionRow}>
                         <Pressable
-                          onPress={() => navigate('QuotationEdit', { quotationId: quotation.id })}
-                          style={[styles.actionButton, { backgroundColor: colors.primarySoft }]}
-                        >
-                          <Ionicons name="create-outline" size={16} color={colors.primary} />
-                          <AppText variant="caption" color="accent">Editar</AppText>
-                        </Pressable>
-                        <Pressable
                           onPress={() => setStatusMenuId(statusMenuId === quotation.id ? null : quotation.id)}
-                          style={[styles.actionButton, { backgroundColor: colors[colorToken as keyof typeof colors] + '18' }]}
+                          style={[styles.actionButton, { backgroundColor: colors[sc as keyof typeof colors] + '18' }]}
                         >
-                          <Ionicons name="swap-horizontal-outline" size={16} color={colors[colorToken as keyof typeof colors]} />
-                          <AppText variant="caption" color={colorToken as any}>Estado</AppText>
+                          <Ionicons name="swap-horizontal-outline" size={16} color={colors[sc as keyof typeof colors]} />
+                          <AppText variant="caption" color={sc as any}>Estado</AppText>
                         </Pressable>
                         <Pressable
                           onPress={() => shareQuotation(quotation)}
@@ -312,15 +334,13 @@ export function QuotationHistoryScreen() {
                           <Ionicons name="share-social-outline" size={16} color={colors.primary} />
                           <AppText variant="caption" color="accent">Compartir</AppText>
                         </Pressable>
-                        {quotation.status !== 'deleted' && (
-                          <Pressable
-                            onPress={() => confirmDelete(quotation.id)}
-                            style={[styles.actionButton, { backgroundColor: colors.errorLight }]}
-                          >
-                            <Ionicons name="trash-outline" size={16} color={colors.error} />
-                            <AppText variant="caption" color="error">Eliminar</AppText>
-                          </Pressable>
-                        )}
+                        <Pressable
+                          onPress={() => confirmDelete(quotation.id)}
+                          style={[styles.actionButton, { backgroundColor: colors.errorLight }]}
+                        >
+                          <Ionicons name="trash-outline" size={16} color={colors.error} />
+                          <AppText variant="caption" color="error">Eliminar</AppText>
+                        </Pressable>
                       </View>
                     </View>
                   ) : null}
@@ -334,7 +354,7 @@ export function QuotationHistoryScreen() {
       <ConfirmDialog
         visible={deleteId !== null}
         title="Eliminar cotizacion"
-        message="Se marcara como eliminada. Puedes verla filtrando por estado ELIMINADA."
+        message="Se eliminara del historial. Esta accion no se puede deshacer."
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         destructive
@@ -353,48 +373,45 @@ export function QuotationHistoryScreen() {
           const statuses: QuotationStatus[] = ['pending', 'accepted', 'paid', 'rejected', 'deleted'];
           return (
             <View style={{ gap: 8 }}>
-              {statuses.map((s) => {
-                const cfg = statusConfig[s];
-                return (
-                  <Pressable
-                    key={s}
-                    onPress={() => changeStatus(quotation, s)}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: 14,
-                      borderRadius: 12,
-                      borderWidth: 1.5,
-                      borderColor: quotation.status === s ? colors.primary : colors.borderDefault,
-                      backgroundColor: quotation.status === s ? colors.primary + '10' : colors.backgroundSurface,
-                    }}
-                  >
-                    <View style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: colors[cfg.color as keyof typeof colors] + '18',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      <Ionicons
-                        name={quotation.status === s ? 'radio-button-on' : 'radio-button-off'}
-                        size={18}
-                        color={colors[cfg.color as keyof typeof colors]}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <AppText variant="bodyMedium" color={quotation.status === s ? 'primary' : 'secondary'} style={{ fontWeight: quotation.status === s ? '700' as any : '400' as any }}>
-                        {cfg.label}
-                      </AppText>
-                    </View>
-                    {quotation.status === s ? (
-                      <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                    ) : null}
-                  </Pressable>
-                );
-              })}
+              {statuses.map((s) => (
+                <Pressable
+                  key={s}
+                  onPress={() => changeStatus(quotation, s)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: 14,
+                    borderRadius: 12,
+                    borderWidth: 1.5,
+                    borderColor: quotation.status === s ? colors.primary : colors.borderDefault,
+                    backgroundColor: quotation.status === s ? colors.primary + '10' : colors.backgroundSurface,
+                  }}
+                >
+                  <View style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: colors[statusColors[s] as keyof typeof colors] + '18',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Ionicons
+                      name={quotation.status === s ? 'radio-button-on' : 'radio-button-off'}
+                      size={18}
+                      color={colors[statusColors[s] as keyof typeof colors]}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="bodyMedium" color={quotation.status === s ? 'primary' : 'secondary'} style={{ fontWeight: quotation.status === s ? '700' as any : '400' as any }}>
+                      {statusLabels[s]}
+                    </AppText>
+                  </View>
+                  {quotation.status === s ? (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  ) : null}
+                </Pressable>
+              ))}
             </View>
           );
         })() : null}

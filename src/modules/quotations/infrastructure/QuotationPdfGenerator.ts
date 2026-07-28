@@ -104,6 +104,7 @@ export class QuotationPdfGenerator {
     ` : '';
 
     const clientLines = [
+      quotation.clientRut ? `<div>RUT: ${escapeHtml(quotation.clientRut)}</div>` : '',
       quotation.clientPhone ? `<div>Tel: ${escapeHtml(quotation.clientPhone)}</div>` : '',
       quotation.clientEmail ? `<div>Email: ${escapeHtml(quotation.clientEmail)}</div>` : '',
       quotation.clientAddress ? `<div>Dir: ${escapeHtml(quotation.clientAddress)}</div>` : '',

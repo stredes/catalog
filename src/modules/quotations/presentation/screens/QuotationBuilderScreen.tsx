@@ -29,6 +29,7 @@ export function QuotationBuilderScreen() {
   const { profile } = useProfile();
 
   const [clientName, setClientName] = useState('');
+  const [clientRut, setClientRut] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientAddress, setClientAddress] = useState('');
@@ -84,6 +85,7 @@ export function QuotationBuilderScreen() {
       setError('');
       const quotation = await useCases.createQuotation.execute({
         clientName: clientName.trim(),
+        clientRut: clientRut.trim() || undefined,
         clientPhone: clientPhone.trim() || undefined,
         clientEmail: clientEmail.trim() || undefined,
         clientAddress: clientAddress.trim() || undefined,
@@ -159,6 +161,23 @@ export function QuotationBuilderScreen() {
             }}
             value={clientName}
             onChangeText={setClientName}
+          />
+          <TextInput
+            placeholder="RUT (opcional)"
+            placeholderTextColor={colors.textMuted}
+            style={{
+              borderRadius: 12,
+              borderWidth: 1.5,
+              borderColor: colors.borderDefault,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              fontSize: 15,
+              fontWeight: '500',
+              color: colors.textPrimary,
+              marginBottom: 12,
+            }}
+            value={clientRut}
+            onChangeText={setClientRut}
           />
           <TextInput
             placeholder="Telefono (opcional)"
@@ -434,6 +453,12 @@ export function QuotationBuilderScreen() {
                 <AppText variant="bodyMedium" color="muted">Cliente</AppText>
                 <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' as any }}>{lastQuotation.clientName}</AppText>
               </View>
+              {lastQuotation.clientRut ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <AppText variant="bodyMedium" color="muted">RUT</AppText>
+                  <AppText variant="bodyMedium" color="primary">{lastQuotation.clientRut}</AppText>
+                </View>
+              ) : null}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                 <AppText variant="bodyMedium" color="muted">Servicios</AppText>
                 <AppText variant="bodyMedium" color="primary">{lastQuotation.items.length}</AppText>

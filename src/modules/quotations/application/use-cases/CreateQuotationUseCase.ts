@@ -36,7 +36,7 @@ export class CreateQuotationUseCase {
       ivaRate: IVA_RATE,
       ivaAmount,
       total,
-      status: 'draft',
+      status: 'pending',
       notes: input.notes || undefined,
       validUntil: input.validUntil || undefined,
       createdAt: nowIso(),

@@ -134,7 +134,7 @@ export const ServiceItemSchema = z.object({
 
 export type ValidatedServiceItem = z.infer<typeof ServiceItemSchema>;
 
-export const QuotationStatusSchema = z.enum(['draft', 'sent', 'accepted', 'rejected']);
+export const QuotationStatusSchema = z.enum(['pending', 'accepted', 'paid', 'rejected', 'deleted']);
 
 export const QuotationSchema = z.object({
   id: z.string().min(1),
@@ -148,7 +148,7 @@ export const QuotationSchema = z.object({
   ivaRate: z.number().finite().nonnegative(),
   ivaAmount: MoneySchema,
   total: MoneySchema,
-  status: QuotationStatusSchema.default('draft'),
+  status: QuotationStatusSchema.default('pending'),
   notes: z.string().optional(),
   validUntil: z.string().optional(),
   createdAt: z.string().min(1),

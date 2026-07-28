@@ -31,9 +31,9 @@ function rowToQuotation(row: QuotationRow): Quotation {
     items = [];
   }
 
-  const validStatus: QuotationStatus = (['draft', 'sent', 'accepted', 'rejected'].includes(row.status)
+  const validStatus: QuotationStatus = (['pending', 'accepted', 'paid', 'rejected', 'deleted'].includes(row.status)
     ? row.status
-    : 'draft') as QuotationStatus;
+    : 'pending') as QuotationStatus;
 
   return {
     id: row.id,
@@ -73,7 +73,7 @@ export class SQLiteQuotationRepository implements QuotationRepository {
       quotation.ivaRate,
       quotation.ivaAmount,
       quotation.total,
-      quotation.status ?? 'draft',
+      quotation.status ?? 'pending',
       quotation.notes ?? null,
       quotation.validUntil ?? null,
       quotation.createdAt,
@@ -94,7 +94,7 @@ export class SQLiteQuotationRepository implements QuotationRepository {
       quotation.ivaRate,
       quotation.ivaAmount,
       quotation.total,
-      quotation.status ?? 'draft',
+      quotation.status ?? 'pending',
       quotation.notes ?? null,
       quotation.validUntil ?? null,
       quotation.id,

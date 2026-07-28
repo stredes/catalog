@@ -160,7 +160,7 @@ const migrations: Record<number, string[]> = {
       ivaRate REAL NOT NULL DEFAULT 19,
       ivaAmount REAL NOT NULL,
       total REAL NOT NULL,
-      status TEXT NOT NULL DEFAULT 'draft',
+      status TEXT NOT NULL DEFAULT 'pending',
       notes TEXT,
       validUntil TEXT,
       createdAt TEXT NOT NULL

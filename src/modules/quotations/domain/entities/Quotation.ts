@@ -1,6 +1,6 @@
 import { ServiceItem } from './ServiceItem';
 
-export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected';
+export type QuotationStatus = 'pending' | 'accepted' | 'paid' | 'rejected' | 'deleted';
 
 export type Quotation = {
   id: string;

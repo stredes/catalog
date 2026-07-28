@@ -21,3 +21,17 @@ export const quotationInputSchema = z.object({
 });
 
 export type QuotationInputDto = z.infer<typeof quotationInputSchema>;
+
+export const quotationUpdateSchema = z.object({
+  clientName: z.string().min(2, 'Nombre del cliente requerido').optional(),
+  clientRut: rutValidator.optional(),
+  clientPhone: z.string().optional(),
+  clientEmail: z.string().email('Email invalido').optional().or(z.literal('')).optional(),
+  clientAddress: z.string().optional(),
+  items: z.array(serviceItemInputSchema).min(1, 'Agrega al menos un servicio').optional(),
+  notes: z.string().optional(),
+  validUntil: z.string().optional(),
+  status: z.enum(['pending', 'accepted', 'paid', 'rejected', 'deleted']),
+});
+
+export type QuotationUpdateDto = z.infer<typeof quotationUpdateSchema>;

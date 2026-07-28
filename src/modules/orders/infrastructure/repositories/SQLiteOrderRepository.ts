@@ -7,6 +7,7 @@ type OrderRow = {
   id: string;
   orderNumber: number;
   clientName: string;
+  clientId: string | null;
   items: string;
   subtotal: number;
   iva: number;
@@ -32,6 +33,7 @@ function rowToOrder(row: OrderRow): Order {
     id: row.id,
     orderNumber: row.orderNumber,
     clientName: row.clientName,
+    clientId: row.clientId ?? undefined,
     items,
     subtotal: row.subtotal,
     iva: row.iva,
@@ -47,11 +49,12 @@ export class SQLiteOrderRepository implements OrderRepository {
   async save(order: Order): Promise<void> {
     const db = await getDatabase();
     await db.runAsync(
-      `INSERT INTO orders (id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO orders (id, orderNumber, clientName, clientId, items, subtotal, iva, total, status, paidAmount, notes, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       order.id,
       order.orderNumber,
       order.clientName,
+      order.clientId ?? null,
       JSON.stringify(order.items),
       order.subtotal,
       order.iva,
@@ -66,8 +69,9 @@ export class SQLiteOrderRepository implements OrderRepository {
   async update(order: Order): Promise<void> {
     const db = await getDatabase();
     await db.runAsync(
-      `UPDATE orders SET clientName = ?, items = ?, subtotal = ?, iva = ?, total = ?, status = ?, paidAmount = ?, notes = ? WHERE id = ?`,
+      `UPDATE orders SET clientName = ?, clientId = ?, items = ?, subtotal = ?, iva = ?, total = ?, status = ?, paidAmount = ?, notes = ? WHERE id = ?`,
       order.clientName,
+      order.clientId ?? null,
       JSON.stringify(order.items),
       order.subtotal,
       order.iva,
@@ -82,7 +86,7 @@ export class SQLiteOrderRepository implements OrderRepository {
   async findAll(): Promise<Order[]> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<OrderRow>(
-      'SELECT id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders ORDER BY createdAt DESC',
+      'SELECT id, orderNumber, clientName, clientId, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders ORDER BY createdAt DESC',
     );
     return rows.map(rowToOrder);
   }
@@ -90,7 +94,7 @@ export class SQLiteOrderRepository implements OrderRepository {
   async findById(id: string): Promise<Order | null> {
     const db = await getDatabase();
     const row = await db.getFirstAsync<OrderRow>(
-      'SELECT id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders WHERE id = ?',
+      'SELECT id, orderNumber, clientName, clientId, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders WHERE id = ?',
       id,
     );
     return row ? rowToOrder(row) : null;
@@ -106,7 +110,7 @@ export class SQLiteOrderRepository implements OrderRepository {
 
     await db.withExclusiveTransactionAsync(async (txn) => {
       const row = await txn.getFirstAsync<OrderRow>(
-        'SELECT id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders WHERE id = ?',
+        'SELECT id, orderNumber, clientName, clientId, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders WHERE id = ?',
         id,
       );
       if (!row) {
@@ -163,11 +167,12 @@ export class SQLiteOrderRepository implements OrderRepository {
       assignedOrderNumber = (maxRow?.maxNum ?? 0) + 1;
 
       await txn.runAsync(
-        `INSERT INTO orders (id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO orders (id, orderNumber, clientName, clientId, items, subtotal, iva, total, status, paidAmount, notes, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         order.id,
         assignedOrderNumber,
         order.clientName,
+        order.clientId ?? null,
         JSON.stringify(order.items),
         order.subtotal,
         order.iva,

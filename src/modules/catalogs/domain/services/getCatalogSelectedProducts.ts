@@ -49,7 +49,7 @@ export function getCatalogSelectedProducts(
   }
 
   const selectedProducts = Array.from(combined.values()).filter(
-    (p) => !excludedSet.has(p.id),
+    (p) => !excludedSet.has(p.id) && p.stock > 0,
   );
 
   return {

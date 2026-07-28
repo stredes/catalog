@@ -6,6 +6,7 @@ export type Order = {
   id: string;
   orderNumber: number;
   clientName: string;
+  clientId?: string;
   items: CartItem[];
   subtotal: number;
   iva: number;

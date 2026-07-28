@@ -37,7 +37,7 @@ export class GenerateCatalogPdfUseCase {
 
     const allProducts = await this.products.findAll();
     const selectedProducts = allProducts.filter((product) =>
-      dto.productIds.includes(product.id),
+      dto.productIds.includes(product.id) && product.stock > 0,
     );
 
     if (familyIds.length === 0 && selectedProducts.length > 0) {

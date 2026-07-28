@@ -14,6 +14,7 @@ export class UpdateOrderUseCase {
     clientName: string,
     items: CartItem[],
     notes?: string,
+    clientId?: string,
   ): Promise<Order> {
     const existing = await this.orderRepository.findById(id);
     if (!existing) {
@@ -34,6 +35,7 @@ export class UpdateOrderUseCase {
     const updated: Order = {
       ...existing,
       clientName,
+      clientId: clientId ?? existing.clientId,
       items: orderItems,
       subtotal,
       total: subtotal,

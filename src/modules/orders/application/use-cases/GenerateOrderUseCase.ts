@@ -13,7 +13,7 @@ export class GenerateOrderUseCase {
     private productRepository: ProductRepository,
   ) {}
 
-  async execute(clientName: string, notes?: string): Promise<Order> {
+  async execute(clientName: string, notes?: string, clientId?: string): Promise<Order> {
     const items = await this.cartRepository.getItems();
 
     if (items.length === 0) {
@@ -79,6 +79,7 @@ export class GenerateOrderUseCase {
       id: createId('order'),
       orderNumber: 0,
       clientName,
+      clientId,
       items: orderItems,
       subtotal,
       iva: 0,

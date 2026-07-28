@@ -13,6 +13,7 @@ export type AddToCartDto = z.infer<typeof addToCartSchema>;
 
 export const orderSchema = z.object({
   clientName: z.string().min(2, 'Nombre del cliente requerido'),
+  clientId: z.string().optional(),
   notes: z.string().optional(),
 });
 

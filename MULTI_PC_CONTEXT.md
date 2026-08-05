@@ -6,7 +6,8 @@
 |-------------|-----|----------|----------|--------|-----|
 | Kali Linux | 192.168.1.100 | stredes | 19921351-2 | 22 | Seguridad + Bundle Audit |
 | Linux Mint | 192.168.1.90 | stredesmers | 19921351-2 | 22 | Bugs Funcionales + SQLite |
-| Arch Linux (Omarchy) | 192.168.1.89 | lucas | 19921351-2 | 22 | Calidad/DRY + Memoization |
+| Debian Server | 192.168.1.104 | stredes-server | 19921351-2 | 22 | Server + Build + Backend |
+| Arch Linux (Omarchy) | 192.168.1.89 | lucas | 19921351-2 | 22 | Calidad/DRY + Memoization + CI/CD |
 | Celular owner WhatsApp | 192.168.1.81 | u0_a445 | 199213 | 8022 | WhatsApp + recepcion APK |
 | Samsung Tab A8 | 192.168.1.102 | u0_a273 | 199213 | 8022 | Coordinator |
 | Router | 192.168.1.1 | - | - | - | Gateway |
@@ -59,7 +60,8 @@ Checklist antes de enviar:
 | Instancia | API Key | Modelo |
 |-----------|---------|--------|
 | Kali | sk-WPMKH1oXXuYbfhpKaiAC7ias2nrFfAGhDGfkrlan0Fkx9NrC4DroSDFyTQf2PtBV | opencode/big-pickle |
-| Mint | sk-Ta2d8yhMgOrkGdXN8oxnzPKeznB5G5HDNRZgml4gtu62O1783irNPRFXbKz0nWco | opencode/big-pickle |
+| Linux Mint | sk-Ta2d8yhMgOrkGdXN8oxnzPKeznB5G5HDNRZgml4gtu62O1783irNPRFXbKz0nWco | opencode/big-pickle |
+| Debian Server | sk-WPMKH1oXXuYbfhpKaiAC7ias2nrFfAGhDGfkrlan0Fkx9NrC4DroSDFyTQf2PtBV | opencode/big-pickle |
 | Arch | sk-WPMKH1oXXuYbfhpKaiAC7ias2nrFfAGhDGfkrlan0Fkx9NrC4DroSDFyTQf2PtBV | opencode/big-pickle |
 | Arch (NVIDIA) | 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 | nvidia-nim |
 
@@ -85,7 +87,8 @@ Checklist antes de enviar:
 ```bash
 # SSH a cada PC
 sshpass -p '19921351-2' ssh stredes@192.168.1.100    # Kali
-sshpass -p '19921351-2' ssh stredesmers@192.168.1.90  # Mint
+sshpass -p '19921351-2' ssh stredesmers@192.168.1.90  # Linux Mint
+sshpass -p '19921351-2' ssh stredes-server@192.168.1.104  # Debian Server
 sshpass -p '19921351-2' ssh lucas@192.168.1.89        # Arch
 # Celular owner WhatsApp / APK
 sshpass -p '199213' ssh -p 8022 u0_a445@192.168.1.81
@@ -136,7 +139,7 @@ openclaw message send --channel whatsapp --target +56954764325 --message "APK ve
 ~/connect-clients.sh --openclaw
 
 # Apagado sistematico multi-PC
-# Orden: Mint -> Kali -> Arch/local. Requiere confirmacion escrita: APAGAR.
+# Orden: Mint -> Debian Server -> Kali -> Arch/local. Requiere confirmacion escrita: APAGAR.
 ~/connect-clients.sh --shutdown-systematic
 ~/connect-clients.sh --shutdown-systematic APAGAR
 ```
@@ -146,21 +149,42 @@ openclaw message send --channel whatsapp --target +56954764325 --message "APK ve
 | PC | Enfoque | Herramientas |
 |----|---------|-------------|
 | Kali | Seguridad + Bundle Analysis | Auth audit, imports analysis, dynamic imports |
-| Mint | Bugs Funcionales + SQLite Performance | N+1 queries, indexes, transactions, clean code |
+| Linux Mint | Bugs Funcionales + SQLite Performance | N+1 queries, indexes, transactions, clean code |
+| Debian Server | Server + Build + Backend + CI/CD | Build automation, server management, deployment |
 | Arch | Calidad/DRY + Memoization + CI/CD | useMemo, useCallback, React.memo, CI pipeline |
 
 ## Estado del Sistema
 
-- **Ultima sincronizacion**: 2026-07-26
+- **Ultima sincronizacion**: 2026-07-31
 - **OpenClaw**: instalado en Arch, WhatsApp vinculado por QR, numero +56954764325 registrado como allowFrom y owner
 - **Entrega APK**: enviar APK final versionada por WhatsApp a +56954764325; version esperada actual 3.2.5
 - **Omarchy Multi-PC Control**: actualizado con panel OpenClaw/WhatsApp, estado, arranque detached de gateway, envio de APK y apagado sistematico
-- **Apagado sistematico**: orden configurado Mint -> Kali -> Arch/local; requiere escribir APAGAR
-- **Sync OpenClaw/APK**: actualizar Arch, Kali y Mint; celular owner documentado en 192.168.1.81; tablet omitida por decision operativa actual
+- **Apagado sistematico**: orden configurado Mint -> Debian Server -> Kali -> Arch/local; requiere escribir APAGAR
+- **Sync OpenClaw/APK**: actualizar Arch, Kali, Mint, Debian Server; celular owner documentado en 192.168.1.81; tablet omitida por decision operativa actual
 - **Commits en origin/main**: 17+ commits de auditoria
-- **TypeScript**: Clean en las 3 PCs
-- **Tests**: 102/102 en las 3 PCs
-- **Branch**: main (sincronizada en las 3)
+- **TypeScript**: Clean en las 4 PCs
+- **Tests**: 102/102 en las 4 PCs
+- **Branch**: main (sincronizada en las 4)
+- **Estado actual**: Todas las PCs apagadas. 4 PCs listas: Kali, Mint, Debian Server, Arch.
+
+## Sesion Activa (2026-08-02): Mejora UI/UX "AAA" facturion-mobil
+
+- **Contexto completo**: ver `SESSION_CONTEXT.md` (misma carpeta, en cada PC).
+- **Repos**: Arch/Kali `~/Workspace/facturion-mobil`, Debian `~/workspace/facturion-mobil`,
+  normalizados en `6d7c010` (version 1.0.5). Remote `git@github.com:stredes/facturion_mobil.git`.
+- **Fases paralelas** (ownership de archivos disjunto, sin conflictos):
+  - Arch `feat/phase1-theme` (big-pickle, `~/.local/share/opencode-fixed/opencode`): dark mode,
+    useTheme hook, Ionicons en tabs/FAB, PieChart3D responsive, tokens de animacion.
+  - Kali `feat/phase2-components` (deepseek-v4-flash-free): micro-interacciones, haptics,
+    a11y, estados premium (EmptyState/ErrorState/Loading/Skeleton/ConfirmModal/inputs/form).
+    Ya con 4 commits.
+  - Debian `feat/phase3-screens` (big-pickle, `~/.opencode/bin/opencode`): pantallas con
+    loading/empty/error consistentes, pull-to-refresh, tarjetas premium, ConfirmModal en delete.
+- **IMPORTANTE opencode run**: usar mensaje posicional `opencode run --print-logs "$(cat /tmp/phase_prompt.txt)"`.
+  NO usar `--command` (falla con Unexpected server error). En Arch usar binario fixed (1.17.18).
+  Debian sin tmux: `ssh -f` + `nohup`. Logs: `/tmp/phase{1,2,3}.log`.
+- **Siguiente**: al terminar fases -> push ramas -> merge Kali->Arch->Debian a main ->
+  typecheck+tests en las 3 -> push. Resumenes por agente en `/tmp/{arch,kali,debian}_changes.txt`.
 
 ## Email
 gianlucassanmartin@gmail.com

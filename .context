@@ -1,6 +1,6 @@
 # Contexto rapido para agentes IA
 
-Ultima actualizacion: 2026-07-27 (v3.2.6 - backup UI mejorado, version sync, auth habilitado)
+Ultima actualizacion: 2026-08-05 (v3.3.9/38 - fix export ZIP sin imagenes: fallback a payload.images)
 Proyecto: `catalog-clean`
 Raiz: `C:\Users\bodega 1\Desktop\workspace\catalog`
 
@@ -390,6 +390,22 @@ Features:
 - Max 10 backups en SQLite
 - BackupPayload: families, products, catalogs, profile, orders, suppliers, images
 
+### Bug corregido (v3.3.9/38): export ZIP sin imagenes
+
+- Sintoma: al importar un backup .zip, ningun producto sincroniza su imagen.
+- Evidencia (backup real del celular `CatalogClean_99999_2026-08-05T02-43-44.zip`):
+  `imageFiles: {}` y `images: {}` aunque los 66 productos tienen `photoUri`.
+- Causa raiz: `createBackupArchive` re-lee las imagenes del disco
+  (`readImageAsBase64`) e ignoraba `payload.images` (los data-uris que el
+  snapshot ya guarda en la DB). Si el archivo fisico no se puede leer (ruta
+  obsoleta, archivo perdido tras reinstall/restore, o snapshot viejo con rutas
+  reasignadas), el ZIP sale sin imagenes.
+- Fix: fallback a `payload.images[uri]` cuando `readImageAsBase64` devuelve null
+  en `BackupArchiveService.ts` (`createBackupArchive`).
+- Test nuevo: "usa los data-uris del snapshot como respaldo...". Ajustado test
+  previo para pasar `images: {}` al simular imagen sin respaldo. 223 tests OK,
+  tsc limpio. APK: `build/CatalogClean-v3.3.9.apk` (subido a Download del celular).
+
 ### Analytics
 
 - `src/shared/domain/AnalyticsPort.ts` - interfaz
@@ -461,8 +477,8 @@ Antes de entregar cambios de logica:
 
 ## APK
 
-- Version: 3.2.6, versionCode: 26
-- APK: pendiente de generar
+- Version: 3.3.3, versionCode: 32
+- APK: `build/CatalogClean-v3.3.3.apk`
 - Package: `com.anonymous.catalogclean`
 - Build: `android\gradlew.bat -p android assembleRelease`
 - JAVA_HOME: `.build-tools\jdk17\jdk-17.0.19+10`

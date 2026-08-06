@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, TextInput, View, ActivityIndicator, FlatList } from 'react-native';
 import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import { useDependencies } from '../../../../bootstrap/dependencies';
@@ -26,10 +26,12 @@ import { usePurchaseCart } from '../../../orders/presentation/hooks/usePurchaseC
 import { createId } from '../../../../shared/utils/ids';
 import { Product } from '../../../products/domain/entities/product';
 import { PurchaseCartItem, PurchaseDiscountType } from '../../../orders/domain/entities/PurchaseCartItem';
+import { calculatePurchaseTaxes, PurchaseDocumentType } from '../../../purchase-documents/domain/entities/PurchaseDocument';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export function SupplierPurchaseScreen() {
   const colors = useThemeColors();
-  const { useCases } = useDependencies();
+  const { useCases, repositories } = useDependencies();
   const { navigate, routeParams } = useAppNavigation();
   const { products } = useProducts();
   const { profile } = useProfile();
@@ -37,6 +39,8 @@ export function SupplierPurchaseScreen() {
   const { items, reload, totalItems, subtotal } = usePurchaseCart();
 
   const [supplierName, setSupplierName] = useState(routeParams?.supplierName ?? '');
+  const [supplierId, setSupplierId] = useState(routeParams?.supplierId ?? '');
+  const [documentType, setDocumentType] = useState<PurchaseDocumentType>('purchase-order');
   const [showSupplierPicker, setShowSupplierPicker] = useState(false);
   const [notes, setNotes] = useState('');
   const [showProductPicker, setShowProductPicker] = useState(false);
@@ -52,14 +56,29 @@ export function SupplierPurchaseScreen() {
   const [discountValue, setDiscountValue] = useState('');
 
   const filteredProducts = useMemo(() => {
-    if (!pickerSearch) return products;
+    if (!supplierId) return [];
     const q = pickerSearch.toLowerCase();
     return products.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.code && p.code.toLowerCase().includes(q)),
+        p.supplierId === supplierId &&
+        (!q || p.name.toLowerCase().includes(q) ||
+        (p.code && p.code.toLowerCase().includes(q))),
     );
-  }, [products, pickerSearch]);
+  }, [products, pickerSearch, supplierId]);
+
+  const { netAmount, ivaAmount, total } = calculatePurchaseTaxes(subtotal);
+  const documentLabel = documentType === 'quotation' ? 'Cotización' : 'Orden de compra';
+
+  useEffect(() => {
+    if (!supplierId || items.length === 0 || products.length === 0) return;
+    const containsAnotherSupplier = items.some((item) => {
+      const product = products.find((candidate) => candidate.id === item.productId);
+      return product ? product.supplierId !== supplierId : false;
+    });
+    if (containsAnotherSupplier) {
+      void useCases.clearPurchaseCart.execute().then(() => reload());
+    }
+  }, [items, products, reload, supplierId, useCases.clearPurchaseCart]);
 
   function updateQuantity(productId: string, currentQty: number, delta: number) {
     const newQty = currentQty + delta;
@@ -143,7 +162,12 @@ export function SupplierPurchaseScreen() {
       setError('El carrito está vacío');
       return;
     }
+    if (!supplierId) {
+      setError('Selecciona un proveedor registrado');
+      return;
+    }
 
+    let draftId: string | null = null;
     try {
       setError('');
       setGenerating(true);
@@ -160,32 +184,58 @@ export function SupplierPurchaseScreen() {
         subtotal: i.subtotal,
       }));
 
+      const legacyCounter = Number(
+        await AsyncStorage.getItem(`supplier_document_counter_${documentType}`),
+      ) || 0;
+      const draft = await repositories.purchaseDocuments.createDraft({
+        id: createId('pdoc'),
+        type: documentType,
+        supplierId,
+        supplierName: supplierName.trim(),
+        items: cartItems,
+        netAmount,
+        ivaAmount,
+        total,
+        notes: notes.trim() || undefined,
+        createdAt: new Date().toISOString(),
+      }, legacyCounter);
+      draftId = draft.id;
       const order = {
-        id: createId('pc'),
-        orderNumber: 0,
+        id: draft.id,
+        orderNumber: draft.documentNumber,
         clientName: supplierName.trim(),
         items: cartItems,
-        subtotal,
-        iva: 0,
-        total: subtotal,
+        subtotal: netAmount,
+        iva: ivaAmount,
+        total,
+        documentType,
+        status: 'pending',
+        paidAmount: 0,
         notes: notes.trim() || undefined,
         createdAt: new Date().toISOString(),
       };
 
       const uri = await useCases.generateOrderPdf.execute(order as any, profile);
+      await repositories.purchaseDocuments.attachPdf(draft.id, uri);
+      draftId = null;
       setPdfUri(uri);
       setShowResult(true);
 
-      for (const item of items) {
-        const product = products.find((p) => p.id === item.productId);
-        if (product) {
-          await useCases.updateStock.execute(item.productId, product.stock + item.quantity);
+      if (documentType === 'purchase-order') {
+        for (const item of items) {
+          const product = products.find((p) => p.id === item.productId);
+          if (product) {
+            await useCases.updateStock.execute(item.productId, product.stock + item.quantity);
+          }
         }
       }
 
       await useCases.clearPurchaseCart.execute();
       await reload();
     } catch (err) {
+      if (draftId) {
+        await repositories.purchaseDocuments.delete(draftId).catch(() => {});
+      }
       setError(err instanceof Error ? err.message : 'No se pudo generar el PDF');
     } finally {
       setGenerating(false);
@@ -195,7 +245,7 @@ export function SupplierPurchaseScreen() {
   async function sharePdf() {
     if (!pdfUri) return;
     try {
-      await useCases.shareCatalogPdf.shareFile(pdfUri, `Compra - ${supplierName}`);
+      await useCases.shareCatalogPdf.shareFile(pdfUri, `${documentLabel} - ${supplierName}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo compartir');
     }
@@ -206,7 +256,7 @@ export function SupplierPurchaseScreen() {
       <Screen>
         <Header
           eyebrow="Compra proveedor"
-          title="Carrito de compra"
+          title={documentLabel}
           subtitle={totalItems > 0 ? `${totalItems} productos - ${formatMoney(subtotal)}` : 'Carrito de compra vacío'}
           action={
             items.length > 0 ? (
@@ -225,7 +275,7 @@ export function SupplierPurchaseScreen() {
                 <Ionicons name="business-outline" size={14} color={colors.primary} />
                 <AppText variant="bodySmall" color="accent" style={{ fontWeight: '600' as any }}>{supplierName}</AppText>
               </View>
-              <Pressable onPress={() => setSupplierName('')} style={{ padding: 6 }}>
+              <Pressable onPress={() => { setSupplierName(''); setSupplierId(''); }} style={{ padding: 6 }}>
                 <Ionicons name="close-circle" size={18} color={colors.error} />
               </Pressable>
             </View>
@@ -264,14 +314,23 @@ export function SupplierPurchaseScreen() {
               marginTop: 8,
             }}
             value={supplierName}
-            onChangeText={setSupplierName}
+            onChangeText={(value) => { setSupplierName(value); setSupplierId(''); }}
           />
+          {supplierId ? (
+            <View style={{ marginTop: 16 }}>
+              <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 8 }}>Tipo de documento</AppText>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <ChoiceChip label="Cotización" selected={documentType === 'quotation'} onPress={() => setDocumentType('quotation')} />
+                <ChoiceChip label="Orden de compra" selected={documentType === 'purchase-order'} onPress={() => setDocumentType('purchase-order')} />
+              </View>
+            </View>
+          ) : null}
         </Card>
 
         <PrimaryButton
           label="Agregar productos"
           icon="add-circle-outline"
-          onPress={() => setShowProductPicker(true)}
+          onPress={() => supplierId ? setShowProductPicker(true) : setError('Selecciona primero un proveedor registrado')}
         />
 
         {items.length === 0 ? (
@@ -352,13 +411,17 @@ export function SupplierPurchaseScreen() {
 
             <Card variant="elevated" style={{ gap: 8 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <AppText variant="bodyMedium" color="muted">Subtotal</AppText>
-                <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>{formatMoney(subtotal)}</AppText>
+                <AppText variant="bodyMedium" color="muted">Neto</AppText>
+                <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>{formatMoney(netAmount)}</AppText>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <AppText variant="bodyMedium" color="muted">IVA (19%)</AppText>
+                <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>{formatMoney(ivaAmount)}</AppText>
               </View>
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <AppText variant="headingSmall" color="primary">Total</AppText>
-                <AppText variant="headingSmall" color="accent" style={{ fontWeight: '700' } as any}>{formatMoney(subtotal)}</AppText>
+                <AppText variant="headingSmall" color="accent" style={{ fontWeight: '700' } as any}>{formatMoney(total)}</AppText>
               </View>
             </Card>
 
@@ -386,7 +449,7 @@ export function SupplierPurchaseScreen() {
             ) : null}
 
             <PrimaryButton
-              label={generating ? 'Generando...' : 'Generar detalle de compra'}
+              label={generating ? 'Generando...' : `Generar ${documentLabel.toLowerCase()}`}
               icon="document-text-outline"
               onPress={generatePdf}
               disabled={generating}
@@ -404,6 +467,7 @@ export function SupplierPurchaseScreen() {
         <SearchBar value={pickerSearch} onChange={setPickerSearch} placeholder="Buscar producto..." />
         <FlatList
           data={filteredProducts}
+          ListEmptyComponent={<AppText variant="bodyMedium" color="muted" style={{ textAlign: 'center', paddingVertical: 24 }}>Este proveedor no tiene productos asociados.</AppText>}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
             const inCart = items.some((i) => i.productId === item.id);
@@ -571,7 +635,7 @@ export function SupplierPurchaseScreen() {
       <BottomSheet
         visible={showResult}
         onClose={() => setShowResult(false)}
-        title="Detalle generado"
+        title={`${documentLabel} generada`}
         stickyFooter={
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}>
@@ -632,6 +696,7 @@ export function SupplierPurchaseScreen() {
                 key={s.id}
                 onPress={() => {
                   setSupplierName(s.name);
+                  setSupplierId(s.id);
                   setShowSupplierPicker(false);
                 }}
                 style={{
@@ -640,21 +705,21 @@ export function SupplierPurchaseScreen() {
                   gap: 10,
                   padding: 12,
                   borderRadius: 10,
-                  backgroundColor: supplierName === s.name ? colors.primarySoft : colors.surface,
+                  backgroundColor: supplierId === s.id ? colors.primarySoft : colors.surface,
                   borderWidth: 1.5,
-                  borderColor: supplierName === s.name ? colors.primary : colors.borderDefault,
+                  borderColor: supplierId === s.id ? colors.primary : colors.borderDefault,
                 }}
               >
-                <Ionicons name="business-outline" size={18} color={supplierName === s.name ? colors.primary : colors.textMuted} />
+                <Ionicons name="business-outline" size={18} color={supplierId === s.id ? colors.primary : colors.textMuted} />
                 <View style={{ flex: 1 }}>
-                  <AppText variant="bodyMedium" color={supplierName === s.name ? 'accent' : 'primary'} style={{ fontWeight: '600' } as any}>
+                  <AppText variant="bodyMedium" color={supplierId === s.id ? 'accent' : 'primary'} style={{ fontWeight: '600' } as any}>
                     {s.name}
                   </AppText>
                   {s.contactName ? (
                     <AppText variant="caption" color="muted">{s.contactName}</AppText>
                   ) : null}
                 </View>
-                {supplierName === s.name && (
+                {supplierId === s.id && (
                   <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
                 )}
               </Pressable>

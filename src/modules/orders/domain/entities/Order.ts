@@ -1,6 +1,7 @@
 import { CartItem } from './CartItem';
 
 export type OrderStatus = 'pending' | 'partial' | 'paid';
+export type OrderDocumentType = 'quotation' | 'purchase-order';
 
 export type Order = {
   id: string;
@@ -15,4 +16,5 @@ export type Order = {
   paidAmount: number;
   notes?: string;
   createdAt: string;
+  documentType?: OrderDocumentType;
 };

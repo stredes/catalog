@@ -422,7 +422,7 @@ export function SuppliersScreen() {
             <Pressable
               onPress={() => {
                 setSelectedSupplier(null);
-                navigate('PurchaseCart', { supplierName: selectedSupplier.name });
+                navigate('PurchaseCart', { supplierName: selectedSupplier.name, supplierId: selectedSupplier.id });
               }}
               style={{
                 flexDirection: 'row',

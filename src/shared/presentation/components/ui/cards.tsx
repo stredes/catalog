@@ -322,9 +322,17 @@ export const CatalogHistoryItem = memo(function CatalogHistoryItem({ name, forma
   const colors = c();
 
   const isPurchaseDetail = purpose === 'purchase-detail';
-  const iconBg = isPurchaseDetail ? colors.primaryLight : colors.errorLight;
-  const iconColor = isPurchaseDetail ? colors.primary : colors.error;
-  const iconName = isPurchaseDetail ? 'cart-outline' : 'document-text-outline';
+  const isSupplierDocument = purpose === 'quotation' || purpose === 'purchase-order';
+  const iconBg = isPurchaseDetail || isSupplierDocument ? colors.primaryLight : colors.errorLight;
+  const iconColor = isPurchaseDetail || isSupplierDocument ? colors.primary : colors.error;
+  const iconName = isPurchaseDetail || isSupplierDocument ? 'cart-outline' : 'document-text-outline';
+  const purposeLabel = purpose === 'quotation'
+    ? 'COTIZACIÓN'
+    : purpose === 'purchase-order'
+      ? 'ORDEN DE COMPRA'
+      : isPurchaseDetail
+        ? 'COMPRA'
+        : null;
 
   return (
     <Card variant="default" style={styles.historyItem}>
@@ -334,8 +342,10 @@ export const CatalogHistoryItem = memo(function CatalogHistoryItem({ name, forma
       <View style={{ flex: 1, minWidth: 0 }}>
         <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: fontWeights.semiBold }}>{name}</AppText>
         <View style={styles.historyMeta}>
-          {isPurchaseDetail ? (
-            <AppText variant="caption" color="accent" style={{ fontWeight: '600' as any }}>COMPRA</AppText>
+          {purposeLabel ? (
+            <AppText variant="caption" color="accent" style={{ fontWeight: '600' as any }}>
+              {isSupplierDocument ? `${purposeLabel} · ${format}` : purposeLabel}
+            </AppText>
           ) : (
             <AppText variant="caption" color="muted">{FORMAT_LABELS[format] ?? format}</AppText>
           )}

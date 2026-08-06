@@ -35,9 +35,14 @@ export class OrderPdfGenerator {
     pdfDirectory.create({ idempotent: true, intermediates: true });
 
     const source = new File(file.uri);
+    const documentSlug = order.documentType === 'quotation'
+      ? 'cotizacion'
+      : order.documentType === 'purchase-order'
+        ? 'orden-de-compra'
+        : 'pedido';
     const destination = new File(
       pdfDirectory,
-      `pedido-${formatOrderNumber(order.orderNumber)}-${order.clientName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`,
+      `${documentSlug}-${formatOrderNumber(order.orderNumber)}-${order.clientName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`,
     );
 
     if (destination.exists) {
@@ -53,6 +58,12 @@ export class OrderPdfGenerator {
   }
 
   private buildHtml(order: Order, profile: Profile | null, logoDataUri: string): string {
+    const isSupplierDocument = !!order.documentType;
+    const documentTitle = order.documentType === 'quotation'
+      ? 'COTIZACIÓN'
+      : order.documentType === 'purchase-order'
+        ? 'ORDEN DE COMPRA'
+        : 'PEDIDO';
     const paidAmount = order.paidAmount ?? (order.status === 'paid' ? order.total : 0);
     const pendingAmount = Math.max(0, order.total - paidAmount);
     const statusStyle = order.status === 'paid'
@@ -130,15 +141,15 @@ export class OrderPdfGenerator {
 </head>
 <body>
   <div style="text-align:center;margin-bottom:8px">
-    <h1 style="font-size:24px;font-weight:800;color:#111827;letter-spacing:1px">PEDIDO</h1>
+    <h1 style="font-size:24px;font-weight:800;color:#111827;letter-spacing:1px">${documentTitle}</h1>
     <div style="font-size:13px;color:#64748b;margin-top:4px">N° ${formatOrderNumber(order.orderNumber)}</div>
-    <div style="margin-top:6px;display:inline-block;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:0.5px;${statusStyle}">${statusLabel}</div>
+    ${isSupplierDocument ? '' : `<div style="margin-top:6px;display:inline-block;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:0.5px;${statusStyle}">${statusLabel}</div>`}
   </div>
 
   ${profileSection}
 
   <div style="display:flex;justify-content:space-between;margin-bottom:20px;font-size:13px;color:#374151">
-    <div><strong>Cliente:</strong> ${escapeHtml(order.clientName)}</div>
+    <div><strong>${isSupplierDocument ? 'Proveedor' : 'Cliente'}:</strong> ${escapeHtml(order.clientName)}</div>
     <div><strong>Fecha:</strong> ${new Date(order.createdAt).toLocaleString('es-CL')}</div>
   </div>
 
@@ -161,9 +172,10 @@ export class OrderPdfGenerator {
   <div style="display:flex;justify-content:flex-end">
     <div style="width:260px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:16px">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;color:#6b7280">
-        <span>Subtotal</span>
+        <span>${isSupplierDocument ? 'Neto' : 'Subtotal'}</span>
         <span>${formatMoneyCLP(order.subtotal)}</span>
       </div>
+      ${isSupplierDocument ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;color:#6b7280"><span>IVA (19%)</span><span>${formatMoneyCLP(order.iva)}</span></div>` : ''}
       <div style="border-top:2px solid #dbeafe;padding-top:8px;margin-top:4px">
         <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:800;color:#111827">
           <span>TOTAL</span>
@@ -189,7 +201,7 @@ export class OrderPdfGenerator {
   ` : ''}
 
   <div style="text-align:center;margin-top:32px;padding-top:16px;border-top:2px solid #e5e7eb">
-    <div style="font-size:14px;font-weight:700;color:#111827">Gracias por su compra</div>
+    <div style="font-size:14px;font-weight:700;color:#111827">${isSupplierDocument ? documentTitle : 'Gracias por su compra'}</div>
     ${profile?.businessName ? `<div style="font-size:11px;color:#6b7280;margin-top:4px">${escapeHtml(profile.businessName)}</div>` : ''}
   </div>
 </body>

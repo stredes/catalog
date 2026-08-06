@@ -22,15 +22,19 @@ import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { spacing } from '../../../../shared/presentation/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CatalogPurpose } from '../../../catalogs/domain/entities/Catalog';
+import { usePurchaseDocuments } from '../../../purchase-documents/presentation/hooks/usePurchaseDocuments';
+import { PurchaseDocumentType } from '../../../purchase-documents/domain/entities/PurchaseDocument';
+import { formatMoney } from '../../../../shared/utils/money';
 
 type SortOption = 'newest' | 'name';
-type PurposeFilter = 'all' | CatalogPurpose;
+type PurposeFilter = 'all' | CatalogPurpose | PurchaseDocumentType;
 
 export function HistoryScreen() {
   const colors = useThemeColors();
-  const { useCases } = useDependencies();
+  const { useCases, repositories } = useDependencies();
   const { navigate } = useAppNavigation();
   const { catalogs, reload } = useCatalogs();
+  const { documents, reload: reloadPurchaseDocuments } = usePurchaseDocuments();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
@@ -41,6 +45,7 @@ export function HistoryScreen() {
   const sortedCatalogs = useMemo(() => {
     let result = [...catalogs];
 
+    if (purposeFilter === 'quotation' || purposeFilter === 'purchase-order') return [];
     if (purposeFilter !== 'all') {
       result = result.filter((c) => c.purpose === purposeFilter);
     }
@@ -61,7 +66,25 @@ export function HistoryScreen() {
     }
 
     return result;
-  }, [catalogs, search, sortBy]);
+  }, [catalogs, search, sortBy, purposeFilter]);
+
+  const sortedPurchaseDocuments = useMemo(() => {
+    let result = [...documents];
+    if (purposeFilter === 'catalog' || purposeFilter === 'purchase-detail') return [];
+    if (purposeFilter !== 'all') result = result.filter((document) => document.type === purposeFilter);
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((document) =>
+        document.supplierName.toLowerCase().includes(q) || String(document.documentNumber).includes(q),
+      );
+    }
+    if (sortBy === 'name') result.sort((a, b) => a.supplierName.localeCompare(b.supplierName));
+    else result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return result;
+  }, [documents, purposeFilter, search, sortBy]);
+
+  const totalDocumentCount = catalogs.length + documents.length;
+  const resultCount = sortedCatalogs.length + sortedPurchaseDocuments.length;
 
   async function share(id: string) {
     const catalog = catalogs.find((item) => item.id === id);
@@ -73,6 +96,18 @@ export function HistoryScreen() {
       setError(
         currentError instanceof Error ? currentError.message : 'No se pudo abrir el catálogo.',
       );
+    }
+  }
+
+  async function sharePurchaseDocument(id: string) {
+    const document = documents.find((item) => item.id === id);
+    if (!document?.pdfUri) return;
+    try {
+      setError('');
+      const title = document.type === 'quotation' ? 'Cotización' : 'Orden de compra';
+      await useCases.shareCatalogPdf.shareFile(document.pdfUri, `${title} N° ${String(document.documentNumber).padStart(4, '0')}`);
+    } catch (currentError) {
+      setError(currentError instanceof Error ? currentError.message : 'No se pudo compartir el documento.');
     }
   }
 
@@ -94,15 +129,15 @@ export function HistoryScreen() {
 
   async function executeDelete() {
     if (!deleteId) return;
-    await useCases.deleteCatalog.execute(deleteId);
+    if (documents.some((document) => document.id === deleteId)) {
+      await repositories.purchaseDocuments.delete(deleteId);
+      await reloadPurchaseDocuments();
+    } else {
+      await useCases.deleteCatalog.execute(deleteId);
+      await reload();
+    }
     setDeleteId(null);
-    await reload();
   }
-
-  const uniqueFormats = useMemo(
-    () => [...new Set(catalogs.map((c) => c.format))],
-    [catalogs],
-  );
 
   return (
     <>
@@ -110,14 +145,14 @@ export function HistoryScreen() {
         <Header
           eyebrow="Historial"
           title="Mis documentos"
-          subtitle={catalogs.length > 0 ? `${catalogs.length} documento${catalogs.length !== 1 ? 's' : ''} generado${catalogs.length !== 1 ? 's' : ''}` : 'Tus catálogos y detalles de compra aparecerán aquí'}
+          subtitle={totalDocumentCount > 0 ? `${totalDocumentCount} documento${totalDocumentCount !== 1 ? 's' : ''} generado${totalDocumentCount !== 1 ? 's' : ''}` : 'Tus documentos aparecerán aquí'}
         />
 
-        {catalogs.length > 0 ? (
+        {totalDocumentCount > 0 ? (
           <>
             <SearchBar value={search} onChange={setSearch} placeholder="Buscar catálogos..." />
 
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
               <ChoiceChip
                 label="Todos"
                 selected={purposeFilter === 'all'}
@@ -132,6 +167,16 @@ export function HistoryScreen() {
                 label="Detalles de compra"
                 selected={purposeFilter === 'purchase-detail'}
                 onPress={() => setPurposeFilter('purchase-detail')}
+              />
+              <ChoiceChip
+                label="Cotizaciones proveedor"
+                selected={purposeFilter === 'quotation'}
+                onPress={() => setPurposeFilter('quotation')}
+              />
+              <ChoiceChip
+                label="Órdenes de compra"
+                selected={purposeFilter === 'purchase-order'}
+                onPress={() => setPurposeFilter('purchase-order')}
               />
             </View>
 
@@ -154,17 +199,17 @@ export function HistoryScreen() {
 
         {error ? <AppText variant="bodySmall" color="error" style={{ fontWeight: '600' } as any}>{error}</AppText> : null}
 
-        {sortedCatalogs.length === 0 ? (
+        {resultCount === 0 ? (
           <EmptyStateIllustrated
             icon="document-text-outline"
-            title={catalogs.length === 0 ? 'Sin documentos' : 'Sin resultados'}
+            title={totalDocumentCount === 0 ? 'Sin documentos' : 'Sin resultados'}
             subtitle={
-              catalogs.length === 0
-                ? 'Genera tu primer catálogo o detalle de compra para verlo aquí.'
+              totalDocumentCount === 0
+                ? 'Genera tu primer documento para verlo aquí.'
                 : 'Ningún documento coincide con tu búsqueda.'
             }
             action={
-              catalogs.length === 0 ? (
+              totalDocumentCount === 0 ? (
                 <PrimaryButton
                   label="Crear documento"
                   icon="add-circle-outline"
@@ -174,7 +219,7 @@ export function HistoryScreen() {
             }
           />
         ) : (
-          <Section title={`${sortedCatalogs.length} resultado${sortedCatalogs.length !== 1 ? 's' : ''}`}>
+          <Section title={`${resultCount} resultado${resultCount !== 1 ? 's' : ''}`}>
             {sortedCatalogs.map((catalog) => (
               <View key={catalog.id}>
                 <CatalogHistoryItem
@@ -189,13 +234,26 @@ export function HistoryScreen() {
                 />
               </View>
             ))}
+            {sortedPurchaseDocuments.map((document) => (
+              <View key={document.id} style={{ marginBottom: 8 }}>
+                <CatalogHistoryItem
+                  name={`N° ${String(document.documentNumber).padStart(4, '0')} - ${document.supplierName}`}
+                  format={formatMoney(document.total)}
+                  purpose={document.type}
+                  date={formatDate(document.createdAt)}
+                  productCount={document.items.length}
+                  onShare={() => sharePurchaseDocument(document.id)}
+                  onDelete={() => confirmDelete(document.id)}
+                />
+              </View>
+            ))}
           </Section>
         )}
       </Screen>
 
       <ConfirmDialog
         visible={deleteId !== null}
-        title="Eliminar catálogo"
+        title="Eliminar documento"
         message="Se eliminará del historial local. Esta acción no se puede deshacer."
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"

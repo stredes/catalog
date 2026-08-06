@@ -212,6 +212,26 @@ const migrations: Record<number, string[]> = {
     `ALTER TABLE backup_snapshots ADD COLUMN invoicesCount INTEGER NOT NULL DEFAULT 0`,
     RECORD_HISTORY_DDL,
   ],
+  25: [
+    `CREATE TABLE IF NOT EXISTS purchase_documents (
+      id TEXT PRIMARY KEY NOT NULL,
+      documentNumber INTEGER NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('quotation', 'purchase-order')),
+      supplierId TEXT NOT NULL,
+      supplierName TEXT NOT NULL,
+      items TEXT NOT NULL,
+      netAmount REAL NOT NULL,
+      ivaAmount REAL NOT NULL,
+      total REAL NOT NULL,
+      notes TEXT,
+      pdfUri TEXT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      createdAt TEXT NOT NULL
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_purchase_documents_type_number ON purchase_documents(type, documentNumber)`,
+    `CREATE INDEX IF NOT EXISTS idx_purchase_documents_createdAt ON purchase_documents(createdAt)`,
+    `CREATE INDEX IF NOT EXISTS idx_purchase_documents_supplierId ON purchase_documents(supplierId)`,
+  ],
 }
 
 async function columnExists(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {

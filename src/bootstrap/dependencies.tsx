@@ -107,6 +107,7 @@ import {
 } from '../modules/invoices/application/use-cases/InvoiceUseCases';
 import { SQLiteInvoiceRepository } from '../modules/invoices/infrastructure/repositories/SQLiteInvoiceRepository';
 import { SQLiteRecordHistoryRepository } from '../modules/invoices/infrastructure/repositories/SQLiteRecordHistoryRepository';
+import { SQLitePurchaseDocumentRepository } from '../modules/purchase-documents/infrastructure/repositories/SQLitePurchaseDocumentRepository';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -126,6 +127,7 @@ function buildDependencies() {
   const clientRepository = new SQLiteClientRepository();
   const invoiceRepository = new SQLiteInvoiceRepository();
   const recordHistoryRepository = new SQLiteRecordHistoryRepository();
+  const purchaseDocumentRepository = new SQLitePurchaseDocumentRepository();
   const pdfGenerator = new ExpoPdfGenerator();
   const shareService = new ExpoNativeShareService();
   const imagePicker = new ExpoImagePickerService();
@@ -183,6 +185,7 @@ function buildDependencies() {
         clients: clientRepository,
         invoices: invoiceRepository,
         recordHistory: recordHistoryRepository,
+        purchaseDocuments: purchaseDocumentRepository,
       },
       services: {
         preferences,

@@ -30,6 +30,8 @@ export type RestoreResult = {
   catalogsRestored: number;
   ordersRestored: number;
   suppliersRestored: number;
+  quotationsRestored: number;
+  clientsRestored: number;
   profileRestored: boolean;
   imagesRestored: number;
   warnings: string[];
@@ -77,10 +79,12 @@ export class RestoreBackupUseCase {
         cc: payload.catalogs.length,
         oc: payload.orders.length,
         sc: payload.suppliers?.length ?? 0,
+        clc: payload.clients?.length ?? 0,
         fp: payload.profile !== null,
         fn: payload.families.map((f) => f.id).sort(),
         pn: payload.products.map((p) => p.id).sort(),
         cn: payload.catalogs.map((c) => c.id).sort(),
+        cln: payload.clients?.map((c) => c.id).sort(),
       });
       if (currentChecksum !== snapshot.checksum) {
         throw new AppError('DATABASE_ERROR', 'El checksum del backup no coincide con su contenido');
@@ -181,6 +185,7 @@ export class RestoreBackupUseCase {
         orders: validOrders,
         suppliers: validSuppliers,
         quotations: validQuotations,
+        clients: payload.clients ?? [],
       });
     } catch (error) {
       throw new AppError(
@@ -196,6 +201,8 @@ export class RestoreBackupUseCase {
       catalogsRestored: payload.catalogs.length,
       ordersRestored: validOrders.length,
       suppliersRestored: validSuppliers.length,
+      quotationsRestored: validQuotations.length,
+      clientsRestored: (payload.clients ?? []).length,
       profileRestored: payload.profile !== null,
       imagesRestored: Object.keys(restoredImages).length,
       warnings,

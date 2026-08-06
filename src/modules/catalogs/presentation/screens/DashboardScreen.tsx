@@ -63,7 +63,7 @@ export function DashboardScreen() {
   const [seeding, setSeeding] = useState(false);
 
   const compactLayout = screenWidth < 390;
-  const gridGap = 14;
+  const gridGap = 16;
   const useSingleColumn = screenWidth < 350;
   const availableWidth = screenWidth - 40;
   const cardWidth = useSingleColumn ? availableWidth : (availableWidth - gridGap) / 2;
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   quickTile: {
     ...shadows.sm,

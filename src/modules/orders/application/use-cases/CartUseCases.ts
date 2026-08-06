@@ -72,6 +72,26 @@ export class UpdateCartItemDiscountUseCase {
   }
 }
 
+export class UpdateCartItemPriceUseCase {
+  constructor(private cart: CartRepository) {}
+
+  async execute(productId: string, unitPrice: number): Promise<CartItem[]> {
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      throw new Error('El precio unitario debe ser mayor a cero');
+    }
+
+    const items = await this.cart.getItems();
+    const updated = items.map((i) =>
+      i.productId === productId
+        ? { ...i, unitPrice, subtotal: calculateSubtotal(unitPrice, i.quantity, i.discountType, i.discountValue) }
+        : i,
+    );
+
+    await this.cart.saveItems(updated);
+    return updated;
+  }
+}
+
 export class RemoveFromCartUseCase {
   constructor(private cart: CartRepository) {}
 

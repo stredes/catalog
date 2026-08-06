@@ -250,7 +250,7 @@ export function SuppliersScreen() {
               const color = supplierColors[index % supplierColors.length];
 
               return (
-                <Card key={supplier.id} style={{ marginBottom: 8 }}>
+                <Card key={supplier.id}>
                   <Pressable onPress={() => setSelectedSupplier(supplier)}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                       <View

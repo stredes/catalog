@@ -30,6 +30,54 @@ const TRIGGER_LABELS: Record<string, string> = {
   'auto-before-seed': 'Auto (pre-seed)',
 };
 
+function BackupActionButton({
+  icon,
+  label,
+  onPress,
+  disabled,
+  busy,
+  testID,
+  accessibilityLabel,
+  backgroundColor,
+  borderColor,
+  iconColor,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+  testID: string;
+  accessibilityLabel: string;
+  backgroundColor: string;
+  borderColor: string;
+  iconColor: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || busy}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: disabled || busy, busy: Boolean(busy) }}
+      style={({ pressed }) => [
+        styles.actionPill,
+        {
+          backgroundColor,
+          borderColor,
+          opacity: disabled || busy ? 0.5 : pressed ? 0.85 : 1,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={16} color={iconColor} />
+      <AppText variant="caption" color="secondary" style={{ color: iconColor }}>
+        {label}
+      </AppText>
+    </Pressable>
+  );
+}
+
 export function BackupSettingsScreen() {
   const colors = useThemeColors();
   const { navigate } = useAppNavigation();
@@ -65,6 +113,8 @@ export function BackupSettingsScreen() {
     catalogs: number;
     orders: number;
     suppliers: number;
+    quotations: number;
+    clients: number;
     images: number;
   } | null>(null);
   const [showImportPreview, setShowImportPreview] = useState(false);
@@ -81,7 +131,7 @@ export function BackupSettingsScreen() {
   async function handleImportBackup() {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/json',
+        type: ['application/json', 'application/zip', 'application/x-zip-compressed'],
         copyToCacheDirectory: true,
       });
 
@@ -256,21 +306,23 @@ export function BackupSettingsScreen() {
           </Card>
         )}
 
-        <PrimaryButton
-          label={creating ? 'Creando backup...' : 'Crear backup manual'}
-          icon="add-circle-outline"
-          disabled={creating}
-          testID="create-manual-backup-btn"
-          onPress={() => setShowCreateForm(true)}
-        />
+        <View style={{ gap: 12 }}>
+          <PrimaryButton
+            label={creating ? 'Creando backup...' : 'Crear backup manual'}
+            icon="add-circle-outline"
+            disabled={creating}
+            testID="create-manual-backup-btn"
+            onPress={() => setShowCreateForm(true)}
+          />
 
-        <PrimaryButton
-          label={importProgress !== null ? 'Importando...' : 'Importar backup desde archivo'}
-          icon="document-outline"
-          disabled={importProgress !== null}
-          testID="import-backup-btn"
-          onPress={handleImportBackup}
-        />
+          <PrimaryButton
+            label={importProgress !== null ? 'Importando...' : 'Importar backup desde archivo'}
+            icon="document-outline"
+            disabled={importProgress !== null}
+            testID="import-backup-btn"
+            onPress={handleImportBackup}
+          />
+        </View>
 
         <Section
           title={`Backups (${backups.length})`}
@@ -303,9 +355,8 @@ export function BackupSettingsScreen() {
                 >
                   <Card
                     variant={restoring === backup.id ? 'selected' : 'default'}
-                    style={{ marginBottom: 8 }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
                       <View
                         style={{
                           width: 40,
@@ -339,11 +390,11 @@ export function BackupSettingsScreen() {
                           }
                         />
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <AppText variant="bodyMedium" color="primary" numberOfLines={1}>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <AppText variant="bodyMedium" color="primary">
                           {backup.label}
                         </AppText>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                        <View style={styles.backupMetaRow}>
                           <AppText variant="caption" color="muted">
                             {formatBackupDate(backup.createdAt)}
                           </AppText>
@@ -352,7 +403,7 @@ export function BackupSettingsScreen() {
                             {backup.familiesCount} fam. · {backup.productsCount} prod.
                           </AppText>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                        <View style={styles.backupMetaRow}>
                           <AppText variant="caption" color="muted">
                             {TRIGGER_LABELS[backup.trigger] ?? backup.trigger}
                           </AppText>
@@ -369,78 +420,57 @@ export function BackupSettingsScreen() {
                           )}
                         </View>
                       </View>
-                      <View style={{ flexDirection: 'row', gap: 4 }}>
-                        <Pressable
-                          onPress={() => exportBackup(backup, exportCustomName || undefined)}
-                          testID="export-backup-btn"
-                          style={[
-                            {
-                              width: 32,
-                              height: 32,
-                              borderRadius: 8,
-                              backgroundColor: colors.primaryLight,
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            },
-                          ]}
-                        >
-                          <Ionicons name="share-outline" size={16} color={colors.primary} />
-                        </Pressable>
-                        <Pressable
-                          onPress={() => verifyChecksum(backup)}
-                          disabled={verifyingChecksum === backup.id}
-                          testID="verify-checksum-btn"
-                          style={[
-                            {
-                              width: 32,
-                              height: 32,
-                              borderRadius: 8,
-                              backgroundColor: verifyingChecksum === backup.id ? colors.warning + '20' : colors.successLight,
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            },
-                          ]}
-                        >
-                          {verifyingChecksum === backup.id ? (
-                            <Ionicons name="refresh" size={16} color={colors.warning} />
-                          ) : (
-                            <Ionicons name="shield-checkmark-outline" size={16} color={colors.success} />
-                          )}
-                        </Pressable>
-                        <Pressable
-                          onPress={() => restoreBackup(backup)}
-                          disabled={restoring === backup.id}
-                          testID="restore-backup-btn"
-                          style={[
-                            {
-                              width: 32,
-                              height: 32,
-                              borderRadius: 8,
-                              backgroundColor: colors.primaryLight,
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            },
-                          ]}
-                        >
-                          <Ionicons name="refresh-outline" size={16} color={colors.primary} />
-                        </Pressable>
-                        <Pressable
-                          onPress={() => deleteBackup(backup)}
-                          testID="delete-backup-btn"
-                          style={[
-                            {
-                              width: 32,
-                              height: 32,
-                              borderRadius: 8,
-                              backgroundColor: colors.errorLight,
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            },
-                          ]}
-                        >
-                          <Ionicons name="trash-outline" size={16} color={colors.error} />
-                        </Pressable>
-                      </View>
+                    </View>
+                    <View style={styles.backupActions}>
+                      <BackupActionButton
+                        icon="share-outline"
+                        label="Exportar"
+                        onPress={() => exportBackup(backup, exportCustomName || undefined)}
+                        disabled={creating || restoring !== null}
+                        testID="export-backup-btn"
+                        accessibilityLabel={`Exportar backup ${backup.label}`}
+                        backgroundColor={colors.primaryLight}
+                        borderColor={colors.primary + '30'}
+                        iconColor={colors.primary}
+                      />
+                      <BackupActionButton
+                        icon={verifyingChecksum === backup.id ? 'refresh' : 'shield-checkmark-outline'}
+                        label="Verificar"
+                        onPress={() => verifyChecksum(backup)}
+                        disabled={verifyingChecksum === backup.id || restoring !== null}
+                        busy={verifyingChecksum === backup.id}
+                        testID="verify-checksum-btn"
+                        accessibilityLabel={`Verificar checksum de ${backup.label}`}
+                        backgroundColor={
+                          verifyingChecksum === backup.id ? colors.warning + '20' : colors.successLight
+                        }
+                        borderColor={
+                          verifyingChecksum === backup.id ? colors.warning + '40' : colors.success + '30'
+                        }
+                        iconColor={verifyingChecksum === backup.id ? colors.warning : colors.success}
+                      />
+                      <BackupActionButton
+                        icon="refresh-outline"
+                        label="Restaurar"
+                        onPress={() => restoreBackup(backup)}
+                        disabled={restoring === backup.id || creating}
+                        testID="restore-backup-btn"
+                        accessibilityLabel={`Restaurar backup ${backup.label}`}
+                        backgroundColor={colors.primaryLight}
+                        borderColor={colors.primary + '30'}
+                        iconColor={colors.primary}
+                      />
+                      <BackupActionButton
+                        icon="trash-outline"
+                        label="Eliminar"
+                        onPress={() => deleteBackup(backup)}
+                        disabled={restoring !== null}
+                        testID="delete-backup-btn"
+                        accessibilityLabel={`Eliminar backup ${backup.label}`}
+                        backgroundColor={colors.errorLight}
+                        borderColor={colors.error + '30'}
+                        iconColor={colors.error}
+                      />
                     </View>
                   </Card>
                 </Pressable>
@@ -536,6 +566,14 @@ export function BackupSettingsScreen() {
               <AppText variant="bodySmall" color="muted">Proveedores</AppText>
             </View>
             <View style={styles.previewItem}>
+              <AppText variant="bodyMedium" color="primary">{importPreview.quotations}</AppText>
+              <AppText variant="bodySmall" color="muted">Cotizaciones</AppText>
+            </View>
+            <View style={styles.previewItem}>
+              <AppText variant="bodyMedium" color="primary">{importPreview.clients}</AppText>
+              <AppText variant="bodySmall" color="muted">Clientes</AppText>
+            </View>
+            <View style={styles.previewItem}>
               <AppText variant="bodyMedium" color="primary">{importPreview.images}</AppText>
               <AppText variant="bodySmall" color="muted">Imágenes</AppText>
             </View>
@@ -598,6 +636,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingVertical: 8,
+  },
+  backupMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+  },
+  backupActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  actionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 40,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    borderWidth: 1,
   },
   previewItem: {
     flexDirection: 'row',

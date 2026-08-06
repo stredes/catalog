@@ -22,7 +22,7 @@ import {
   SecondaryButton,
 } from '../../../../shared/presentation/components/ui';
 import { formatDate } from '../../../../shared/utils/dates';
-import { formatMoney } from '../../../../shared/utils/money';
+import { formatMoney, sanitizeDecimalInput } from '../../../../shared/utils/money';
 import { ProductInputDto, productSchema } from '../../application/dtos/ProductDtos';
 import { Product, ProductFormat } from '../../domain/entities/product';
 import { useProducts } from '../hooks/useProducts';
@@ -59,6 +59,7 @@ export function ProductsScreen() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [addToCartProduct, setAddToCartProduct] = useState<Product | null>(null);
   const [cartQuantity, setCartQuantity] = useState('1');
+  const [cartUnitPrice, setCartUnitPrice] = useState('');
   const [cartDiscountType, setCartDiscountType] = useState<DiscountType>('none');
   const [cartDiscountValue, setCartDiscountValue] = useState('');
 
@@ -121,7 +122,11 @@ export function ProductsScreen() {
   async function submit(input: ProductInputDto) {
     try {
       setError('');
-      const payload = { ...input, photoUri };
+      const payload = {
+        ...input,
+        code: input.code && input.code.trim() ? input.code.trim() : undefined,
+        photoUri,
+      };
 
       if (editing) {
         await useCases.updateProduct.execute(editing.id, payload);
@@ -132,7 +137,7 @@ export function ProductsScreen() {
       setEditing(null);
       setPhotoUri(undefined);
       setShowForm(false);
-      form.reset({ name: '', price: 0, stock: 0, format: 'unit', familyId: families[0]?.id ?? '' });
+      form.reset({ name: '', code: '', price: 0, stock: 0, format: 'unit', familyId: families[0]?.id ?? '', supplierId: undefined });
       await reload();
     } catch (currentError) {
       setError(
@@ -153,7 +158,7 @@ export function ProductsScreen() {
       stock: product.stock,
       format: product.format,
       familyId: product.familyId,
-      supplierId: product.supplierId,
+      supplierId: product.supplierId ?? undefined,
       photoUri: product.photoUri,
     });
   }
@@ -206,8 +211,18 @@ export function ProductsScreen() {
   }
 
   function openAddToCart(product: Product) {
+    setError('');
     setAddToCartProduct(product);
     setCartQuantity('1');
+    setCartUnitPrice(String(product.price));
+    setCartDiscountType('none');
+    setCartDiscountValue('');
+  }
+
+  function resetAddToCartDraft() {
+    setAddToCartProduct(null);
+    setCartQuantity('1');
+    setCartUnitPrice('');
     setCartDiscountType('none');
     setCartDiscountValue('');
   }
@@ -217,6 +232,12 @@ export function ProductsScreen() {
     const qty = parseInt(cartQuantity, 10);
     if (isNaN(qty) || qty <= 0) {
       setError('Cantidad invalida');
+      return;
+    }
+
+    const unitPrice = Number(cartUnitPrice);
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      setError('Precio unitario invalido');
       return;
     }
 
@@ -232,22 +253,19 @@ export function ProductsScreen() {
 
     try {
       setError('');
-      const subtotal = calculateSubtotal(addToCartProduct.price, qty, cartDiscountType, discountVal);
+      const subtotal = calculateSubtotal(unitPrice, qty, cartDiscountType, discountVal);
       await useCases.addToCart.execute({
         productId: addToCartProduct.id,
         productName: addToCartProduct.name,
         productCode: addToCartProduct.code,
-        unitPrice: addToCartProduct.price,
+        unitPrice,
         quantity: qty,
         format: addToCartProduct.format,
         discountType: cartDiscountType,
         discountValue: discountVal,
         subtotal,
       });
-      setAddToCartProduct(null);
-      setCartQuantity('1');
-      setCartDiscountType('none');
-      setCartDiscountValue('');
+      resetAddToCartDraft();
       await reloadCart();
     } catch (currentError) {
       setError(
@@ -255,6 +273,18 @@ export function ProductsScreen() {
       );
     }
   }
+
+  const cartQtyPreview = parseInt(cartQuantity, 10) || 0;
+  const cartUnitPricePreview = Number(cartUnitPrice);
+  const cartUnitPriceValid = Number.isFinite(cartUnitPricePreview) && cartUnitPricePreview > 0;
+  const cartDiscountPreview = parseFloat(cartDiscountValue) || 0;
+  const cartBasePreview = cartUnitPriceValid ? cartUnitPricePreview * cartQtyPreview : 0;
+  const cartSubtotalPreview = cartUnitPriceValid
+    ? calculateSubtotal(cartUnitPricePreview, cartQtyPreview, cartDiscountType, cartDiscountPreview)
+    : 0;
+  const cartPriceDeltaPreview = addToCartProduct && cartUnitPriceValid
+    ? (cartUnitPricePreview - addToCartProduct.price) * cartQtyPreview
+    : 0;
 
   return (
     <>
@@ -295,92 +325,94 @@ export function ProductsScreen() {
           <>
             <SearchBar value={search} onChange={setSearch} placeholder="Buscar productos..." />
 
-            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 4 }}>
-                  <ChoiceChip
-                    label="Todas"
-                    selected={filterFamily === null}
-                    onPress={() => setFilterFamily(null)}
-                  />
-                  {families.map((f) => (
+            <View style={{ gap: 8 }}>
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 4 }}>
                     <ChoiceChip
-                      key={f.id}
-                      label={f.name}
-                      selected={filterFamily === f.id}
-                      onPress={() => setFilterFamily(f.id === filterFamily ? null : f.id)}
+                      label="Todas"
+                      selected={filterFamily === null}
+                      onPress={() => setFilterFamily(null)}
                     />
-                  ))}
-                </View>
-              </ScrollView>
-
-              <View style={{ flexDirection: 'row', gap: 4 }}>
-                <Pressable
-                  onPress={() => setViewMode('grid')}
-                  style={{
-                    padding: 8,
-                    borderRadius: 8,
-                    backgroundColor: viewMode === 'grid' ? colors.primary + '18' : 'transparent',
-                  }}
-                >
-                  <Ionicons name="grid-outline" size={18} color={viewMode === 'grid' ? colors.primary : colors.textMuted} />
-                </Pressable>
-                <Pressable
-                  onPress={() => setViewMode('list')}
-                  style={{
-                    padding: 8,
-                    borderRadius: 8,
-                    backgroundColor: viewMode === 'list' ? colors.primary + '18' : 'transparent',
-                  }}
-                >
-                  <Ionicons name="list-outline" size={18} color={viewMode === 'list' ? colors.primary : colors.textMuted} />
-                </Pressable>
-              </View>
-            </View>
-
-            {suppliers.length > 0 ? (
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 2 }}>
-                    <ChoiceChip
-                      label="Todos proveedores"
-                      selected={filterSupplier === null}
-                      onPress={() => setFilterSupplier(null)}
-                      color="#8B5CF6"
-                    />
-                    {suppliers.map((s) => (
+                    {families.map((f) => (
                       <ChoiceChip
-                        key={s.id}
-                        label={s.name}
-                        selected={filterSupplier === s.id}
-                        onPress={() => setFilterSupplier(s.id === filterSupplier ? null : s.id)}
-                        color="#8B5CF6"
+                        key={f.id}
+                        label={f.name}
+                        selected={filterFamily === f.id}
+                        onPress={() => setFilterFamily(f.id === filterFamily ? null : f.id)}
                       />
                     ))}
                   </View>
                 </ScrollView>
-              </View>
-            ) : null}
 
-            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
-              <ChoiceChip
-                label="Más recientes"
-                selected={sortBy === 'newest'}
-                onPress={() => setSortBy('newest')}
-                color={colors.textSecondary}
-              />
-              <ChoiceChip
-                label="Nombre"
-                selected={sortBy === 'name'}
-                onPress={() => setSortBy('name')}
-                color={colors.textSecondary}
-              />
-              <ChoiceChip
-                label="Precio"
-                selected={sortBy === 'price'}
-                onPress={() => setSortBy('price')}
-                color={colors.textSecondary}
-              />
+                <View style={{ flexDirection: 'row', gap: 4 }}>
+                  <Pressable
+                    onPress={() => setViewMode('grid')}
+                    style={{
+                      padding: 8,
+                      borderRadius: 8,
+                      backgroundColor: viewMode === 'grid' ? colors.primary + '18' : 'transparent',
+                    }}
+                  >
+                    <Ionicons name="grid-outline" size={18} color={viewMode === 'grid' ? colors.primary : colors.textMuted} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setViewMode('list')}
+                    style={{
+                      padding: 8,
+                      borderRadius: 8,
+                      backgroundColor: viewMode === 'list' ? colors.primary + '18' : 'transparent',
+                    }}
+                  >
+                    <Ionicons name="list-outline" size={18} color={viewMode === 'list' ? colors.primary : colors.textMuted} />
+                  </Pressable>
+                </View>
+              </View>
+
+              {suppliers.length > 0 ? (
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 2 }}>
+                      <ChoiceChip
+                        label="Todos proveedores"
+                        selected={filterSupplier === null}
+                        onPress={() => setFilterSupplier(null)}
+                        color="#8B5CF6"
+                      />
+                      {suppliers.map((s) => (
+                        <ChoiceChip
+                          key={s.id}
+                          label={s.name}
+                          selected={filterSupplier === s.id}
+                          onPress={() => setFilterSupplier(s.id === filterSupplier ? null : s.id)}
+                          color="#8B5CF6"
+                        />
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+              ) : null}
+
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <ChoiceChip
+                  label="Más recientes"
+                  selected={sortBy === 'newest'}
+                  onPress={() => setSortBy('newest')}
+                  color={colors.textSecondary}
+                />
+                <ChoiceChip
+                  label="Nombre"
+                  selected={sortBy === 'name'}
+                  onPress={() => setSortBy('name')}
+                  color={colors.textSecondary}
+                />
+                <ChoiceChip
+                  label="Precio"
+                  selected={sortBy === 'price'}
+                  onPress={() => setSortBy('price')}
+                  color={colors.textSecondary}
+                />
+              </View>
             </View>
           </>
         ) : null}
@@ -402,7 +434,7 @@ export function ProductsScreen() {
                   onPress={() => {
                     setEditing(null);
                     setPhotoUri(undefined);
-          form.reset({ name: '', code: '', price: 0, stock: 0, format: 'unit', familyId: families[0]?.id ?? '' });
+                    form.reset({ name: '', code: '', price: 0, stock: 0, format: 'unit', familyId: families[0]?.id ?? '', supplierId: undefined });
                     setShowForm(true);
                   }}
                 />
@@ -432,7 +464,7 @@ export function ProductsScreen() {
           </View>
         ) : (
           filteredProducts.map((p) => (
-            <Card key={p.id} style={{ marginBottom: 8 }} onPress={() => setSelectedProduct(p)}>
+            <Card key={p.id} onPress={() => setSelectedProduct(p)}>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 {p.photoUri ? (
                   <Image
@@ -484,7 +516,7 @@ export function ProductsScreen() {
         onPress={() => {
           setEditing(null);
           setPhotoUri(undefined);
-          form.reset({ name: '', price: 0, stock: 0, format: 'unit', familyId: families[0]?.id ?? '' });
+          form.reset({ name: '', code: '', price: 0, stock: 0, format: 'unit', familyId: families[0]?.id ?? '', supplierId: undefined });
           setShowForm(true);
         }}
         bottom={insets.bottom + 108}
@@ -671,7 +703,7 @@ export function ProductsScreen() {
           name="price"
           render={({ field: { onChange, value } }) => (
             <TextInput
-              keyboardType="numeric"
+              keyboardType="decimal-pad"
               placeholder="Precio"
               placeholderTextColor={colors.textMuted}
               style={{
@@ -685,8 +717,8 @@ export function ProductsScreen() {
                 color: colors.textPrimary,
                 marginBottom: 12,
               }}
-              value={value ? String(value) : ''}
-              onChangeText={(t) => onChange(Number(t.replace(/[^0-9]/g, '')))}
+              value={value !== undefined ? String(value) : ''}
+              onChangeText={(t) => onChange(sanitizeDecimalInput(t))}
             />
           )}
         />
@@ -763,11 +795,21 @@ export function ProductsScreen() {
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={{ width: '100%', height: 140, borderRadius: 12, marginTop: 12, backgroundColor: colors.borderDefault }} resizeMode="contain" />
         ) : null}
+        {Object.keys(form.formState.errors).length > 0 ? (
+          <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: colors.error + '18' }}>
+            {Object.entries(form.formState.errors).map(([field, err]) => (
+              <AppText key={field} variant="caption" color="error" style={{ marginBottom: 4 }}>
+                {field === 'name' ? 'Nombre: ' : field === 'price' ? 'Precio: ' : field === 'stock' ? 'Stock: ' : field === 'familyId' ? 'Familia: ' : field === 'code' ? 'Código: ' : field + ': '}
+                {err?.message as string}
+              </AppText>
+            ))}
+          </View>
+        ) : null}
       </BottomSheet>
 
       <BottomSheet
         visible={!!addToCartProduct}
-        onClose={() => { setAddToCartProduct(null); setCartQuantity('1'); setCartDiscountType('none'); setCartDiscountValue(''); }}
+        onClose={resetAddToCartDraft}
         title="Agregar al carrito"
         stickyFooter={
           addToCartProduct ? (
@@ -776,7 +818,7 @@ export function ProductsScreen() {
                 <SecondaryButton
                   label="Cancelar"
                   icon="close-outline"
-                  onPress={() => { setAddToCartProduct(null); setCartQuantity('1'); setCartDiscountType('none'); setCartDiscountValue(''); }}
+                  onPress={resetAddToCartDraft}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -784,6 +826,7 @@ export function ProductsScreen() {
                   label="Aceptar"
                   icon="checkmark-outline"
                   onPress={confirmAddToCart}
+                  disabled={!cartUnitPriceValid || cartQtyPreview <= 0}
                 />
               </View>
             </View>
@@ -816,6 +859,41 @@ export function ProductsScreen() {
                 ) : null}
               </View>
             </View>
+
+            <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 8 }}>
+              Precio unitario
+            </AppText>
+            <TextInput
+              keyboardType="decimal-pad"
+              placeholder="Precio"
+              placeholderTextColor={colors.textMuted}
+              style={{
+                borderRadius: 12,
+                borderWidth: 1.5,
+                borderColor: colors.borderDefault,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                fontSize: 18,
+                fontWeight: '600',
+                color: colors.textPrimary,
+                marginBottom: 8,
+                textAlign: 'center',
+              }}
+              value={cartUnitPrice}
+              onChangeText={(t) => setCartUnitPrice(sanitizeDecimalInput(t))}
+            />
+            {cartPriceDeltaPreview !== 0 ? (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <AppText variant="caption" color="muted">Ajuste vs precio base</AppText>
+                <AppText variant="caption" color={cartPriceDeltaPreview > 0 ? 'success' : 'error'} style={{ fontWeight: '600' } as any}>
+                  {cartPriceDeltaPreview > 0 ? '+' : ''}{formatMoney(cartPriceDeltaPreview)}
+                </AppText>
+              </View>
+            ) : (
+              <AppText variant="caption" color="muted" style={{ marginBottom: 12 }}>
+                Precio base: {formatMoney(addToCartProduct.price)}
+              </AppText>
+            )}
 
             <AppText variant="labelMedium" color="secondary" style={{ marginBottom: 8 }}>
               Cantidad
@@ -901,25 +979,25 @@ export function ProductsScreen() {
               </View>
             )}
 
-            {cartQuantity && parseInt(cartQuantity, 10) > 0 ? (
+            {cartUnitPriceValid && cartQtyPreview > 0 ? (
               <Card style={{ padding: 14 }}>
-                {cartDiscountType !== 'none' && (parseFloat(cartDiscountValue) || 0) > 0 ? (
+                {cartDiscountType !== 'none' && cartDiscountPreview > 0 ? (
                   <>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                       <AppText variant="bodySmall" color="muted">Sin descuento</AppText>
                       <AppText variant="bodySmall" color="muted" style={{ textDecorationLine: 'line-through' }}>
-                        {formatMoney(addToCartProduct.price * parseInt(cartQuantity, 10))}
+                        {formatMoney(cartBasePreview)}
                       </AppText>
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                       <AppText variant="bodySmall" color="success">
-                        Descuento ({cartDiscountType === 'currency' ? formatMoney(parseFloat(cartDiscountValue) || 0) : `${cartDiscountValue}%`})
+                        Descuento ({cartDiscountType === 'currency' ? formatMoney(cartDiscountPreview) : `${cartDiscountValue}%`})
                       </AppText>
                       <AppText variant="bodySmall" color="success">
                         -{formatMoney(
                           cartDiscountType === 'currency'
-                            ? (parseFloat(cartDiscountValue) || 0)
-                            : (addToCartProduct.price * parseInt(cartQuantity, 10) * (parseFloat(cartDiscountValue) || 0)) / 100
+                            ? cartDiscountPreview
+                            : (cartBasePreview * cartDiscountPreview) / 100,
                         )}
                       </AppText>
                     </View>
@@ -927,7 +1005,7 @@ export function ProductsScreen() {
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '700' } as any}>Subtotal</AppText>
                         <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '700' } as any}>
-                          {formatMoney(calculateSubtotal(addToCartProduct.price, parseInt(cartQuantity, 10), cartDiscountType, parseFloat(cartDiscountValue) || 0))}
+                          {formatMoney(cartSubtotalPreview)}
                         </AppText>
                       </View>
                     </View>
@@ -936,11 +1014,14 @@ export function ProductsScreen() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <AppText variant="bodySmall" color="muted">Subtotal</AppText>
                     <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>
-                      {formatMoney(addToCartProduct.price * parseInt(cartQuantity, 10))}
+                      {formatMoney(cartBasePreview)}
                     </AppText>
                   </View>
                 )}
               </Card>
+            ) : null}
+            {error ? (
+              <AppText variant="caption" color="error" style={{ marginTop: 12, fontWeight: '600' } as any}>{error}</AppText>
             ) : null}
           </View>
         ) : null}

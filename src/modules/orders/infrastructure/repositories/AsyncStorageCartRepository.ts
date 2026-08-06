@@ -33,7 +33,11 @@ export function normalizeStoredCartItem(raw: unknown): CartItem | null {
   };
 
   const result = CartItemSchema.safeParse(normalized);
-  return result.success ? result.data : null;
+  if (!result.success) return null;
+  return {
+    ...result.data,
+    productCode: result.data.productCode ?? undefined,
+  };
 }
 
 export class AsyncStorageCartRepository implements CartRepository {

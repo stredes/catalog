@@ -142,7 +142,7 @@ export function FamiliesScreen() {
             }
           >
             {families.map((family, index) => (
-              <View key={family.id} style={{ marginBottom: 10 }}>
+              <View key={family.id}>
                 <FamilyCard
                   name={family.name}
                   productCount={productCountByFamily.get(family.id) ?? 0}

@@ -4,7 +4,20 @@ import { DATABASE_SCHEMA_VERSION } from '../../../../shared/infrastructure/schem
 import { restoreBackupImages } from './BackupImageCollector';
 import { BackupImageMap } from '../../domain/entities/BackupSnapshot';
 import { validateBackupPayload } from '../../../../shared/validation/schemas';
+import type { ValidatedBackupPayload } from '../../../../shared/validation/schemas';
 import { SQLiteBackupRepository } from '../repositories/SQLiteBackupRepository';
+import { extractBackupArchive, isZipBackup } from './BackupArchiveService';
+
+export type BackupPreview = {
+  families: number;
+  products: number;
+  catalogs: number;
+  orders: number;
+  suppliers: number;
+  quotations: number;
+  clients: number;
+  images: number;
+};
 
 type LegacyBackupData = {
   version?: string;
@@ -66,14 +79,114 @@ async function checkSchemaVersion(db: Awaited<ReturnType<typeof getDatabase>>): 
   }
 }
 
-export async function importBackupFromFile(filepath: string): Promise<{
+export type ImportResult = {
   families: number;
   products: number;
   catalogs: number;
   orders: number;
   suppliers: number;
+  quotations: number;
+  clients: number;
   images: number;
-}> {
+};
+
+async function restorePayload(
+  payload: ValidatedBackupPayload,
+  restoredImages: BackupImageMap,
+): Promise<ImportResult> {
+  const products = payload.products.map((product) => ({
+    ...product,
+    code: product.code ?? undefined,
+    supplierId: product.supplierId ?? undefined,
+    photoUri: product.photoUri
+      ? (restoredImages[product.photoUri] ?? product.photoUri)
+      : undefined,
+  }));
+  const profile = payload.profile
+    ? {
+        ...payload.profile,
+        ownerName: payload.profile.ownerName ?? undefined,
+        phone: payload.profile.phone ?? undefined,
+        email: payload.profile.email ?? undefined,
+        address: payload.profile.address ?? undefined,
+        website: payload.profile.website ?? undefined,
+        logoUri: payload.profile.logoUri
+          ? (restoredImages[payload.profile.logoUri] ?? payload.profile.logoUri)
+          : undefined,
+        bankName: payload.profile.bankName ?? undefined,
+        bankAccountType: payload.profile.bankAccountType ?? undefined,
+        bankAccountNumber: payload.profile.bankAccountNumber ?? undefined,
+      }
+    : null;
+  const catalogs = payload.catalogs.map((catalog) => ({
+    ...catalog,
+    familyIds: catalog.familyIds ?? undefined,
+    purpose: catalog.purpose ?? undefined,
+  }));
+  const orders = payload.orders.map((order) => ({
+    ...order,
+    notes: order.notes ?? undefined,
+    items: order.items.map((item) => ({
+      ...item,
+      productCode: item.productCode ?? undefined,
+    })),
+  }));
+  const suppliers = payload.suppliers.map((supplier) => ({
+    ...supplier,
+    phone: supplier.phone ?? undefined,
+    email: supplier.email ?? undefined,
+    contactName: supplier.contactName ?? undefined,
+    notes: supplier.notes ?? undefined,
+  }));
+  const clients = payload.clients.map((client) => ({
+    ...client,
+    rut: client.rut ?? undefined,
+    phone: client.phone ?? undefined,
+    email: client.email ?? undefined,
+    notes: client.notes ?? undefined,
+  }));
+  const quotations = payload.quotations.map((quotation) => ({
+    ...quotation,
+    clientPhone: quotation.clientPhone ?? undefined,
+    clientEmail: quotation.clientEmail ?? undefined,
+    clientAddress: quotation.clientAddress ?? undefined,
+    notes: quotation.notes ?? undefined,
+    validUntil: quotation.validUntil ?? undefined,
+  }));
+
+  await new SQLiteBackupRepository().transactionalRestore({
+    families: payload.families,
+    products,
+    catalogs,
+    profile,
+    orders,
+    suppliers,
+    quotations,
+    clients,
+  });
+
+  return {
+    families: payload.families.length,
+    products: payload.products.length,
+    catalogs: payload.catalogs.length,
+    orders: payload.orders.length,
+    suppliers: payload.suppliers.length,
+    quotations: payload.quotations?.length ?? 0,
+    clients: payload.clients?.length ?? 0,
+    images: Object.keys(restoredImages).length,
+  };
+}
+
+export async function importBackupFromFile(filepath: string): Promise<ImportResult> {
+  if (await isZipBackup(filepath)) {
+    const { payload: rawPayload, restoredImages } = await extractBackupArchive(filepath);
+    const validated = validateBackupPayload(rawPayload);
+    if (!validated.success) {
+      throw new Error('El archivo ZIP contiene un backup inválido.');
+    }
+    return restorePayload(validated.data, restoredImages);
+  }
+
   const file = new File(filepath);
   if (!file.exists) {
     throw new Error('El archivo de backup no existe.');
@@ -94,39 +207,7 @@ export async function importBackupFromFile(filepath: string): Promise<{
   if (currentBackup.success) {
     const payload = currentBackup.data;
     const restoredImages = await restoreBackupImages(payload.images);
-    const products = payload.products.map((product) => ({
-      ...product,
-      photoUri: product.photoUri
-        ? (restoredImages[product.photoUri] ?? product.photoUri)
-        : undefined,
-    }));
-    const profile = payload.profile
-      ? {
-          ...payload.profile,
-          logoUri: payload.profile.logoUri
-            ? (restoredImages[payload.profile.logoUri] ?? payload.profile.logoUri)
-            : undefined,
-        }
-      : null;
-
-    await new SQLiteBackupRepository().transactionalRestore({
-      families: payload.families,
-      products,
-      catalogs: payload.catalogs,
-      profile,
-      orders: payload.orders,
-      suppliers: payload.suppliers,
-      quotations: payload.quotations ?? [],
-    });
-
-    return {
-      families: payload.families.length,
-      products: payload.products.length,
-      catalogs: payload.catalogs.length,
-      orders: payload.orders.length,
-      suppliers: payload.suppliers.length,
-      images: Object.keys(restoredImages).length,
-    };
+    return restorePayload(payload, restoredImages);
   }
 
   const data = raw as LegacyBackupData;
@@ -143,7 +224,7 @@ export async function importBackupFromFile(filepath: string): Promise<{
     );
   }
 
-  let counts = { families: 0, products: 0, catalogs: 0, orders: 0, suppliers: 0, images: 0 };
+  let counts: ImportResult = { families: 0, products: 0, catalogs: 0, orders: 0, suppliers: 0, quotations: 0, clients: 0, images: 0 };
 
   await ensureAllTablesExist(db);
   await clearAllTables(db);
@@ -234,4 +315,75 @@ export async function importBackupFromFile(filepath: string): Promise<{
   counts.images = Object.keys(restoredImages).length;
 
   return counts;
+}
+
+export async function previewBackupFromFile(filepath: string): Promise<BackupPreview> {
+  const file = new File(filepath);
+  if (!file.exists) {
+    throw new Error('El archivo de backup no existe.');
+  }
+
+  if (await isZipBackup(filepath)) {
+    const { payload: rawPayload } = await extractBackupArchive(filepath, { writeImages: false });
+    const validated = validateBackupPayload(rawPayload);
+    if (!validated.success) {
+      throw new Error('El archivo ZIP contiene un backup inválido.');
+    }
+    const payload = validated.data;
+    return {
+      families: payload.families.length,
+      products: payload.products.length,
+      catalogs: payload.catalogs.length,
+      orders: payload.orders.length,
+      suppliers: payload.suppliers.length,
+      quotations: payload.quotations?.length ?? 0,
+      clients: payload.clients?.length ?? 0,
+      images: Object.keys(payload.imageFiles ?? {}).length,
+    };
+  }
+
+  const content = await file.text();
+  if (!content || content.trim().length === 0) {
+    throw new Error('El archivo de backup está vacío.');
+  }
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(content);
+  } catch {
+    throw new Error('El archivo no es un backup válido (JSON inválido).');
+  }
+
+  const currentBackup = validateBackupPayload(raw);
+  if (currentBackup.success) {
+    const payload = currentBackup.data;
+    return {
+      families: payload.families.length,
+      products: payload.products.length,
+      catalogs: payload.catalogs.length,
+      orders: payload.orders.length,
+      suppliers: payload.suppliers.length,
+      quotations: payload.quotations?.length ?? 0,
+      clients: payload.clients?.length ?? 0,
+      images: Object.keys(payload.images).length,
+    };
+  }
+
+  const data = raw as Record<string, unknown>;
+  if (!data.families && !data.products && !data.catalogs && !data.orders) {
+    throw new Error('El archivo no contiene datos de backup reconocidos.');
+  }
+
+  return {
+    families: (data.families as unknown[] | undefined)?.length ?? 0,
+    products: (data.products as unknown[] | undefined)?.length ?? 0,
+    catalogs: (data.catalogs as unknown[] | undefined)?.length ?? 0,
+    orders: (data.orders as unknown[] | undefined)?.length ?? 0,
+    suppliers: (data.suppliers as unknown[] | undefined)?.length ?? 0,
+    quotations: (data.quotations as unknown[] | undefined)?.length ?? 0,
+    clients: (data.clients as unknown[] | undefined)?.length ?? 0,
+    images: data.images && typeof data.images === 'object'
+      ? Object.keys(data.images as Record<string, string>).length
+      : 0,
+  };
 }

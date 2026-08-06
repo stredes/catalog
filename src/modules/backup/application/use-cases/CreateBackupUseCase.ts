@@ -5,6 +5,7 @@ import { ProfileRepository } from '../../../profile/domain/repositories/ProfileR
 import { OrderRepository } from '../../../orders/domain/repositories/OrderRepository';
 import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
 import { QuotationRepository } from '../../../quotations/domain/repositories/QuotationRepository';
+import { ClientRepository } from '../../../clients/domain/repositories/ClientRepository';
 import { BackupRepository } from '../../domain/repositories/BackupRepository';
 import { BackupSnapshot, BackupPayload, BackupImageMap } from '../../domain/entities/BackupSnapshot';
 import { CreateBackupInput, CreateBackupSchema } from '../dtos/BackupDtos';
@@ -31,6 +32,7 @@ export class CreateBackupUseCase {
     private readonly orderRepo: OrderRepository,
     private readonly supplierRepo: SupplierRepository,
     private readonly quotationRepo: QuotationRepository,
+    private readonly clientRepo: ClientRepository,
     collectImages?: ImageCollector,
   ) {
     this.collectImages = collectImages ?? noopImageCollector;
@@ -39,7 +41,7 @@ export class CreateBackupUseCase {
   async execute(input: CreateBackupInput): Promise<BackupSnapshot> {
     const validated = CreateBackupSchema.parse(input);
 
-    const [families, products, catalogs, profile, orders, suppliers, quotations] = await Promise.all([
+    const [families, products, catalogs, profile, orders, suppliers, quotations, clients] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
       this.catalogRepo.findAll(),
@@ -47,6 +49,7 @@ export class CreateBackupUseCase {
       this.orderRepo.findAll(),
       this.supplierRepo.findAll(),
       this.quotationRepo.findAll(),
+      this.clientRepo.findAll(),
     ]);
 
     const images = await this.collectImages(products, profile);
@@ -61,6 +64,7 @@ export class CreateBackupUseCase {
       orders,
       suppliers,
       quotations,
+      clients,
       images,
     };
 
@@ -70,10 +74,12 @@ export class CreateBackupUseCase {
       cc: payload.catalogs.length,
       oc: payload.orders.length,
       sc: payload.suppliers?.length ?? 0,
+      clc: payload.clients?.length ?? 0,
       fp: payload.profile !== null,
       fn: payload.families.map((f) => f.id).sort(),
       pn: payload.products.map((p) => p.id).sort(),
       cn: payload.catalogs.map((c) => c.id).sort(),
+      cln: payload.clients?.map((c) => c.id).sort(),
     });
 
     const snapshot: BackupSnapshot = {

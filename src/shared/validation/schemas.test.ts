@@ -220,6 +220,82 @@ describe('validateBackupPayload', () => {
     expect(result.success).toBe(true);
   });
 
+  it('acepta null en campos opcionales (payload legacy)', () => {
+    const result = validateBackupPayload({
+      schemaVersion: 14,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      families: [{ id: 'fam_1', name: 'Fam', createdAt: '2026-01-01', updatedAt: '2026-01-01' }],
+      products: [{
+        id: 'prd_1', name: 'Prod', price: 1000, stock: 0,
+        format: 'unit', familyId: 'fam_1',
+        code: null, photoUri: null, supplierId: null,
+        createdAt: '2026-01-01', updatedAt: '2026-01-01',
+      }],
+      catalogs: [{
+        id: 'cat_1', name: 'Cat', familyId: 'fam_1', format: 'grid-2',
+        productIds: null, familyIds: null, purpose: null,
+        pdfUri: 'file:///cat.pdf', createdAt: '2026-01-01',
+      }],
+      profile: {
+        id: 'profile', businessName: 'Biz',
+        phone: null, email: null, logoUri: null,
+        bankName: null, bankAccountType: null, bankAccountNumber: null,
+        updatedAt: '2026-01-01',
+      },
+      orders: [{
+        id: 'ord_1', orderNumber: 1, clientName: 'Cli',
+        items: null, subtotal: 0, iva: 0, total: 0,
+        status: null, paidAmount: null, notes: null, createdAt: '2026-01-01',
+      }],
+      suppliers: [{ id: 'sup_1', name: 'Sup', phone: null, createdAt: '2026-01-01', updatedAt: '2026-01-01' }],
+      quotations: [{
+        id: 'quo_1', quotationNumber: 1, clientName: 'Cli',
+        items: null, subtotal: 0, ivaRate: 0, ivaAmount: 0, total: 0,
+        status: null, clientPhone: null, validUntil: null, createdAt: '2026-01-01',
+      }],
+      clients: [{ id: 'cli_1', name: 'Cli', rut: null, phone: null, createdAt: '2026-01-01', updatedAt: '2026-01-01' }],
+      images: null,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.orders[0].status).toBe('pending');
+      expect(result.data.orders[0].paidAmount).toBe(0);
+      expect(result.data.orders[0].items).toEqual([]);
+      expect(result.data.catalogs[0].productIds).toEqual([]);
+      expect(result.data.quotations[0].status).toBe('pending');
+      expect(result.data.images).toEqual({});
+      expect(result.data.products[0].supplierId).toBeNull();
+    }
+  });
+
+  it('acepta items de pedido legacy sin campos de descuento', () => {
+    const result = validateBackupPayload({
+      schemaVersion: 14,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      families: [],
+      products: [],
+      catalogs: [],
+      profile: null,
+      orders: [{
+        id: 'ord_1', orderNumber: 1, clientName: 'Cli',
+        items: [
+          { productId: 'prd_1', productName: 'A', unitPrice: 1000, quantity: 2, format: 'unit', subtotal: 2000 },
+          { productId: 'prd_2', productName: 'B', unitPrice: 500, quantity: 1, format: 'unit', subtotal: 500, discountType: null, discountValue: null },
+        ],
+        subtotal: 2500, iva: 0, total: 2500, createdAt: '2026-01-01',
+      }],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.orders[0].items[0].discountType).toBe('none');
+      expect(result.data.orders[0].items[0].discountValue).toBe(0);
+      expect(result.data.orders[0].items[1].discountType).toBe('none');
+      expect(result.data.orders[0].items[1].discountValue).toBe(0);
+    }
+  });
+
   it('payload invalido retorna errores tipados', () => {
     const result = validateBackupPayload({
       schemaVersion: 'not a number',

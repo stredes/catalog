@@ -411,7 +411,7 @@ export function ProfileScreen() {
             />
           ) : (
             catalogs.map((catalog) => (
-              <View key={catalog.id} style={{ marginBottom: 8 }}>
+              <View key={catalog.id}>
                 <CatalogHistoryItem
                   name={catalog.name}
                   format={catalog.format}

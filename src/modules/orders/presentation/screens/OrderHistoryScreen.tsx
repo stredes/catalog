@@ -438,7 +438,7 @@ export function OrderHistoryScreen() {
                   const progress = order.total > 0 ? paidAmount / order.total : 0;
 
                   return (
-                    <Card key={order.id} style={{ marginBottom: 8 }}>
+                    <Card key={order.id}>
                       <Pressable onPress={() => toggleExpand(order.id)}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                           <View
@@ -576,7 +576,7 @@ export function OrderHistoryScreen() {
                 const progress = order.total > 0 ? paidAmount / order.total : 0;
 
                 return (
-                  <Card key={order.id} style={{ marginBottom: 8 }}>
+                  <Card key={order.id}>
                     <Pressable onPress={() => toggleExpand(order.id)}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         <View

@@ -507,6 +507,10 @@ Working tree puede tener cambios pendientes. Para estado legible:
 
 ## Pendientes conocidos
 
+### Completados recientemente (2026-08-05)
+- ~~Export backup ZIP sin imagenes~~ (causa raiz: createBackupArchive releia el disco e ignoraba payload.images; fix con fallback a los data-uris del snapshot; v3.3.9/38)
+- ~~Espaciado UI apretado~~ (causa raiz: Screen envolvía todos los hijos en un único Animated.View, así que `gap` del contentContainerStyle era código muerto y los bloques quedaban pegados; fix: `screenContent: { gap: spacing.xl }` en el wrapper interno + `sectionContent: { gap: spacing.lg }`, bump de padding interno de Card (xl→xxl), productInfo (md→lg), margenes de ProductCard, gridGap 14→16, filtros agrupados en ProductsScreen, y se quitaron `marginBottom: 8` duplicados de las listas; v3.3.10/39)
+
 ### Completados recientemente (2026-07-23)
 - ~~Sumar stock al generar compra a proveedor~~ (SupplierPurchaseScreen actualiza stock por cantidad comprada)
 - ~~Pago parcial~~ (Order.paidAmount, migration v13, RecordPaymentUseCase, historial y PDF)

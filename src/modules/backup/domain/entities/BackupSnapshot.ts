@@ -5,6 +5,7 @@ import { Profile } from '../../../profile/domain/entities/profile';
 import { Order } from '../../../orders/domain/entities/Order';
 import { Supplier } from '../../../suppliers/domain/entities/Supplier';
 import { Quotation } from '../../../quotations/domain/entities/Quotation';
+import { Client } from '../../../clients/domain/entities/Client';
 
 export type BackupTrigger = 'manual' | 'auto-before-delete' | 'auto-periodic' | 'auto-before-seed';
 
@@ -35,5 +36,7 @@ export type BackupPayload = {
   orders: Order[];
   suppliers: Supplier[];
   quotations: Quotation[];
+  clients?: Client[];
   images: BackupImageMap;
+  imageFiles?: Record<string, string>;
 };

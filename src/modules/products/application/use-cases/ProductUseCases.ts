@@ -6,11 +6,18 @@ import { ProductRepository } from '../../domain/repositories/ProductRepository';
 import { ProductInputDto, productSchema } from '../dtos/ProductDtos';
 import { productNotFoundError } from '../../../../shared/errors/AppError';
 
+function normalizeProductInput(input: ProductInputDto): ProductInputDto {
+  return {
+    ...input,
+    code: input.code && input.code.trim() ? input.code.trim() : undefined,
+  };
+}
+
 export class CreateProductUseCase {
   constructor(private readonly repository: ProductRepository) {}
 
   async execute(input: ProductInputDto) {
-    const dto = productSchema.parse(input);
+    const dto = productSchema.parse(normalizeProductInput(input));
     const timestamp = nowIso();
     const product: Product = {
       id: createId('prd'),
@@ -34,7 +41,7 @@ export class UpdateProductUseCase {
       throw productNotFoundError(id);
     }
 
-    const dto = productSchema.parse(input);
+    const dto = productSchema.parse(normalizeProductInput(input));
     const updated: Product = {
       ...current,
       ...dto,

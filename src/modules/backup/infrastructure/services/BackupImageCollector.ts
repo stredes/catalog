@@ -18,33 +18,91 @@ async function fileToBase64DataUri(filePath: string): Promise<string | null> {
   }
 }
 
+function basenameOf(uri: string): string {
+  const withoutQuery = uri.split('?')[0];
+  const parts = withoutQuery.split(/[\\/]/);
+  return parts[parts.length - 1] ?? withoutQuery;
+}
+
+export function resolveImageFile(uri: string): File | null {
+  try {
+    const direct = new File(uri);
+    if (direct.exists) return direct;
+  } catch {
+    // La ruta puede ser inválida; seguir con el fallback.
+  }
+
+  // Fallback: buscar por nombre de archivo en el directorio persistente.
+  // Cubre datos viejos cuyo photoUri apunta a rutas obsoletas (package
+  // anterior, scheme faltante) pero cuyo archivo ya fue copiado aquí.
+  try {
+    if (IMAGES_DIR.exists) {
+      const name = basenameOf(uri);
+      for (const entry of IMAGES_DIR.list()) {
+        if (basenameOf(entry.uri) === name) {
+          const candidate = new File(entry.uri);
+          if (candidate.exists) return candidate;
+        }
+      }
+    }
+  } catch {
+    // Sin acceso al directorio: no hay fallback posible.
+  }
+
+  return null;
+}
+
+function mimeForUri(uri: string): string {
+  const ext = uri.split('?')[0].split('.').pop()?.toLowerCase() ?? 'jpeg';
+  return ext === 'png' ? 'image/png' : 'image/jpeg';
+}
+
+export async function readImageAsBase64(uri: string): Promise<string | null> {
+  try {
+    const file = resolveImageFile(uri);
+    if (file) {
+      const dataUri = await fileToBase64DataUri(file.uri);
+      if (dataUri) return dataUri;
+    }
+  } catch {
+    // Ruta ilegible con la API nueva; seguir con el fallback legacy.
+  }
+
+  // La API nueva de expo-file-system solo lee file://. Las fotos viejas pueden
+  // apuntar a content:// (MediaStore), que React Native <Image> sí muestra pero
+  // el File nuevo no puede leer. La API legacy (readAsStringAsync) sí soporta
+  // content:// en Android, así que esas fotos entran al backup.
+  try {
+    if (/^content:/i.test(uri)) {
+      const legacy = await import('expo-file-system/legacy');
+      const base64 = await legacy.readAsStringAsync(uri, { encoding: 'base64' });
+      if (!base64) return null;
+      return `data:${mimeForUri(uri)};base64,${base64}`;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 export function referencedImageUris(products: Product[], profile: Profile | null): string[] {
   const paths = new Set<string>();
 
   for (const product of products) {
-    if (product.photoUri?.startsWith('file:')) paths.add(product.photoUri);
+    if (product.photoUri && !product.photoUri.startsWith('data:')) paths.add(product.photoUri);
   }
-  if (profile?.logoUri?.startsWith('file:')) paths.add(profile.logoUri);
+  if (profile?.logoUri && !profile.logoUri.startsWith('data:')) paths.add(profile.logoUri);
 
   return [...paths];
 }
 
-export function assertBackupIsComplete(
+export function missingImageUris(
   products: Product[],
   profile: Profile | null,
   images: BackupImageMap,
-): void {
-  const missing = referencedImageUris(products, profile).filter((uri) => !images[uri]);
-  const invalid = Object.entries(images).filter(
-    ([, value]) => !/^data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=\s]+$/.test(value),
-  );
-
-  if (missing.length > 0 || invalid.length > 0) {
-    throw new Error(
-      `Backup incompleto: ${missing.length} imagen(es) faltantes y ` +
-      `${invalid.length} imagen(es) inválidas.`,
-    );
-  }
+): string[] {
+  return referencedImageUris(products, profile).filter((uri) => !images[uri]);
 }
 
 export async function collectBackupImages(
@@ -52,26 +110,23 @@ export async function collectBackupImages(
   profile: Profile | null,
 ): Promise<BackupImageMap> {
   const images: BackupImageMap = {};
-  const paths = referencedImageUris(products, profile);
-  const missing: string[] = [];
 
-  for (const uri of paths) {
-    const dataUri = await fileToBase64DataUri(uri);
+  for (const product of products) {
+    if (!product.photoUri || product.photoUri.startsWith('data:')) continue;
+
+    const dataUri = await readImageAsBase64(product.photoUri);
     if (dataUri) {
-      images[uri] = dataUri;
-    } else {
-      missing.push(uri);
+      images[product.photoUri] = dataUri;
     }
   }
 
-  if (missing.length > 0) {
-    throw new Error(
-      `El backup no se creó porque faltan ${missing.length} imagen(es) referenciadas. ` +
-      'Vuelve a seleccionar esas imágenes e inténtalo nuevamente.',
-    );
+  if (profile?.logoUri && !profile.logoUri.startsWith('data:')) {
+    const dataUri = await readImageAsBase64(profile.logoUri);
+    if (dataUri) {
+      images[profile.logoUri] = dataUri;
+    }
   }
 
-  assertBackupIsComplete(products, profile, images);
   return images;
 }
 

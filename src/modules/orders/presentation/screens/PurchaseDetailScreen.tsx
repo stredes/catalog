@@ -282,7 +282,7 @@ export function PurchaseDetailScreen() {
         {selectedItems.length > 0 ? (
           <>
             {selectedItems.map((item) => (
-              <Card key={item.productId} style={{ marginBottom: 8 }}>
+              <Card key={item.productId}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' } as any}>

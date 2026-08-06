@@ -94,7 +94,10 @@ export class SQLiteBackupRepository implements BackupRepository {
       );
     }
 
-    return result.data;
+    // El schema tolera null en campos opcionales (payloads legacy); los
+    // consumidores usan `?? undefined`/`?? null` al persistir, así que los
+    // nulls restantes son inofensivos.
+    return result.data as unknown as BackupPayload;
   }
 
   async delete(id: string): Promise<void> {
@@ -134,6 +137,7 @@ export class SQLiteBackupRepository implements BackupRepository {
       await txn.runAsync('DELETE FROM families');
       await txn.runAsync('DELETE FROM profile');
       await txn.runAsync('DELETE FROM quotations');
+      await txn.runAsync('DELETE FROM clients');
 
       for (const family of data.families) {
         await txn.runAsync(
@@ -205,6 +209,16 @@ export class SQLiteBackupRepository implements BackupRepository {
           quotation.subtotal, quotation.ivaRate, quotation.ivaAmount, quotation.total,
           quotation.status, quotation.notes ?? null, quotation.validUntil ?? null,
           quotation.createdAt,
+        );
+      }
+
+      for (const client of data.clients ?? []) {
+        await txn.runAsync(
+          `INSERT INTO clients (id, name, rut, phone, email, notes, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          client.id, client.name, client.rut ?? null, client.phone ?? null,
+          client.email ?? null, client.notes ?? null,
+          client.createdAt, client.updatedAt,
         );
       }
     });

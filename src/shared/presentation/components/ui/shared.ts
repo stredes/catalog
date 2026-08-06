@@ -16,13 +16,14 @@ export function c() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  container: { gap: spacing.lg, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140 },
+  container: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140 },
+  screenContent: { gap: spacing.xl },
 
   header: { padding: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.xl },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
 
-  card: { borderRadius: borderRadius.xl, borderWidth: 1, padding: spacing.xl, overflow: 'hidden' },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.md },
+  card: { borderRadius: borderRadius.xl, borderWidth: 1, padding: spacing.xxl, overflow: 'hidden' },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.lg },
 
   primaryButton: {
     alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.lg,
@@ -47,7 +48,7 @@ const styles = StyleSheet.create({
 
   productImage: { width: '100%', height: 120, backgroundColor: '#E2E8F0' },
   productImagePlaceholder: { width: '100%', height: 120, alignItems: 'center', justifyContent: 'center' },
-  productInfo: { padding: spacing.md },
+  productInfo: { padding: spacing.lg },
   productMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
 
   formatBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.sm },
@@ -57,11 +58,11 @@ const styles = StyleSheet.create({
   stockValue: { paddingHorizontal: 8, height: 28, borderRadius: borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
   stockInput: { paddingHorizontal: 8, height: 28, borderRadius: borderRadius.sm, minWidth: 40, textAlign: 'center', fontSize: 14, fontWeight: '700' },
 
-  familyCard: { padding: spacing.lg, borderLeftWidth: 4 },
-  familyCardContent: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  familyCard: { padding: spacing.xl, borderLeftWidth: 4 },
+  familyCardContent: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   familyIcon: { width: 48, height: 48, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
 
-  historyItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
+  historyItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
   pdfIconWrap: { width: 44, height: 44, borderRadius: borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
   historyMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 2 },
   historyActions: { flexDirection: 'row', gap: 4 },
@@ -79,8 +80,9 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 20 },
   emptyIconWrap: { width: 72, height: 72, borderRadius: borderRadius.xl, alignItems: 'center', justifyContent: 'center' },
 
-  section: { marginBottom: spacing.md },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
+  section: {},
+  sectionContent: { gap: spacing.lg },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
 
   divider: { height: 1, marginVertical: spacing.lg },
 

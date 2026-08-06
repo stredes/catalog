@@ -11,6 +11,7 @@ import {
   InMemoryOrderRepository,
   InMemorySupplierRepository,
   InMemoryQuotationRepository,
+  InMemoryClientRepository,
   makeFamily,
   makeProduct,
 } from '../../../__tests__/fakes';
@@ -47,6 +48,7 @@ describe('AutoBackupService', () => {
       orderRepo,
       supplierRepo,
       quotationRepo,
+      new InMemoryClientRepository(),
     );
 
     changeDetector = new ChangeDetector(

@@ -30,6 +30,21 @@ describe('Product use cases', () => {
     expect(await repository.findById(product.id)).toEqual(product);
   });
 
+  it('creates a product with a decimal price typed as text', async () => {
+    const repository = new InMemoryProductRepository();
+    const useCase = new CreateProductUseCase(repository);
+
+    const product = await useCase.execute({
+      name: 'Servicio decimal',
+      price: '10.50',
+      format: 'service',
+      familyId: 'fam_services',
+    });
+
+    expect(product.price).toBe(10.5);
+    expect((await repository.findById(product.id))?.price).toBe(10.5);
+  });
+
   it('rejects invalid product price', async () => {
     const repository = new InMemoryProductRepository();
 
@@ -60,6 +75,22 @@ describe('Product use cases', () => {
     expect(updated.price).toBe(2500);
     expect(updated.format).toBe('box');
     expect(await repository.findById(original.id)).toEqual(updated);
+  });
+
+  it('persists decimal price edits on an existing product', async () => {
+    const repository = new InMemoryProductRepository();
+    const original = makeProduct({ name: 'Editable', price: 1000 });
+    await repository.create(original);
+
+    const updated = await new UpdateProductUseCase(repository).execute(original.id, {
+      name: original.name,
+      price: '1250.75',
+      format: original.format,
+      familyId: original.familyId,
+    });
+
+    expect(updated.price).toBe(1250.75);
+    expect((await repository.findById(original.id))?.price).toBe(1250.75);
   });
 
   it('fails when updating a missing product', async () => {

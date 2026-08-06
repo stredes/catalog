@@ -147,7 +147,7 @@ export const ProductCard = memo(function ProductCard({ name, price, format, fami
   const colors = c();
   const { width } = useWindowDimensions();
   const horizontalPadding = 20;
-  const gap = 12;
+  const gap = 16;
   const columns = 2;
   const cardWidth = Math.floor((width - horizontalPadding * 2 - gap * (columns - 1)) / columns);
 
@@ -188,7 +188,7 @@ export const ProductCard = memo(function ProductCard({ name, price, format, fami
   };
 
   return (
-    <Animated.View style={[cardAnimatedStyle, { width: cardWidth, marginBottom: spacing.md }]}>
+    <Animated.View style={[cardAnimatedStyle, { width: cardWidth, marginBottom: spacing.lg }]}>
       <Pressable
         onPress={onPress}
         onPressIn={animateIn}
@@ -204,18 +204,18 @@ export const ProductCard = memo(function ProductCard({ name, price, format, fami
         )}
         <View style={[styles.productInfo, { minWidth: 0 }]}>
           <AppText variant="bodyMedium" color="primary" numberOfLines={2} style={{ lineHeight: 18 }}>{name}</AppText>
-          <AppText variant="price" color="accent" numberOfLines={1} style={{ marginTop: spacing.xs }}>{price}</AppText>
-          <View style={[styles.productMeta, { marginTop: spacing.sm }]}>
+          <AppText variant="price" color="accent" numberOfLines={1} style={{ marginTop: spacing.sm }}>{price}</AppText>
+          <View style={[styles.productMeta, { marginTop: spacing.md }]}>
             <View style={[styles.formatBadge, { backgroundColor: fmtColor + '18' }]}>
               <AppText variant="caption" color="muted" style={{ color: fmtColor }}>{format}</AppText>
             </View>
           </View>
-          <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: 2 }}>{family}</AppText>
+          <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: 4 }}>{family}</AppText>
           {supplier ? (
-            <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: 1, color: '#8B5CF6' }}>{supplier}</AppText>
+            <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: 4, color: '#8B5CF6' }}>{supplier}</AppText>
           ) : null}
           {stock !== undefined ? (
-            <View style={[styles.stockCounter, { marginTop: spacing.sm }]}>
+            <View style={[styles.stockCounter, { marginTop: spacing.md }]}>
               <Pressable
                 onPress={onDecrement}
                 style={[styles.stockButton, { backgroundColor: colors.primaryLight }]}
@@ -253,7 +253,7 @@ export const ProductCard = memo(function ProductCard({ name, price, format, fami
               </Pressable>
             </View>
           ) : null}
-          <View style={[styles.rowActions, { marginTop: spacing.sm }]}>
+          <View style={[styles.rowActions, { marginTop: spacing.md }]}>
             <Pressable onPress={onEdit} style={[styles.iconButtonSmall, { backgroundColor: colors.primaryLight }]}>
               <Ionicons name="ellipsis-horizontal" size={16} color={colors.primary} />
             </Pressable>

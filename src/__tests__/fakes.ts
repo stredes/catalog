@@ -22,6 +22,8 @@ import { Supplier } from '../modules/suppliers/domain/entities/Supplier';
 import { SupplierRepository } from '../modules/suppliers/domain/repositories/SupplierRepository';
 import { Quotation, QuotationStatus } from '../modules/quotations/domain/entities/Quotation';
 import { QuotationRepository } from '../modules/quotations/domain/repositories/QuotationRepository';
+import { Client } from '../modules/clients/domain/entities/Client';
+import { ClientRepository } from '../modules/clients/domain/repositories/ClientRepository';
 import { computeChecksum } from '../shared/utils/checksum';
 
 export class InMemoryFamilyRepository implements FamilyRepository {
@@ -227,6 +229,7 @@ export interface InMemoryBackupRepositoryDeps {
   profileRepo?: ProfileRepository;
   orderRepo?: OrderRepository;
   supplierRepo?: SupplierRepository;
+  clientRepo?: ClientRepository;
 }
 
 export class InMemoryBackupRepository implements BackupRepository {
@@ -274,7 +277,7 @@ export class InMemoryBackupRepository implements BackupRepository {
   async transactionalRestore(data: TransactionalRestoreData): Promise<void> {
     this.lastRestoreData = { ...data };
 
-    const { familyRepo, productRepo, catalogRepo, profileRepo, orderRepo, supplierRepo } = this.deps;
+    const { familyRepo, productRepo, catalogRepo, profileRepo, orderRepo, supplierRepo, clientRepo } = this.deps;
 
     if (familyRepo) {
       for (const f of await familyRepo.findAll()) await familyRepo.delete(f.id);
@@ -298,6 +301,10 @@ export class InMemoryBackupRepository implements BackupRepository {
     if (supplierRepo) {
       for (const s of await supplierRepo.findAll()) await supplierRepo.delete(s.id);
       for (const s of data.suppliers) await supplierRepo.create(s);
+    }
+    if (clientRepo) {
+      for (const c of await clientRepo.findAll()) await clientRepo.delete(c.id);
+      for (const c of data.clients ?? []) await clientRepo.create(c);
     }
   }
 
@@ -329,10 +336,12 @@ export function computeBackupChecksum(payload: BackupPayload): string {
     cc: payload.catalogs.length,
     oc: payload.orders.length,
     sc: payload.suppliers?.length ?? 0,
+    clc: payload.clients?.length ?? 0,
     fp: payload.profile !== null,
     fn: payload.families.map((f) => f.id).sort(),
     pn: payload.products.map((p) => p.id).sort(),
     cn: payload.catalogs.map((c) => c.id).sort(),
+    cln: payload.clients?.map((c) => c.id).sort(),
   });
 }
 
@@ -537,5 +546,33 @@ export class InMemoryQuotationRepository implements QuotationRepository {
       if (q.quotationNumber > max) max = q.quotationNumber;
     }
     return max;
+  }
+}
+
+export class InMemoryClientRepository implements ClientRepository {
+  clients = new Map<string, Client>();
+
+  async create(client: Client) {
+    this.clients.set(client.id, client);
+  }
+
+  async update(client: Client) {
+    this.clients.set(client.id, client);
+  }
+
+  async delete(id: string) {
+    this.clients.delete(id);
+  }
+
+  async findAll() {
+    return [...this.clients.values()];
+  }
+
+  async findById(id: string) {
+    return this.clients.get(id) ?? null;
+  }
+
+  async findByRut(rut: string) {
+    return [...this.clients.values()].find((c) => c.rut === rut) ?? null;
   }
 }

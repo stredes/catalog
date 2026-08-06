@@ -224,7 +224,7 @@ export function EditOrderScreen() {
         ) : (
           <>
             {items.map((item, index) => (
-              <Card key={`${item.productId}-${index}`} style={{ marginBottom: 8 }}>
+              <Card key={`${item.productId}-${index}`}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' } as any}>

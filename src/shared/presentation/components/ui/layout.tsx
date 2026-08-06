@@ -13,12 +13,12 @@ export function Screen({ children, style, contentBottomPadding }: PropsWithChild
   return (
     <View style={[styles.safeArea, { backgroundColor: colors.backgroundPrimary, paddingTop: insets.top }]}>
       <Animated.ScrollView
-        contentContainerStyle={[styles.container, { paddingBottom: contentBottomPadding ?? (140 + insets.bottom) }, style]}
+        contentContainerStyle={[styles.container, { paddingBottom: contentBottomPadding ?? (140 + insets.bottom) }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
       >
-        <Animated.View layout={ReanimatedLayout.springify().damping(18).stiffness(140)}>
+        <Animated.View layout={ReanimatedLayout.springify().damping(18).stiffness(140)} style={[styles.screenContent, style]}>
           {children}
         </Animated.View>
       </Animated.ScrollView>
@@ -67,7 +67,7 @@ export function Section({ title, action, children }: PropsWithChildren<{
         <AppText variant="headingSmall" color="primary">{title}</AppText>
         {action}
       </View>
-      {children}
+      <View style={styles.sectionContent}>{children}</View>
     </View>
   );
 }

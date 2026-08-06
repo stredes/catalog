@@ -16,7 +16,7 @@ import {
   Divider,
   ChoiceChip,
 } from '../../../../shared/presentation/components/ui';
-import { formatMoney } from '../../../../shared/utils/money';
+import { formatMoney, sanitizeDecimalInput } from '../../../../shared/utils/money';
 import { useCart } from '../hooks/useCart';
 import { useProfile } from '../../../profile/presentation/hooks/useProfile';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
@@ -41,26 +41,63 @@ export function CartScreen() {
   const [editingDiscount, setEditingDiscount] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<DiscountType>('none');
   const [discountValue, setDiscountValue] = useState('');
+  const [editingPrice, setEditingPrice] = useState<{ productId: string; productName: string } | null>(null);
+  const [priceValue, setPriceValue] = useState('');
 
   function openDiscountEditor(item: { productId: string; discountType: DiscountType; discountValue: number }) {
+    setError('');
     setEditingDiscount(item.productId);
     setDiscountType(item.discountType);
     setDiscountValue(item.discountValue > 0 ? String(item.discountValue) : '');
   }
 
+  function openPriceEditor(item: { productId: string; productName: string; unitPrice: number }) {
+    setError('');
+    setEditingPrice({ productId: item.productId, productName: item.productName });
+    setPriceValue(String(item.unitPrice));
+  }
+
+  function closePriceEditor() {
+    setEditingPrice(null);
+    setPriceValue('');
+  }
+
   function saveDiscount() {
     if (!editingDiscount) return;
+    setError('');
     const val = parseFloat(discountValue) || 0;
     void useCases.updateCartItemDiscount.execute(editingDiscount, discountType, val).then(() => {
       reload();
       setEditingDiscount(null);
+    }).catch((error) => {
+      setError(error instanceof Error ? error.message : 'No se pudo guardar el descuento.');
+    });
+  }
+
+  function savePrice() {
+    if (!editingPrice) return;
+    setError('');
+    const unitPrice = Number(priceValue);
+
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      setError('Ingresa un precio unitario mayor a cero.');
+      return;
+    }
+
+    void useCases.updateCartItemPrice.execute(editingPrice.productId, unitPrice).then(() => {
+      reload();
+      closePriceEditor();
+    }).catch((error) => {
+      setError(error instanceof Error ? error.message : 'No se pudo guardar el precio.');
     });
   }
 
   function updateQuantity(productId: string, currentQty: number, delta: number) {
     const newQty = currentQty + delta;
     if (newQty < 0) return;
-    void useCases.updateCartItem.execute(productId, newQty).then(() => reload());
+    void useCases.updateCartItem.execute(productId, newQty).then(() => reload()).catch((error) => {
+      setError(error instanceof Error ? error.message : 'No se pudo actualizar la cantidad.');
+    });
   }
 
   function removeItem(productId: string) {
@@ -164,7 +201,7 @@ export function CartScreen() {
         ) : (
           <>
             {items.map((item) => (
-              <Card key={item.productId} style={{ marginBottom: 8 }}>
+              <Card key={item.productId}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' } as any}>
@@ -173,9 +210,19 @@ export function CartScreen() {
                     {item.productCode ? (
                       <AppText variant="caption" color="muted">Cod: {item.productCode}</AppText>
                     ) : null}
-                    <AppText variant="bodySmall" color="muted" style={{ marginTop: 2 }}>
-                      {item.format} - {formatMoney(item.unitPrice)} c/u
-                    </AppText>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Editar precio de ${item.productName}`}
+                      onPress={() => openPriceEditor(item)}
+                      style={{ alignSelf: 'flex-start', marginTop: 2 }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <AppText variant="bodySmall" color="muted">
+                          {item.format} - {formatMoney(item.unitPrice)} c/u
+                        </AppText>
+                        <Ionicons name="create-outline" size={13} color={colors.primary} />
+                      </View>
+                    </Pressable>
                     {item.discountType !== 'none' && item.discountValue > 0 ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
                         <View style={{ backgroundColor: colors.success + '18', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -217,6 +264,13 @@ export function CartScreen() {
                       </AppText>
                     ) : null}
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Editar precio de ${item.productName}`}
+                        onPress={() => openPriceEditor(item)}
+                      >
+                        <Ionicons name="cash-outline" size={16} color={colors.primary} />
+                      </Pressable>
                       <Pressable onPress={() => openDiscountEditor(item)}>
                         <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
                       </Pressable>
@@ -380,6 +434,56 @@ export function CartScreen() {
       </BottomSheet>
 
       <BottomSheet
+        visible={!!editingPrice}
+        onClose={closePriceEditor}
+        title="Editar precio unitario"
+        stickyFooter={
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton label="Cancelar" icon="close-outline" onPress={closePriceEditor} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <PrimaryButton
+                label="Guardar"
+                icon="checkmark-outline"
+                onPress={savePrice}
+                disabled={!Number.isFinite(Number(priceValue)) || Number(priceValue) <= 0}
+              />
+            </View>
+          </View>
+        }
+      >
+        {editingPrice ? (
+          <View style={{ gap: 12 }}>
+            <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>
+              {editingPrice.productName}
+            </AppText>
+            <AppText variant="labelMedium" color="secondary">Precio unitario</AppText>
+            <TextInput
+              placeholder="Ej: 10.50"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="decimal-pad"
+              style={{
+                borderRadius: 12,
+                borderWidth: 1.5,
+                borderColor: colors.borderDefault,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                fontSize: 15,
+                fontWeight: '500',
+                color: colors.textPrimary,
+              }}
+              value={priceValue}
+              onChangeText={(t) => setPriceValue(sanitizeDecimalInput(t))}
+            />
+            {error ? (
+              <AppText variant="caption" color="error" style={{ fontWeight: '600' } as any}>{error}</AppText>
+            ) : null}
+          </View>
+        ) : null}
+      </BottomSheet>
+
+      <BottomSheet
         visible={!!editingDiscount}
         onClose={() => setEditingDiscount(null)}
         title="Editar descuento"
@@ -434,6 +538,9 @@ export function CartScreen() {
                 />
               </>
             )}
+            {error ? (
+              <AppText variant="caption" color="error" style={{ fontWeight: '600' } as any}>{error}</AppText>
+            ) : null}
           </View>
         ) : null}
       </BottomSheet>

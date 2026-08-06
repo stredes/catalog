@@ -35,13 +35,13 @@ export type ValidatedFamily = z.infer<typeof FamilySchema>;
 export const ProductSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  code: z.string().optional(),
+  code: z.string().nullish(),
   price: MoneySchema.positive('El precio debe ser mayor a cero'),
   stock: NonNegativeInteger,
   format: z.enum(['unit', 'box', 'pack', 'service']),
-  photoUri: z.string().optional(),
+  photoUri: z.string().nullish(),
   familyId: z.string().min(1),
-  supplierId: z.string().optional(),
+  supplierId: z.string().nullish(),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
 });
@@ -51,15 +51,15 @@ export type ValidatedProduct = z.infer<typeof ProductSchema>;
 export const ProfileSchema = z.object({
   id: z.literal('profile'),
   businessName: z.string().min(1),
-  ownerName: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().optional(),
-  address: z.string().optional(),
-  website: z.string().optional(),
-  logoUri: z.string().optional(),
-  bankName: z.string().optional(),
-  bankAccountType: z.string().optional(),
-  bankAccountNumber: z.string().optional(),
+  ownerName: z.string().nullish(),
+  phone: z.string().nullish(),
+  email: z.string().nullish(),
+  address: z.string().nullish(),
+  website: z.string().nullish(),
+  logoUri: z.string().nullish(),
+  bankName: z.string().nullish(),
+  bankAccountType: z.string().nullish(),
+  bankAccountNumber: z.string().nullish(),
   updatedAt: z.string().min(1),
 });
 
@@ -70,12 +70,16 @@ export const OrderStatusSchema = z.enum(['pending', 'partial', 'paid']);
 export const CartItemSchema = z.object({
   productId: z.string().min(1),
   productName: z.string().min(1),
-  productCode: z.string().optional(),
+  productCode: z.string().nullish(),
   unitPrice: MoneySchema.positive('El precio unitario debe ser mayor a cero'),
   quantity: StrictPositiveInteger,
   format: z.string().min(1),
-  discountType: z.enum(['none', 'currency', 'percentage']),
-  discountValue: z.number().finite().nonnegative(),
+  discountType: z.enum(['none', 'currency', 'percentage'])
+    .nullish()
+    .transform((value) => value ?? 'none'),
+  discountValue: z.number().finite().nonnegative()
+    .nullish()
+    .transform((value) => value ?? 0),
   subtotal: MoneySchema,
 });
 
@@ -85,13 +89,19 @@ export const OrderSchema = z.object({
   id: z.string().min(1),
   orderNumber: NonNegativeInteger,
   clientName: z.string().min(1),
-  items: z.array(CartItemSchema),
+  items: z.array(CartItemSchema)
+    .nullish()
+    .transform((value) => value ?? []),
   subtotal: MoneySchema,
   iva: MoneySchema,
   total: MoneySchema,
-  status: OrderStatusSchema.default('pending'),
-  paidAmount: MoneySchema.default(0),
-  notes: z.string().optional(),
+  status: OrderStatusSchema
+    .nullish()
+    .transform((value) => value ?? 'pending'),
+  paidAmount: MoneySchema
+    .nullish()
+    .transform((value) => value ?? 0),
+  notes: z.string().nullish(),
   createdAt: z.string().min(1),
 });
 
@@ -101,10 +111,12 @@ export const CatalogSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   familyId: z.string().min(1),
-  familyIds: z.array(z.string()).optional(),
+  familyIds: z.array(z.string()).nullish(),
   format: z.enum(['grid-2', 'grid-3', 'grid-4x5', 'grid-3x7', 'simple-list', 'premium-cover']),
-  purpose: z.enum(['catalog', 'purchase-detail']).optional(),
-  productIds: z.array(z.string()),
+  purpose: z.enum(['catalog', 'purchase-detail']).nullish(),
+  productIds: z.array(z.string())
+    .nullish()
+    .transform((value) => value ?? []),
   pdfUri: z.string().min(1),
   createdAt: z.string().min(1),
 });
@@ -114,15 +126,28 @@ export type ValidatedCatalog = z.infer<typeof CatalogSchema>;
 export const SupplierSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  phone: z.string().optional(),
-  email: z.string().optional(),
-  contactName: z.string().optional(),
-  notes: z.string().optional(),
+  phone: z.string().nullish(),
+  email: z.string().nullish(),
+  contactName: z.string().nullish(),
+  notes: z.string().nullish(),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
 });
 
 export type ValidatedSupplier = z.infer<typeof SupplierSchema>;
+
+export const ClientSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  rut: z.string().nullish(),
+  phone: z.string().nullish(),
+  email: z.string().nullish(),
+  notes: z.string().nullish(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+});
+
+export type ValidatedClient = z.infer<typeof ClientSchema>;
 
 export const ServiceItemSchema = z.object({
   id: z.string().min(1),
@@ -140,17 +165,21 @@ export const QuotationSchema = z.object({
   id: z.string().min(1),
   quotationNumber: NonNegativeInteger,
   clientName: z.string().min(1),
-  clientPhone: z.string().optional(),
-  clientEmail: z.string().optional(),
-  clientAddress: z.string().optional(),
-  items: z.array(ServiceItemSchema),
+  clientPhone: z.string().nullish(),
+  clientEmail: z.string().nullish(),
+  clientAddress: z.string().nullish(),
+  items: z.array(ServiceItemSchema)
+    .nullish()
+    .transform((value) => value ?? []),
   subtotal: MoneySchema,
   ivaRate: z.number().finite().nonnegative(),
   ivaAmount: MoneySchema,
   total: MoneySchema,
-  status: QuotationStatusSchema.default('pending'),
-  notes: z.string().optional(),
-  validUntil: z.string().optional(),
+  status: QuotationStatusSchema
+    .nullish()
+    .transform((value) => value ?? 'pending'),
+  notes: z.string().nullish(),
+  validUntil: z.string().nullish(),
   createdAt: z.string().min(1),
 });
 
@@ -164,9 +193,21 @@ export const BackupPayloadSchema = z.object({
   catalogs: z.array(CatalogSchema),
   profile: ProfileSchema.nullable(),
   orders: z.array(OrderSchema),
-  suppliers: z.array(SupplierSchema).optional().default([]),
-  quotations: z.array(QuotationSchema).optional().default([]),
-  images: z.record(z.string(), z.string()).optional().default({}),
+  suppliers: z.array(SupplierSchema)
+    .nullish()
+    .transform((value) => value ?? []),
+  quotations: z.array(QuotationSchema)
+    .nullish()
+    .transform((value) => value ?? []),
+  clients: z.array(ClientSchema)
+    .nullish()
+    .transform((value) => value ?? []),
+  images: z.record(z.string(), z.string())
+    .nullish()
+    .transform((value) => value ?? {}),
+  imageFiles: z.record(z.string(), z.string())
+    .nullish()
+    .transform((value) => value ?? {}),
 });
 
 export type ValidatedBackupPayload = z.infer<typeof BackupPayloadSchema>;

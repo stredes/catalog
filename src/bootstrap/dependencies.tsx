@@ -42,6 +42,7 @@ import {
   AddToCartUseCase,
   UpdateCartItemUseCase,
   UpdateCartItemDiscountUseCase,
+  UpdateCartItemPriceUseCase,
   RemoveFromCartUseCase,
   ClearCartUseCase,
   GetCartItemsUseCase,
@@ -135,6 +136,7 @@ function buildDependencies() {
     orderRepository,
     supplierRepository,
     quotationRepository,
+    clientRepository,
     collectBackupImages,
   );
 
@@ -202,6 +204,7 @@ function buildDependencies() {
         getCartItems: new GetCartItemsUseCase(cartRepository),
         addToCart: new AddToCartUseCase(cartRepository),
         updateCartItem: new UpdateCartItemUseCase(cartRepository),
+        updateCartItemPrice: new UpdateCartItemPriceUseCase(cartRepository),
         removeFromCart: new RemoveFromCartUseCase(cartRepository),
         updateCartItemDiscount: new UpdateCartItemDiscountUseCase(cartRepository),
         clearCart: new ClearCartUseCase(cartRepository),

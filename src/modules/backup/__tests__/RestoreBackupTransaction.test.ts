@@ -8,6 +8,7 @@ import {
   InMemoryOrderRepository,
   InMemorySupplierRepository,
   InMemoryQuotationRepository,
+  InMemoryClientRepository,
   makeFamily,
   makeProduct,
   makeProfile,
@@ -27,6 +28,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
   let orderRepo: InMemoryOrderRepository;
   let supplierRepo: InMemorySupplierRepository;
   let quotationRepo: InMemoryQuotationRepository;
+  let clientRepo: InMemoryClientRepository;
 
   beforeEach(() => {
     familyRepo = new InMemoryFamilyRepository();
@@ -36,9 +38,11 @@ describe('RestoreBackupUseCase - Transaccional', () => {
     orderRepo = new InMemoryOrderRepository();
     supplierRepo = new InMemorySupplierRepository();
     quotationRepo = new InMemoryQuotationRepository();
+    clientRepo = new InMemoryClientRepository();
     backupRepo = new InMemoryBackupRepository({
       familyRepo, productRepo, catalogRepo,
       profileRepo, orderRepo, supplierRepo,
+      clientRepo,
     });
   });
 
@@ -255,6 +259,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
   let orderRepo: InMemoryOrderRepository;
   let supplierRepo: InMemorySupplierRepository;
   let quotationRepo: InMemoryQuotationRepository;
+  let clientRepo: InMemoryClientRepository;
 
   beforeEach(() => {
     familyRepo = new InMemoryFamilyRepository();
@@ -264,9 +269,11 @@ describe('RestoreBackupUseCase - Validaciones', () => {
     orderRepo = new InMemoryOrderRepository();
     supplierRepo = new InMemorySupplierRepository();
     quotationRepo = new InMemoryQuotationRepository();
+    clientRepo = new InMemoryClientRepository();
     backupRepo = new InMemoryBackupRepository({
       familyRepo, productRepo, catalogRepo,
       profileRepo, orderRepo, supplierRepo,
+      clientRepo,
     });
   });
 
@@ -405,5 +412,43 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     expect(result.imagesRestored).toBe(1);
     expect((await productRepo.findById('prd_images'))?.photoUri).toBe(newUri);
+  });
+
+  it('incluye clients en el backup y los restaura', async () => {
+    const client = {
+      id: 'cli_1',
+      name: 'Juan Perez',
+      rut: '11111111-1',
+      phone: '+56912345678',
+      email: 'juan@example.com',
+      notes: 'Cliente frecuente',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
+    };
+    await clientRepo.create(client);
+
+    const createBackup = new CreateBackupUseCase(
+      backupRepo, familyRepo, productRepo, catalogRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, clientRepo,
+    );
+    const created = await createBackup.execute({ label: 'con clientes', trigger: 'manual' });
+    const storedPayload = await backupRepo.loadPayload(created.id);
+    expect(storedPayload?.clients).toEqual([client]);
+
+    await clientRepo.delete('cli_1');
+    expect(await clientRepo.findAll()).toHaveLength(0);
+
+    const restoreBackup = new RestoreBackupUseCase(
+      backupRepo, familyRepo, productRepo, catalogRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+    );
+    const result = await restoreBackup.execute({
+      backupId: created.id,
+      confirmRestore: true,
+      createPreventiveBackup: false,
+    });
+
+    expect(result.clientsRestored).toBe(1);
+    expect(await clientRepo.findById('cli_1')).toEqual(client);
   });
 });

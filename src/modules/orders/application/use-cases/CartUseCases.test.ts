@@ -1,10 +1,13 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { InMemoryCartRepository, InMemoryProductRepository, InMemoryFamilyRepository, makeProduct, makeFamily } from '../../../../__tests__/fakes';
-import { AddToCartUseCase } from './AddToCartUseCase';
-import { UpdateCartItemUseCase } from './UpdateCartItemUseCase';
-import { RemoveFromCartUseCase } from './RemoveFromCartUseCase';
-import { ClearCartUseCase } from './ClearCartUseCase';
-import { GetCartItemsUseCase } from './GetCartItemsUseCase';
+import {
+  AddToCartUseCase,
+  ClearCartUseCase,
+  GetCartItemsUseCase,
+  RemoveFromCartUseCase,
+  UpdateCartItemPriceUseCase,
+  UpdateCartItemUseCase,
+} from './CartUseCases';
 import { CartItem } from '../../domain/entities/CartItem';
 
 describe('AddToCartUseCase', () => {
@@ -167,6 +170,58 @@ describe('RemoveFromCartUseCase', () => {
 
     expect(items).toHaveLength(1);
     expect(items[0].productId).toBe('prd_1');
+  });
+});
+
+describe('UpdateCartItemPriceUseCase', () => {
+  let cartRepo: InMemoryCartRepository;
+
+  beforeEach(() => {
+    cartRepo = new InMemoryCartRepository();
+  });
+
+  const makeItem = (overrides: Partial<CartItem> = {}): CartItem => ({
+    productId: 'prd_1',
+    productName: 'Test',
+    productCode: undefined,
+    unitPrice: 1000,
+    quantity: 2,
+    format: 'unit',
+    discountType: 'none',
+    discountValue: 0,
+    subtotal: 2000,
+    ...overrides,
+  });
+
+  it('updates unit price and recalculates subtotal', async () => {
+    await cartRepo.saveItems([makeItem()]);
+
+    const items = await new UpdateCartItemPriceUseCase(cartRepo).execute('prd_1', 1250.5);
+
+    expect(items).toHaveLength(1);
+    expect(items[0].unitPrice).toBe(1250.5);
+    expect(items[0].subtotal).toBe(2501);
+  });
+
+  it('keeps discounts when recalculating subtotal', async () => {
+    await cartRepo.saveItems([
+      makeItem({ discountType: 'percentage', discountValue: 10, subtotal: 1800 }),
+    ]);
+
+    const items = await new UpdateCartItemPriceUseCase(cartRepo).execute('prd_1', 1500);
+
+    expect(items[0].unitPrice).toBe(1500);
+    expect(items[0].subtotal).toBe(2700);
+  });
+
+  it('rejects non-positive unit prices', async () => {
+    await cartRepo.saveItems([makeItem()]);
+
+    await expect(new UpdateCartItemPriceUseCase(cartRepo).execute('prd_1', 0)).rejects.toThrow(
+      'El precio unitario debe ser mayor a cero',
+    );
+
+    expect((await cartRepo.getItems())[0].unitPrice).toBe(1000);
   });
 });
 

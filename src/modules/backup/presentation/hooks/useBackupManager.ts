@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
-import { File, Paths } from 'expo-file-system';
-import * as Crypto from 'expo-crypto';
 import { useDependencies } from '../../../../bootstrap/dependencies';
 import { BackupSnapshot } from '../../domain/entities/BackupSnapshot';
-import { assertBackupIsComplete } from '../../infrastructure/services/BackupImageCollector';
+import { computeChecksum } from '../../../../shared/utils/checksum';
 
 export function useBackupManager() {
   const { useCases, autoBackupService, services, repositories } = useDependencies();
@@ -24,8 +22,12 @@ export function useBackupManager() {
     catalogs: number;
     orders: number;
     suppliers: number;
+    quotations: number;
+    clients: number;
     images: number;
   } | null>(null);
+  const importInFlightRef = useRef(false);
+  const restoreInFlightRef = useRef(false);
 
   const loadBackups = useCallback(async () => {
     setLoading(true);
@@ -51,6 +53,13 @@ export function useBackupManager() {
       await loadBackups();
       setCreateProgress(100);
       await new Promise((r) => setTimeout(r, 300));
+    } catch (err) {
+      Alert.alert(
+        'No se pudo crear el backup',
+        err instanceof Error
+          ? err.message
+          : 'Ocurrió un error inesperado al crear el backup.',
+      );
     } finally {
       setCreating(false);
       setCreateProgress(null);
@@ -71,6 +80,8 @@ export function useBackupManager() {
           text: 'Restaurar',
           style: 'destructive',
           onPress: async () => {
+            if (restoreInFlightRef.current) return;
+            restoreInFlightRef.current = true;
             setRestoring(snapshot.id);
             setRestoreProgress(0);
             try {
@@ -95,6 +106,7 @@ export function useBackupManager() {
               setRestoreProgress(100);
               await new Promise((r) => setTimeout(r, 300));
             } finally {
+              restoreInFlightRef.current = false;
               setRestoring(null);
               setRestoreProgress(null);
             }
@@ -130,23 +142,10 @@ export function useBackupManager() {
         return;
       }
 
-      assertBackupIsComplete(payload.products, payload.profile, payload.images);
+      const { createBackupArchive } = await import('../../infrastructure/services/BackupArchiveService');
+      const archive = await createBackupArchive(payload, snapshot.label);
 
-      const safeLabel = snapshot.label
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9_-]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 48) || 'completo';
-      
-      // Custom filename with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const fileName = `CatalogClean_${safeLabel}_${timestamp}.json`;
-      const tempFile = new File(Paths.cache, fileName);
-      
-      await tempFile.write(JSON.stringify(payload));
-
-      await services.share.shareFile(tempFile.uri, `Backup: ${snapshot.label}`, 'application/json');
+      await services.share.shareFile(archive.uri, `Backup: ${snapshot.label}`, 'application/zip');
     } catch (err) {
       Alert.alert(
         'Error al compartir',
@@ -163,20 +162,10 @@ export function useBackupManager() {
         return;
       }
 
-      const safeLabel = customName || snapshot.label
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9_-]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 48) || 'completo';
-      
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const fileName = `CatalogClean_${safeLabel}_${timestamp}.json`;
-      const tempFile = new File(Paths.cache, fileName);
-      
-      await tempFile.write(JSON.stringify(payload));
+      const { createBackupArchive } = await import('../../infrastructure/services/BackupArchiveService');
+      const archive = await createBackupArchive(payload, customName || snapshot.label);
 
-      await services.share.shareFile(tempFile.uri, `Backup: ${snapshot.label}`, 'application/json');
+      await services.share.shareFile(archive.uri, `Backup: ${snapshot.label}`, 'application/zip');
     } catch (err) {
       Alert.alert(
         'Error al exportar',
@@ -197,11 +186,20 @@ export function useBackupManager() {
         return;
       }
 
-      // Compute checksum from payload
-      const computedChecksum = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        JSON.stringify(payload),
-      );
+      // Compute checksum with the same inputs used when the snapshot was created
+      const computedChecksum = computeChecksum({
+        fc: payload.families.length,
+        pc: payload.products.length,
+        cc: payload.catalogs.length,
+        oc: payload.orders.length,
+        sc: payload.suppliers?.length ?? 0,
+        clc: payload.clients?.length ?? 0,
+        fp: payload.profile !== null,
+        fn: payload.families.map((f) => f.id).sort(),
+        pn: payload.products.map((p) => p.id).sort(),
+        cn: payload.catalogs.map((c) => c.id).sort(),
+        cln: payload.clients?.map((c) => c.id).sort(),
+      });
 
       const valid = computedChecksum === snapshot.checksum;
       setChecksumResults((prev) => ({
@@ -235,70 +233,35 @@ export function useBackupManager() {
   }, [repositories.backup]);
 
   const previewImport = useCallback(async (fileUri: string) => {
-    setImportProgress(0);
+    if (importInFlightRef.current) {
+      throw new Error('Ya hay una importación en curso. Espera a que termine.');
+    }
+    importInFlightRef.current = true;
     try {
-      // We need to read the file and validate without importing
-      const file = new File(fileUri);
-      const content = await file.text();
-      setImportProgress(30);
-
-      let raw: unknown;
-      try {
-        raw = JSON.parse(content);
-      } catch {
-        throw new Error('El archivo no es un backup válido (JSON inválido).');
-      }
-      setImportProgress(60);
-
-      // Validate using the same validation as import
-      const { validateBackupPayload } = await import('../../../../shared/validation/schemas');
-      const currentBackup = validateBackupPayload(raw);
-      
-      if (currentBackup.success) {
-        const payload = currentBackup.data;
-        const preview = {
-          families: payload.families.length,
-          products: payload.products.length,
-          catalogs: payload.catalogs.length,
-          orders: payload.orders.length,
-          suppliers: payload.suppliers.length,
-          images: Object.keys(payload.images).length,
-        };
-        setImportProgress(100);
-        setLastImportPreview(preview);
-        return preview;
-      }
-
-      // Legacy format - estimate counts
-      const data = raw as Record<string, unknown>;
-      const preview = {
-        families: (data.families as unknown[] | undefined)?.length ?? 0,
-        products: (data.products as unknown[] | undefined)?.length ?? 0,
-        catalogs: (data.catalogs as unknown[] | undefined)?.length ?? 0,
-        orders: (data.orders as unknown[] | undefined)?.length ?? 0,
-        suppliers: (data.suppliers as unknown[] | undefined)?.length ?? 0,
-        images: (data.images && typeof data.images === 'object') ? Object.keys(data.images as Record<string, string>).length : 0,
-      };
-      setImportProgress(100);
+      const { previewBackupFromFile } = await import('../../infrastructure/services/FileImportService');
+      const preview = await previewBackupFromFile(fileUri);
       setLastImportPreview(preview);
       return preview;
-    } catch (err) {
-      setImportProgress(null);
-      throw err;
+    } finally {
+      importInFlightRef.current = false;
     }
   }, []);
 
   const importBackup = useCallback(async (fileUri: string) => {
+    if (importInFlightRef.current) {
+      throw new Error('Ya hay una importación en curso. Espera a que termine.');
+    }
+    importInFlightRef.current = true;
     setImportProgress(0);
     try {
       const { importBackupFromFile } = await import('../../infrastructure/services/FileImportService');
       await importBackupFromFile(fileUri);
-      setImportProgress(100);
       await loadBackups();
+      setImportProgress(100);
       return true;
-    } catch (err) {
+    } finally {
+      importInFlightRef.current = false;
       setImportProgress(null);
-      throw err;
     }
   }, [loadBackups]);
 

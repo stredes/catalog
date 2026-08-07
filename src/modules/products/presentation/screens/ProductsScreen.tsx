@@ -23,6 +23,7 @@ import {
 } from '../../../../shared/presentation/components/ui';
 import { formatDate } from '../../../../shared/utils/dates';
 import { formatMoney, sanitizeDecimalInput } from '../../../../shared/utils/money';
+import { spacing } from '../../../../shared/presentation/theme';
 import { ProductInputDto, productSchema } from '../../application/dtos/ProductDtos';
 import { Product, ProductFormat } from '../../domain/entities/product';
 import { useProducts } from '../hooks/useProducts';
@@ -328,7 +329,7 @@ export function ProductsScreen() {
             <View style={{ gap: 8 }}>
               <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 4 }}>
+                  <View style={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs }}>
                     <ChoiceChip
                       label="Todas"
                       selected={filterFamily === null}
@@ -345,7 +346,7 @@ export function ProductsScreen() {
                   </View>
                 </ScrollView>
 
-                <View style={{ flexDirection: 'row', gap: 4 }}>
+                <View style={{ flexDirection: 'row', gap: spacing.xs }}>
                   <Pressable
                     onPress={() => setViewMode('grid')}
                     style={{
@@ -370,9 +371,9 @@ export function ProductsScreen() {
               </View>
 
               {suppliers.length > 0 ? (
-                <View style={{ flexDirection: 'row', gap: 6 }}>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 2 }}>
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xxs }}>
                       <ChoiceChip
                         label="Todos proveedores"
                         selected={filterSupplier === null}

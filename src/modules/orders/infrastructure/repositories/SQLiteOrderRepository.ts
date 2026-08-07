@@ -1,4 +1,4 @@
-import { getDatabase } from '../../../../shared/infrastructure/sqlite';
+import { getDatabase, withDbTransaction } from '../../../../shared/infrastructure/sqlite';
 import { Order, OrderStatus } from '../../domain/entities/Order';
 import { OrderRepository } from '../../domain/repositories/OrderRepository';
 import { OrderSchema } from '../../../../shared/validation/schemas';
@@ -108,7 +108,7 @@ export class SQLiteOrderRepository implements OrderRepository {
   async deleteAndRestoreStock(id: string): Promise<void> {
     const db = await getDatabase();
 
-    await db.withExclusiveTransactionAsync(async (txn) => {
+    await withDbTransaction(async (txn) => {
       const row = await txn.getFirstAsync<OrderRow>(
         'SELECT id, orderNumber, clientName, clientId, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders WHERE id = ?',
         id,
@@ -160,7 +160,7 @@ export class SQLiteOrderRepository implements OrderRepository {
   ): Promise<{ orderNumber: number }> {
     const db = await getDatabase();
     let assignedOrderNumber = 0;
-    await db.withExclusiveTransactionAsync(async (txn) => {
+    await withDbTransaction(async (txn) => {
       const maxRow = await txn.getFirstAsync<{ maxNum: number }>(
         'SELECT COALESCE(MAX(orderNumber), 0) as maxNum FROM orders',
       );

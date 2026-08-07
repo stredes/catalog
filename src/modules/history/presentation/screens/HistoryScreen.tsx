@@ -19,6 +19,7 @@ import {
 import { formatDate } from '../../../../shared/utils/dates';
 import { useCatalogs } from '../../../catalogs/presentation/hooks/useCatalogs';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
+import { spacing } from '../../../../shared/presentation/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CatalogPurpose } from '../../../catalogs/domain/entities/Catalog';
 
@@ -116,7 +117,7 @@ export function HistoryScreen() {
           <>
             <SearchBar value={search} onChange={setSearch} placeholder="Buscar catálogos..." />
 
-            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
               <ChoiceChip
                 label="Todos"
                 selected={purposeFilter === 'all'}
@@ -134,7 +135,7 @@ export function HistoryScreen() {
               />
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
               <ChoiceChip
                 label="Más recientes"
                 selected={sortBy === 'newest'}

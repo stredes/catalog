@@ -9,6 +9,7 @@ import {
   InMemorySupplierRepository,
   InMemoryQuotationRepository,
   InMemoryClientRepository,
+  InMemoryInvoiceRepository,
   makeFamily,
   makeProduct,
   makeProfile,
@@ -29,6 +30,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
   let supplierRepo: InMemorySupplierRepository;
   let quotationRepo: InMemoryQuotationRepository;
   let clientRepo: InMemoryClientRepository;
+  let invoiceRepo: InMemoryInvoiceRepository;
 
   beforeEach(() => {
     familyRepo = new InMemoryFamilyRepository();
@@ -39,17 +41,18 @@ describe('RestoreBackupUseCase - Transaccional', () => {
     supplierRepo = new InMemorySupplierRepository();
     quotationRepo = new InMemoryQuotationRepository();
     clientRepo = new InMemoryClientRepository();
+    invoiceRepo = new InMemoryInvoiceRepository();
     backupRepo = new InMemoryBackupRepository({
       familyRepo, productRepo, catalogRepo,
       profileRepo, orderRepo, supplierRepo,
-      clientRepo,
+      clientRepo, invoiceRepo,
     });
   });
 
   it('lanza error cuando el backup no existe', async () => {
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
     );
 
     await expect(useCase.execute({
@@ -77,7 +80,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
     );
 
     await expect(useCase.execute({
@@ -109,7 +112,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
     );
 
     const result = await useCase.execute({
@@ -165,7 +168,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
     );
 
     const result = await useCase.execute({
@@ -200,7 +203,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
     );
 
     try {
@@ -236,7 +239,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
     );
 
     const result = await useCase.execute({
@@ -260,6 +263,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
   let supplierRepo: InMemorySupplierRepository;
   let quotationRepo: InMemoryQuotationRepository;
   let clientRepo: InMemoryClientRepository;
+  let invoiceRepo: InMemoryInvoiceRepository;
 
   beforeEach(() => {
     familyRepo = new InMemoryFamilyRepository();
@@ -270,10 +274,11 @@ describe('RestoreBackupUseCase - Validaciones', () => {
     supplierRepo = new InMemorySupplierRepository();
     quotationRepo = new InMemoryQuotationRepository();
     clientRepo = new InMemoryClientRepository();
+    invoiceRepo = new InMemoryInvoiceRepository();
     backupRepo = new InMemoryBackupRepository({
       familyRepo, productRepo, catalogRepo,
       profileRepo, orderRepo, supplierRepo,
-      clientRepo,
+      clientRepo, invoiceRepo,
     });
   });
 
@@ -295,7 +300,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
     );
 
     await expect(useCase.execute({
@@ -324,7 +329,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
     );
 
     await expect(useCase.execute({
@@ -355,7 +360,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
     );
 
     const result = await useCase.execute({
@@ -400,7 +405,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
       async () => ({ [oldUri]: newUri }),
     );
 
@@ -429,7 +434,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const createBackup = new CreateBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, clientRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, clientRepo, invoiceRepo,
     );
     const created = await createBackup.execute({ label: 'con clientes', trigger: 'manual' });
     const storedPayload = await backupRepo.loadPayload(created.id);
@@ -440,7 +445,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const restoreBackup = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
     );
     const result = await restoreBackup.execute({
       backupId: created.id,

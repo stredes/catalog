@@ -6,6 +6,7 @@ import { ProfileRepository } from '../../../profile/domain/repositories/ProfileR
 import { OrderRepository } from '../../../orders/domain/repositories/OrderRepository';
 import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
 import { QuotationRepository } from '../../../quotations/domain/repositories/QuotationRepository';
+import { InvoiceRepository } from '../../../invoices/domain/repositories/InvoiceRepository';
 import { BackupRepository } from '../../domain/repositories/BackupRepository';
 import { RestoreBackupInput, RestoreBackupSchema } from '../dtos/BackupDtos';
 import { AppError } from '../../../../shared/errors/AppError';
@@ -32,6 +33,7 @@ export type RestoreResult = {
   suppliersRestored: number;
   quotationsRestored: number;
   clientsRestored: number;
+  invoicesRestored: number;
   profileRestored: boolean;
   imagesRestored: number;
   warnings: string[];
@@ -50,6 +52,7 @@ export class RestoreBackupUseCase {
     private readonly orderRepo: OrderRepository,
     private readonly supplierRepo: SupplierRepository,
     private readonly quotationRepo: QuotationRepository,
+    private readonly invoiceRepo: InvoiceRepository,
     restoreImages?: ImageRestorer,
     collectImages?: ImageCollector,
   ) {
@@ -93,7 +96,7 @@ export class RestoreBackupUseCase {
 
     const warnings: string[] = [];
 
-    const [currentFamilies, currentProducts, currentCatalogs, currentProfile, currentOrders, currentSuppliers, currentQuotations] = await Promise.all([
+    const [currentFamilies, currentProducts, currentCatalogs, currentProfile, currentOrders, currentSuppliers, currentQuotations, currentInvoices] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
       this.catalogRepo.findAll(),
@@ -101,6 +104,7 @@ export class RestoreBackupUseCase {
       this.orderRepo.findAll(),
       this.supplierRepo.findAll(),
       this.quotationRepo.findAll(),
+      this.invoiceRepo.findAll(),
     ]);
 
     if (validated.createPreventiveBackup) {
@@ -114,6 +118,7 @@ export class RestoreBackupUseCase {
         orders: currentOrders,
         suppliers: currentSuppliers,
         quotations: currentQuotations,
+        invoices: currentInvoices,
         images: {},
       };
 
@@ -127,6 +132,7 @@ export class RestoreBackupUseCase {
           catalogsCount: currentCatalogs.length,
           ordersCount: currentOrders.length,
           suppliersCount: currentSuppliers.length,
+          invoicesCount: currentInvoices.length,
           hasProfile: currentProfile !== null,
           checksum: computeChecksum({
             fc: currentFamilies.length,
@@ -161,6 +167,11 @@ export class RestoreBackupUseCase {
       warnings.push(`${quotationFailures.length} cotizaciones inválidas omitidas: ${quotationFailures.map((f) => `índice ${f.index}: ${f.errors[0]}`).join('; ')}`);
     }
 
+    const { valid: validInvoices, failures: invoiceFailures } = this.validateInvoices(payload.invoices ?? []);
+    if (invoiceFailures.length > 0) {
+      warnings.push(`${invoiceFailures.length} facturas inválidas omitidas: ${invoiceFailures.map((f) => `índice ${f.index}: ${f.errors[0]}`).join('; ')}`);
+    }
+
     let restoredImages: RestoredImageMap = {};
     try {
       restoredImages = await this.restoreImages(payload.images);
@@ -186,6 +197,7 @@ export class RestoreBackupUseCase {
         suppliers: validSuppliers,
         quotations: validQuotations,
         clients: payload.clients ?? [],
+        invoices: validInvoices,
       });
     } catch (error) {
       throw new AppError(
@@ -203,6 +215,7 @@ export class RestoreBackupUseCase {
       suppliersRestored: validSuppliers.length,
       quotationsRestored: validQuotations.length,
       clientsRestored: (payload.clients ?? []).length,
+      invoicesRestored: validInvoices.length,
       profileRestored: payload.profile !== null,
       imagesRestored: Object.keys(restoredImages).length,
       warnings,
@@ -294,6 +307,31 @@ export class RestoreBackupUseCase {
         failures.push({ index: i, errors });
       } else {
         valid.push(q);
+      }
+    }
+
+    return { valid, failures };
+  }
+
+  private validateInvoices(invoices: NonNullable<BackupPayload['invoices']>) {
+    const valid: NonNullable<BackupPayload['invoices']> = [];
+    const failures: Array<{ index: number; errors: string[] }> = [];
+
+    for (let i = 0; i < invoices.length; i++) {
+      const inv = invoices[i];
+      const errors: string[] = [];
+      if (!inv.id || typeof inv.id !== 'string') errors.push('id inválido');
+      if (!inv.invoiceNumber || typeof inv.invoiceNumber !== 'string') errors.push('invoiceNumber inválido');
+      if (!inv.invoiceDate || typeof inv.invoiceDate !== 'string') errors.push('invoiceDate inválido');
+      if (!inv.clientName || typeof inv.clientName !== 'string') errors.push('clientName inválido');
+      if (typeof inv.netAmount !== 'number' || !Number.isFinite(inv.netAmount)) errors.push('netAmount inválido');
+      if (typeof inv.totalAmount !== 'number' || !Number.isFinite(inv.totalAmount)) errors.push('totalAmount inválido');
+      if (!inv.createdAt) errors.push('createdAt inválido');
+
+      if (errors.length > 0) {
+        failures.push({ index: i, errors });
+      } else {
+        valid.push(inv);
       }
     }
 

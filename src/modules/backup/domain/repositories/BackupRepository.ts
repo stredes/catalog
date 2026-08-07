@@ -9,6 +9,7 @@ export interface TransactionalRestoreData {
   suppliers: BackupPayload['suppliers'];
   quotations: BackupPayload['quotations'];
   clients?: BackupPayload['clients'];
+  invoices?: BackupPayload['invoices'];
 }
 
 export interface BackupRepository {

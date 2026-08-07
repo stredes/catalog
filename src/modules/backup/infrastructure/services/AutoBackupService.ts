@@ -152,6 +152,7 @@ export class AutoBackupService {
       catalogs: last.catalogsCount,
       orders: last.ordersCount,
       suppliers: last.suppliersCount ?? 0,
+      invoices: last.invoicesCount ?? 0,
       hasProfile: last.hasProfile,
     };
 

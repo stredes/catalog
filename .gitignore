@@ -39,6 +39,9 @@ yarn-error.*
 # EAS / Google Play
 google-service-account.json
 
+# local build artifacts
+/build
+
 # local env files
 .env*.local
 

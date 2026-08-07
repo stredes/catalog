@@ -24,8 +24,9 @@ const QuotationBuilderScreen = React.lazy(() => import('../modules/quotations/pr
 const QuotationHistoryScreen = React.lazy(() => import('../modules/quotations/presentation/screens/QuotationHistoryScreen').then(m => ({ default: m.QuotationHistoryScreen })));
 const ClientsScreen = React.lazy(() => import('../modules/clients/presentation/screens/ClientsScreen').then(m => ({ default: m.ClientsScreen })));
 const ClientFormScreen = React.lazy(() => import('../modules/clients/presentation/screens/ClientFormScreen').then(m => ({ default: m.ClientFormScreen })));
+const InvoicesScreen = React.lazy(() => import('../modules/invoices/presentation/screens/InvoicesScreen').then(m => ({ default: m.InvoicesScreen })));
 
-export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'OrderHistory' | 'PurchaseCart' | 'EditOrder' | 'Backup' | 'Suppliers' | 'QuotationBuilder' | 'QuotationEdit' | 'Quotations' | 'Clients' | 'ClientForm';
+export type AppRoute = 'Login' | 'Register' | 'Onboarding' | 'Dashboard' | 'Products' | 'Families' | 'Catalogs' | 'CatalogBuilder' | 'Profile' | 'Cart' | 'OrderHistory' | 'PurchaseCart' | 'EditOrder' | 'Backup' | 'Suppliers' | 'QuotationBuilder' | 'QuotationEdit' | 'Quotations' | 'Clients' | 'ClientForm' | 'Invoices';
 
 type NavigationContextValue = {
   activeRoute: AppRoute;
@@ -89,6 +90,8 @@ function renderRoute(route: AppRoute) {
       return <ClientsScreen />;
     case 'ClientForm':
       return <ClientFormScreen />;
+    case 'Invoices':
+      return <InvoicesScreen />;
     case 'Dashboard':
     default:
       return <DashboardScreen />;

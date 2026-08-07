@@ -6,6 +6,7 @@ import { Order } from '../../../orders/domain/entities/Order';
 import { Supplier } from '../../../suppliers/domain/entities/Supplier';
 import { Quotation } from '../../../quotations/domain/entities/Quotation';
 import { Client } from '../../../clients/domain/entities/Client';
+import { Invoice } from '../../../invoices/domain/entities/Invoice';
 
 export type BackupTrigger = 'manual' | 'auto-before-delete' | 'auto-periodic' | 'auto-before-seed';
 
@@ -18,6 +19,7 @@ export type BackupSnapshot = {
   catalogsCount: number;
   ordersCount: number;
   suppliersCount: number;
+  invoicesCount: number;
   hasProfile: boolean;
   checksum: string;
   filePath: string;
@@ -37,6 +39,7 @@ export type BackupPayload = {
   suppliers: Supplier[];
   quotations: Quotation[];
   clients?: Client[];
+  invoices?: Invoice[];
   images: BackupImageMap;
   imageFiles?: Record<string, string>;
 };

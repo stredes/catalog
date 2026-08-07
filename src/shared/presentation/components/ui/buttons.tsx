@@ -53,7 +53,7 @@ export function Button({ label, onPress, disabled, loading, icon, variant = 'pri
               opacity: disabled ? opacityTokens.disabled : 1,
               paddingVertical: spacing.sm,
               paddingHorizontal: spacing.md,
-              minHeight: sizes.touchTarget,
+              minHeight: sizes.inputHeight,
               alignSelf: fullWidth ? 'stretch' : 'auto',
             },
           ]}
@@ -213,7 +213,7 @@ export function FloatingActionButton({ icon, label, onPress, bottom }: {
   return (
     <Animated.View
       entering={FadeInDown.delay(300).duration(400).springify()}
-      style={[styles.fabWrapper, { bottom: bottom ?? 100 }, fabStyle]}
+      style={[styles.fabWrapper, { bottom: bottom ?? sizes.bottomBarHeight + spacing.xl }, fabStyle]}
     >
       <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
         <LiquidGlassContainer variant="floating" style={[styles.fab, { backgroundColor: colors.primary + 'E6' }]}>

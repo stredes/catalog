@@ -4,6 +4,7 @@ export type TableCounts = {
   catalogs: number;
   orders: number;
   suppliers: number;
+  invoices: number;
   hasProfile: boolean;
 };
 

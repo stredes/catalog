@@ -27,6 +27,7 @@ import { useProfile } from '../../../profile/presentation/hooks/useProfile';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useOrders } from '../../../orders/presentation/hooks/useOrders';
 import { useCart } from '../../../orders/presentation/hooks/useCart';
+import { useInvoices } from '../../../invoices/presentation/hooks/useInvoices';
 
 const FAB_HEIGHT = 48;
 const FAB_BOTTOM_OFFSET = 108;
@@ -57,6 +58,7 @@ export function DashboardScreen() {
   const { profile } = useProfile();
   const { orders } = useOrders();
   const { totalItems } = useCart();
+  const { invoices } = useInvoices();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
@@ -102,6 +104,10 @@ export function DashboardScreen() {
   const totalPending = useMemo(
     () => orders.reduce((sum, o) => sum + Math.max(0, o.total - (o.paidAmount ?? 0)), 0),
     [orders],
+  );
+  const pendingInvoices = useMemo(
+    () => invoices.filter((inv) => inv.status === 'pending'),
+    [invoices],
   );
   const topProducts = useMemo(() => {
     const map = new Map<string, { name: string; qty: number; revenue: number }>();
@@ -276,6 +282,16 @@ export function DashboardScreen() {
             />
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(610).duration(350).springify()} style={{ width: '47%' }}>
+            <QuickTile
+              icon="document-text-outline"
+              label="Facturas"
+              onPress={() => navigate('Invoices')}
+              accent="#0EA5E9"
+              badge={pendingInvoices.length > 0 ? pendingInvoices.length : undefined}
+              badgeColor={colors.warning}
+            />
+          </Animated.View>
+          <Animated.View entering={FadeInDown.delay(640).duration(350).springify()} style={{ width: '47%' }}>
             <QuickTile
               icon="cloud-upload-outline"
               label="Backup"

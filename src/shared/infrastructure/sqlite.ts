@@ -1,6 +1,7 @@
 import { SQLiteDatabase, openDatabaseAsync } from 'expo-sqlite';
 import { Directory, File, Paths } from 'expo-file-system';
 import { DATABASE_SCHEMA_VERSION } from './schema-version';
+import { RECORD_HISTORY_DDL } from '../../modules/invoices/infrastructure/services/RecordHistorySql';
 
 export { DATABASE_SCHEMA_VERSION };
 
@@ -189,6 +190,28 @@ const migrations: Record<number, string[]> = {
     `UPDATE quotations SET status = 'pending' WHERE status = 'draft' OR status = 'sent'`,
     `CREATE INDEX IF NOT EXISTS idx_quotations_status ON quotations(status)`,
   ],
+  24: [
+    `CREATE TABLE IF NOT EXISTS invoices (
+      id TEXT PRIMARY KEY NOT NULL,
+      invoice_number TEXT NOT NULL,
+      invoice_date TEXT NOT NULL,
+      client_name TEXT NOT NULL,
+      description TEXT,
+      net_amount REAL NOT NULL,
+      tax_amount REAL NOT NULL,
+      total_amount REAL NOT NULL,
+      payment_date TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_number ON invoices(invoice_number)`,
+    `CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(invoice_date)`,
+    `CREATE INDEX IF NOT EXISTS idx_invoices_client ON invoices(client_name)`,
+    `CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status)`,
+    `ALTER TABLE backup_snapshots ADD COLUMN invoicesCount INTEGER NOT NULL DEFAULT 0`,
+    RECORD_HISTORY_DDL,
+  ],
 }
 
 async function columnExists(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {
@@ -260,7 +283,12 @@ async function applyMigration(db: SQLiteDatabase, version: number) {
       await db.execAsync(trimmed);
     } catch (error) {
       if (upperTrimmed.startsWith('ALTER TABLE')) {
-        continue;
+        const match = trimmed.match(/ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)/i);
+        if (match) {
+          const exists = await columnExists(db, match[1], match[2]);
+          if (exists) continue;
+        }
+        throw new Error(stepLabel(`MIGRATE-${version}`, `Migration v${version} failed: ${trimmed.slice(0, 80)}`));
       }
       if (upperTrimmed.startsWith('CREATE INDEX')) {
         const msg = error instanceof Error ? error.message : '';
@@ -268,7 +296,7 @@ async function applyMigration(db: SQLiteDatabase, version: number) {
         console.warn(`Migration v${version} CREATE INDEX warning: ${msg}`);
         continue;
       }
-      throw new Error(`Migration v${version} failed: ${trimmed.slice(0, 80)}`);
+      throw new Error(stepLabel(`MIGRATE-${version}`, `Migration v${version} failed: ${trimmed.slice(0, 80)}`));
     }
   }
 
@@ -292,7 +320,7 @@ async function migrateDatabase(db: SQLiteDatabase) {
 
   if (currentVersion > DATABASE_SCHEMA_VERSION) {
     throw new Error(
-      `La base de datos está en versión ${currentVersion}, pero la app soporta hasta ${DATABASE_SCHEMA_VERSION}`,
+      stepLabel('VERSION', `La base de datos está en versión ${currentVersion}, pero la app soporta hasta ${DATABASE_SCHEMA_VERSION}`),
     );
   }
 
@@ -319,6 +347,7 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
     const hasSuppliers = await tableExists(db, 'suppliers');
     const hasQuotations = await tableExists(db, 'quotations');
     const hasClients = await tableExists(db, 'clients');
+    const hasInvoices = await tableExists(db, 'invoices');
 
     const families = hasFamilies ? await db.getAllAsync('SELECT id, name, createdAt, updatedAt FROM families') : [];
     const products = hasProducts ? await db.getAllAsync('SELECT id, name, code, price, stock, format, photoUri, familyId, supplierId, createdAt, updatedAt FROM products') : [];
@@ -328,6 +357,7 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
     const suppliers = hasSuppliers ? await db.getAllAsync('SELECT id, name, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers') : [];
     const quotations = hasQuotations ? await db.getAllAsync('SELECT id, quotationNumber, clientName, clientRut, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt FROM quotations') : [];
     const clients = hasClients ? await db.getAllAsync('SELECT id, name, rut, phone, email, notes, createdAt, updatedAt FROM clients') : [];
+    const invoices = hasInvoices ? await db.getAllAsync('SELECT id, invoiceNumber, invoiceDate, clientName, description, netAmount, taxAmount, totalAmount, paymentDate, status, createdAt, updatedAt FROM invoices') : [];
     const migrations = await db.getAllAsync('SELECT version, appliedAt FROM schema_migrations').catch(() => []);
 
     const backupData = {
@@ -342,6 +372,7 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
       suppliers,
       quotations,
       clients,
+      invoices,
       schemaMigrations: migrations,
     };
 
@@ -356,31 +387,119 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
   }
 }
 
+function isNativeNpe(error: unknown): boolean {
+  const msg = error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
+  return msg.includes('NullPointerException') || msg.includes('has been rejected');
+}
+
+function stepLabel(step: string, message: string): string {
+  return `[${step}] ${message}`;
+}
+
+export async function dbStep<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    const original = error instanceof Error ? error : new Error(String(error));
+    const wrapped = new Error(stepLabel(label, original.message));
+    wrapped.stack = original.stack;
+    throw wrapped;
+  }
+}
+
+let openAttempt = 0;
+
+async function openAndMigrate(): Promise<SQLiteDatabase> {
+  openAttempt += 1;
+  const db = await openDatabaseAsync(DATABASE_NAME, { useNewConnection: true });
+  try {
+    await migrateDatabase(db);
+    return db;
+  } catch (error) {
+    try {
+      await db.closeAsync();
+    } catch {
+      // ignore
+    }
+    throw error;
+  }
+}
+
+async function getDatabaseOnce(): Promise<SQLiteDatabase> {
+  if (database) {
+    return database;
+  }
+
+  if (!databasePromise) {
+    databasePromise = openAndMigrate().then(async (db) => {
+      database = db;
+      const versionRow = await db
+        .getFirstAsync<DatabaseVersionRow>('PRAGMA user_version')
+        .catch(() => null);
+      console.log(
+        `[catalog-db] opened schema=${versionRow?.user_version ?? '?'} expected=${DATABASE_SCHEMA_VERSION} app=3.3.16 attempt=${openAttempt}`,
+      );
+      return db;
+    });
+  }
+
+  try {
+    database = await databasePromise;
+    return database;
+  } catch (error) {
+    if (isNativeNpe(error) && openAttempt < 3) {
+      database = null;
+      databasePromise = null;
+      console.warn('[getDatabase] NPE al abrir, reintentando con conexión fresca', error);
+      return getDatabaseOnce();
+    }
+    database = null;
+    databasePromise = null;
+    throw error;
+  }
+}
+
+export async function withRetryOnNpe<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (!isNativeNpe(error)) {
+      throw error;
+    }
+    console.warn(`[sqlite] ${label}: NPE detectado. Reabriendo conexión y reintentando...`, error);
+    database = null;
+    databasePromise = null;
+    return fn();
+  }
+}
+
+export async function withDbTransaction<T>(
+  task: (txn: SQLiteDatabase) => Promise<T>,
+): Promise<T> {
+  return withRetryOnNpe('withDbTransaction', async () => {
+    const db = await getDatabaseOnce();
+    await dbStep('PRAGMA', () => db.execAsync('PRAGMA foreign_keys = ON'));
+    await dbStep('BEGIN', () => db.execAsync('BEGIN IMMEDIATE'));
+    try {
+      const result = await task(db);
+      await dbStep('COMMIT', () => db.execAsync('COMMIT'));
+      return result;
+    } catch (error) {
+      try {
+        await db.execAsync('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('[withDbTransaction] ROLLBACK failed', rollbackError);
+      }
+      throw error;
+    }
+  });
+}
+
 export function resetDatabase() {
   database = null;
   databasePromise = null;
 }
 
 export async function getDatabase() {
-  if (database) {
-    return database;
-  }
-
-  if (!databasePromise) {
-    databasePromise = openDatabaseAsync(DATABASE_NAME)
-      .then(async (db) => {
-        await migrateDatabase(db);
-        database = db;
-        return db;
-      })
-      .catch((error) => {
-        database = null;
-        databasePromise = null;
-        throw error;
-      });
-  }
-
-  database = await databasePromise;
-
-  return database;
+  return getDatabaseOnce();
 }

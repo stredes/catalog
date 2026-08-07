@@ -252,7 +252,7 @@ export function OrderHistoryScreen() {
 
         {orders.length > 0 ? (
           <>
-            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
               <ChoiceChip
                 label=" Lista"
                 selected={viewMode === 'list'}
@@ -271,7 +271,7 @@ export function OrderHistoryScreen() {
               <>
                 <SearchBar value={search} onChange={setSearch} placeholder="Buscar por cliente o producto..." />
 
-                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
                   <ChoiceChip
                     label={`Todos (${orders.length})`}
                     selected={statusFilter === 'all'}
@@ -300,7 +300,7 @@ export function OrderHistoryScreen() {
                   />
                 </View>
 
-                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
                   <ChoiceChip
                     label="Mas recientes"
                     selected={sortBy === 'newest'}

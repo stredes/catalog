@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Alert, Pressable, View, StyleSheet } from 'react-native';
+import { Alert, Pressable, View, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '../../../../shared/presentation/components/Icon';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Sharing from 'expo-sharing';
+import { Directory, File, Paths } from 'expo-file-system';
 import { useAppNavigation } from '../../../../bootstrap/navigation';
 import {
   AppText,
@@ -119,6 +121,7 @@ export function BackupSettingsScreen() {
   } | null>(null);
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [pendingImportUri, setPendingImportUri] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const [exportCustomName, setExportCustomName] = useState('');
 
   async function handleCreateBackup() {
@@ -145,9 +148,16 @@ export function BackupSettingsScreen() {
         const preview = await previewImport(fileUri);
         setImportPreview(preview);
         setPendingImportUri(fileUri);
+        setImportError(null);
         setShowImportPreview(true);
       } catch (err) {
-        Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo previsualizar el backup.');
+        const detail =
+          err instanceof Error
+            ? `[PREVIEW]\n${err.message}\n\nSTACK:\n${err.stack ?? 'sin stack'}`
+            : `[PREVIEW]\n${String(err)}`;
+        console.error('[importBackup] PREVIEW FAILED', err);
+        setImportError(detail);
+        setShowImportPreview(true);
       }
     } catch (err) {
       Alert.alert('Error', 'No se pudo abrir el archivo.');
@@ -162,8 +172,14 @@ export function BackupSettingsScreen() {
       setShowImportPreview(false);
       setImportPreview(null);
       setPendingImportUri(null);
+      setImportError(null);
     } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo importar el backup.');
+      const detail =
+        err instanceof Error
+          ? `[IMPORT]\n${err.message}\n\nSTACK:\n${err.stack ?? 'sin stack'}`
+          : `[IMPORT]\n${String(err)}`;
+      console.error('[importBackup] IMPORT FAILED', err);
+      setImportError(detail);
     }
   }
 
@@ -181,6 +197,31 @@ export function BackupSettingsScreen() {
     const result = checksumResults[backupId];
     if (!result) return null;
     return result.valid ? 'success' : 'error';
+  }
+
+  function extractStep(message: string): string | null {
+    const matches = message.match(/\[[A-Z0-9-]+\]/g);
+    if (!matches || matches.length === 0) return null;
+    return matches[matches.length - 1].replace(/[\[\]]/g, '');
+  }
+
+  async function exportDiagnostic() {
+    try {
+      if (!importError) return;
+      const dir = new Directory(Paths.document, 'diagnostico');
+      dir.create({ idempotent: true, intermediates: true });
+      const filename = `diagnostico-import-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+      const file = new File(dir, filename);
+      file.create({ overwrite: true, intermediates: true });
+      file.write(`${importError}\n\nAPP_VERSION: 3.3.16\n`);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri);
+      } else {
+        Alert.alert('Diagnóstico guardado', `Archivo: ${file.uri}`);
+      }
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo exportar el diagnóstico.');
+    }
   }
 
   return (
@@ -541,10 +582,53 @@ export function BackupSettingsScreen() {
             padding: 24,
           }}
         >
-          <Card variant="elevated" style={{ padding: 24 }}>
+          <Card variant="elevated" style={{ padding: 24, maxHeight: '90%' }}>
             <AppText variant="headingSmall" color="primary" style={{ marginBottom: 16 }}>
-              Vista previa de importación
+              {importError ? 'Error de importación' : 'Vista previa de importación'}
             </AppText>
+            {importError ? (
+              <>
+                {(() => {
+                  const step = extractStep(importError);
+                  return step ? (
+                    <AppText
+                      variant="headingSmall"
+                      color="error"
+                      style={{ fontWeight: '700' as any, marginBottom: 12 }}
+                    >
+                      PASO: {step}
+                    </AppText>
+                  ) : null;
+                })()}
+                <ScrollView
+                  style={{ maxHeight: 340 }}
+                  contentContainerStyle={{ paddingBottom: 8 }}
+                >
+                  <AppText variant="caption" color="error" style={{ fontFamily: 'monospace' }}>
+                    {importError}
+                  </AppText>
+                </ScrollView>
+                <View style={{ height: 16 }} />
+                <PrimaryButton
+                  label="Exportar diagnóstico"
+                  icon="share-outline"
+                  testID="export-diagnostic-btn"
+                  onPress={exportDiagnostic}
+                />
+                <View style={{ height: 8 }} />
+                <SecondaryButton
+                  label="Cerrar"
+                  testID="close-import-error-btn"
+                  onPress={() => {
+                    setImportError(null);
+                    setShowImportPreview(false);
+                    setImportPreview(null);
+                    setPendingImportUri(null);
+                  }}
+                />
+              </>
+            ) : (
+            <>
             <View style={styles.previewItem}>
               <AppText variant="bodyMedium" color="primary">{importPreview.families}</AppText>
               <AppText variant="bodySmall" color="muted">Familias</AppText>
@@ -598,6 +682,8 @@ export function BackupSettingsScreen() {
                 setPendingImportUri(null);
               }}
             />
+            </>
+            )}
           </Card>
         </View>
       )}

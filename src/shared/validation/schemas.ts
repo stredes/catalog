@@ -149,6 +149,27 @@ export const ClientSchema = z.object({
 
 export type ValidatedClient = z.infer<typeof ClientSchema>;
 
+export const InvoiceStatusSchema = z.enum(['pending', 'paid']);
+
+export const InvoiceSchema = z.object({
+  id: z.string().min(1),
+  invoiceNumber: z.string().min(1),
+  invoiceDate: z.string().min(1),
+  clientName: z.string().min(1),
+  description: z.string().nullish(),
+  netAmount: MoneySchema,
+  taxAmount: MoneySchema,
+  totalAmount: MoneySchema,
+  paymentDate: z.string().nullish(),
+  status: InvoiceStatusSchema
+    .nullish()
+    .transform((value) => value ?? 'pending'),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+});
+
+export type ValidatedInvoice = z.infer<typeof InvoiceSchema>;
+
 export const ServiceItemSchema = z.object({
   id: z.string().min(1),
   description: z.string().min(1),
@@ -200,6 +221,9 @@ export const BackupPayloadSchema = z.object({
     .nullish()
     .transform((value) => value ?? []),
   clients: z.array(ClientSchema)
+    .nullish()
+    .transform((value) => value ?? []),
+  invoices: z.array(InvoiceSchema)
     .nullish()
     .transform((value) => value ?? []),
   images: z.record(z.string(), z.string())

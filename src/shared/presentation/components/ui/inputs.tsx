@@ -21,7 +21,7 @@ export function SearchInput({ value, onChange, placeholder }: {
         style={[styles.searchInput, { color: colors.textPrimary }]}
       />
       {value ? (
-        <Pressable onPress={() => onChange('')} hitSlop={8}>
+        <Pressable onPress={() => onChange('')} hitSlop={spacing.sm}>
           <Ionicons name="close-circle" size={18} color={colors.textMuted} />
         </Pressable>
       ) : null}

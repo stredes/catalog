@@ -24,6 +24,9 @@ import { Quotation, QuotationStatus } from '../modules/quotations/domain/entitie
 import { QuotationRepository } from '../modules/quotations/domain/repositories/QuotationRepository';
 import { Client } from '../modules/clients/domain/entities/Client';
 import { ClientRepository } from '../modules/clients/domain/repositories/ClientRepository';
+import { Invoice } from '../modules/invoices/domain/entities/Invoice';
+import { InvoiceRepository } from '../modules/invoices/domain/repositories/InvoiceRepository';
+import { InvoiceHistoryEntry, RecordHistoryRepository } from '../modules/invoices/domain/repositories/RecordHistoryRepository';
 import { computeChecksum } from '../shared/utils/checksum';
 
 export class InMemoryFamilyRepository implements FamilyRepository {
@@ -230,6 +233,7 @@ export interface InMemoryBackupRepositoryDeps {
   orderRepo?: OrderRepository;
   supplierRepo?: SupplierRepository;
   clientRepo?: ClientRepository;
+  invoiceRepo?: InvoiceRepository;
 }
 
 export class InMemoryBackupRepository implements BackupRepository {
@@ -277,7 +281,7 @@ export class InMemoryBackupRepository implements BackupRepository {
   async transactionalRestore(data: TransactionalRestoreData): Promise<void> {
     this.lastRestoreData = { ...data };
 
-    const { familyRepo, productRepo, catalogRepo, profileRepo, orderRepo, supplierRepo, clientRepo } = this.deps;
+    const { familyRepo, productRepo, catalogRepo, profileRepo, orderRepo, supplierRepo, clientRepo, invoiceRepo } = this.deps;
 
     if (familyRepo) {
       for (const f of await familyRepo.findAll()) await familyRepo.delete(f.id);
@@ -306,6 +310,10 @@ export class InMemoryBackupRepository implements BackupRepository {
       for (const c of await clientRepo.findAll()) await clientRepo.delete(c.id);
       for (const c of data.clients ?? []) await clientRepo.create(c);
     }
+    if (invoiceRepo) {
+      for (const inv of await invoiceRepo.findAll()) await invoiceRepo.delete(inv.id);
+      for (const inv of data.invoices ?? []) await invoiceRepo.create(inv);
+    }
   }
 
   lastRestoreData: TransactionalRestoreData | null = null;
@@ -321,6 +329,7 @@ export function makeBackupSnapshot(overrides: Partial<BackupSnapshot> = {}): Bac
     catalogsCount: 0,
     ordersCount: 0,
     suppliersCount: 0,
+    invoicesCount: 0,
     hasProfile: true,
     checksum: 'abc123',
     filePath: '',
@@ -574,5 +583,59 @@ export class InMemoryClientRepository implements ClientRepository {
 
   async findByRut(rut: string) {
     return [...this.clients.values()].find((c) => c.rut === rut) ?? null;
+  }
+}
+
+export class InMemoryInvoiceRepository implements InvoiceRepository {
+  invoices = new Map<string, Invoice>();
+
+  async create(invoice: Invoice) {
+    this.invoices.set(invoice.id, invoice);
+    return invoice;
+  }
+
+  async update(invoice: Invoice) {
+    this.invoices.set(invoice.id, invoice);
+    return invoice;
+  }
+
+  async updateStatus(id: string, status: Invoice['status'], paymentDate?: string) {
+    const existing = this.invoices.get(id);
+    if (!existing) throw new Error('Invoice not found');
+    const updated: Invoice = { ...existing, status, paymentDate, updatedAt: new Date().toISOString() };
+    this.invoices.set(id, updated);
+    return updated;
+  }
+
+  async findById(id: string) {
+    return this.invoices.get(id) ?? null;
+  }
+
+  async findAll() {
+    return [...this.invoices.values()];
+  }
+
+  async delete(id: string) {
+    this.invoices.delete(id);
+  }
+
+  async existsByInvoiceNumber(invoiceNumber: string, excludedId?: string) {
+    return [...this.invoices.values()].some(
+      (inv) => inv.invoiceNumber === invoiceNumber && inv.id !== excludedId,
+    );
+  }
+}
+
+export class InMemoryRecordHistoryRepository implements RecordHistoryRepository {
+  entries = new Map<string, InvoiceHistoryEntry>();
+
+  async findByEntity(entityId: string) {
+    return [...this.entries.values()]
+      .filter((e) => e.entityId === entityId)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }
+
+  add(entry: InvoiceHistoryEntry) {
+    this.entries.set(entry.id, entry);
   }
 }

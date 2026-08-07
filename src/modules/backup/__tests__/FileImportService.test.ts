@@ -90,6 +90,9 @@ vi.mock('expo-file-system', () => {
 });
 
 vi.mock('../../../shared/infrastructure/sqlite', () => ({
+  withDbTransaction: vi.fn(async (fn: (txn: unknown) => Promise<void>) => {
+    await fn({ runAsync: async () => {}, execAsync: async () => {} });
+  }),
   getDatabase: vi.fn(async () => ({
     execAsync: async (sql: string) => {
       state.execCalls.push(sql);
@@ -97,9 +100,6 @@ vi.mock('../../../shared/infrastructure/sqlite', () => ({
     runAsync: async () => {},
     getFirstAsync: async () => ({ user_version: 0 }),
     getAllAsync: async () => [],
-    withExclusiveTransactionAsync: async (fn: (txn: { runAsync: () => Promise<void>; execAsync: () => Promise<void> }) => Promise<void>) => {
-      await fn({ runAsync: async () => {}, execAsync: async () => {} });
-    },
   })),
 }));
 

@@ -73,7 +73,7 @@ export function CardHeader({ title, subtitle, action }: {
     <View style={styles.cardHeader}>
       <View style={{ flex: 1 }}>
         <AppText variant="headingSmall" color="primary">{title}</AppText>
-        {subtitle ? <AppText variant="bodySmall" color="muted" style={{ marginTop: 2 }}>{subtitle}</AppText> : null}
+        {subtitle ? <AppText variant="bodySmall" color="muted" style={{ marginTop: spacing.xxs }}>{subtitle}</AppText> : null}
       </View>
       {action ? <View style={{ marginLeft: spacing.sm }}>{action}</View> : null}
     </View>
@@ -146,8 +146,8 @@ export const ProductCard = memo(function ProductCard({ name, price, format, fami
 }) {
   const colors = c();
   const { width } = useWindowDimensions();
-  const horizontalPadding = 20;
-  const gap = 16;
+  const horizontalPadding = spacing.xl;
+  const gap = spacing.lg;
   const columns = 2;
   const cardWidth = Math.floor((width - horizontalPadding * 2 - gap * (columns - 1)) / columns);
 
@@ -210,9 +210,9 @@ export const ProductCard = memo(function ProductCard({ name, price, format, fami
               <AppText variant="caption" color="muted" style={{ color: fmtColor }}>{format}</AppText>
             </View>
           </View>
-          <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: 4 }}>{family}</AppText>
+          <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: spacing.xs }}>{family}</AppText>
           {supplier ? (
-            <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: 4, color: '#8B5CF6' }}>{supplier}</AppText>
+            <AppText variant="caption" color="muted" numberOfLines={1} style={{ marginTop: spacing.xs, color: '#8B5CF6' }}>{supplier}</AppText>
           ) : null}
           {stock !== undefined ? (
             <View style={[styles.stockCounter, { marginTop: spacing.md }]}>
@@ -339,9 +339,9 @@ export const CatalogHistoryItem = memo(function CatalogHistoryItem({ name, forma
           ) : (
             <AppText variant="caption" color="muted">{FORMAT_LABELS[format] ?? format}</AppText>
           )}
-          <AppText variant="caption" color="muted" style={{ marginHorizontal: 4 }}>·</AppText>
+          <AppText variant="caption" color="muted" style={{ marginHorizontal: spacing.xs }}>·</AppText>
           <AppText variant="caption" color="muted">{date}</AppText>
-          <AppText variant="caption" color="muted" style={{ marginHorizontal: 4 }}>·</AppText>
+          <AppText variant="caption" color="muted" style={{ marginHorizontal: spacing.xs }}>·</AppText>
           <AppText variant="caption" color="muted">{productCount} prod.</AppText>
         </View>
       </View>

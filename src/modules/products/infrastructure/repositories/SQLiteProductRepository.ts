@@ -1,5 +1,5 @@
 import { File } from 'expo-file-system';
-import { getDatabase } from '../../../../shared/infrastructure/sqlite';
+import { getDatabase, withDbTransaction } from '../../../../shared/infrastructure/sqlite';
 import { Product } from '../../domain/entities/product';
 import { ProductRepository } from '../../domain/repositories/ProductRepository';
 
@@ -117,7 +117,7 @@ export class SQLiteProductRepository implements ProductRepository {
   async batchUpdateStock(changes: Array<{ productId: string; quantity: number }>): Promise<void> {
     if (changes.length === 0) return;
     const db = await getDatabase();
-    await db.withExclusiveTransactionAsync(async (txn) => {
+    await withDbTransaction(async (txn) => {
       for (const change of changes) {
         await txn.runAsync(
           'UPDATE products SET stock = stock + ?, updatedAt = ? WHERE id = ?',

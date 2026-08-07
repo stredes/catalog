@@ -98,6 +98,15 @@ import { UpdateQuotationStatusUseCase } from '../modules/quotations/application/
 import { GenerateQuotationPdfUseCase } from '../modules/quotations/application/use-cases/GenerateQuotationPdfUseCase';
 import { SQLiteQuotationRepository } from '../modules/quotations/infrastructure/repositories/SQLiteQuotationRepository';
 import { QuotationPdfGenerator } from '../modules/quotations/infrastructure/QuotationPdfGenerator';
+import {
+  CreateInvoiceUseCase,
+  UpdateInvoiceUseCase,
+  DeleteInvoiceUseCase,
+  UpdateInvoiceStatusUseCase,
+  GetInvoicesUseCase,
+} from '../modules/invoices/application/use-cases/InvoiceUseCases';
+import { SQLiteInvoiceRepository } from '../modules/invoices/infrastructure/repositories/SQLiteInvoiceRepository';
+import { SQLiteRecordHistoryRepository } from '../modules/invoices/infrastructure/repositories/SQLiteRecordHistoryRepository';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -115,6 +124,8 @@ function buildDependencies() {
   const supplierRepository = new SQLiteSupplierRepository();
   const quotationRepository = new SQLiteQuotationRepository();
   const clientRepository = new SQLiteClientRepository();
+  const invoiceRepository = new SQLiteInvoiceRepository();
+  const recordHistoryRepository = new SQLiteRecordHistoryRepository();
   const pdfGenerator = new ExpoPdfGenerator();
   const shareService = new ExpoNativeShareService();
   const imagePicker = new ExpoImagePickerService();
@@ -137,6 +148,7 @@ function buildDependencies() {
     supplierRepository,
     quotationRepository,
     clientRepository,
+    invoiceRepository,
     collectBackupImages,
   );
 
@@ -147,6 +159,7 @@ function buildDependencies() {
     profileRepository,
     orderRepository,
     supplierRepository,
+    invoiceRepository,
   );
 
   const autoBackupService = new AutoBackupService(
@@ -168,6 +181,8 @@ function buildDependencies() {
         suppliers: supplierRepository,
         quotations: quotationRepository,
         clients: clientRepository,
+        invoices: invoiceRepository,
+        recordHistory: recordHistoryRepository,
       },
       services: {
         preferences,
@@ -232,6 +247,7 @@ function buildDependencies() {
           orderRepository,
           supplierRepository,
           quotationRepository,
+          invoiceRepository,
           restoreBackupImages,
           collectBackupImages,
         ),
@@ -248,6 +264,11 @@ function buildDependencies() {
         createClient: new CreateClientUseCase(clientRepository),
         updateClient: new UpdateClientUseCase(clientRepository),
         deleteClient: new DeleteClientUseCase(clientRepository),
+        createInvoice: new CreateInvoiceUseCase(invoiceRepository),
+        updateInvoice: new UpdateInvoiceUseCase(invoiceRepository),
+        deleteInvoice: new DeleteInvoiceUseCase(invoiceRepository),
+        updateInvoiceStatus: new UpdateInvoiceStatusUseCase(invoiceRepository),
+        getInvoices: new GetInvoicesUseCase(invoiceRepository),
       },
       autoBackupService,
     };

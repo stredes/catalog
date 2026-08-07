@@ -4,6 +4,7 @@ import { CatalogRepository } from '../../../catalogs/domain/repositories/Catalog
 import { ProfileRepository } from '../../../profile/domain/repositories/ProfileRepository';
 import { OrderRepository } from '../../../orders/domain/repositories/OrderRepository';
 import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
+import { InvoiceRepository } from '../../../invoices/domain/repositories/InvoiceRepository';
 import { ChangeTrackerPort, ChangeSnapshot, TableCounts } from '../../domain/repositories/ChangeTrackerPort';
 import { computeChecksum } from '../../../../shared/utils/checksum';
 
@@ -15,16 +16,18 @@ export class ChangeDetector implements ChangeTrackerPort {
     private readonly profileRepo: ProfileRepository,
     private readonly orderRepo: OrderRepository,
     private readonly supplierRepo: SupplierRepository,
+    private readonly invoiceRepo: InvoiceRepository,
   ) {}
 
   async capture(): Promise<ChangeSnapshot> {
-    const [families, products, catalogs, profile, orders, suppliers] = await Promise.all([
+    const [families, products, catalogs, profile, orders, suppliers, invoices] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
       this.catalogRepo.findAll(),
       this.profileRepo.find(),
       this.orderRepo.findAll(),
       this.supplierRepo.findAll(),
+      this.invoiceRepo.findAll(),
     ]);
 
     const counts: TableCounts = {
@@ -33,6 +36,7 @@ export class ChangeDetector implements ChangeTrackerPort {
       catalogs: catalogs.length,
       orders: orders.length,
       suppliers: suppliers.length,
+      invoices: invoices.length,
       hasProfile: profile !== null,
     };
 

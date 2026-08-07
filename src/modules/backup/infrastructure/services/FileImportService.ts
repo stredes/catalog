@@ -1,5 +1,5 @@
 import { File } from 'expo-file-system';
-import { getDatabase } from '../../../../shared/infrastructure/sqlite';
+import { getDatabase, withDbTransaction } from '../../../../shared/infrastructure/sqlite';
 import { DATABASE_SCHEMA_VERSION } from '../../../../shared/infrastructure/schema-version';
 import { restoreBackupImages } from './BackupImageCollector';
 import { BackupImageMap } from '../../domain/entities/BackupSnapshot';
@@ -16,6 +16,7 @@ export type BackupPreview = {
   suppliers: number;
   quotations: number;
   clients: number;
+  invoices: number;
   images: number;
 };
 
@@ -28,6 +29,7 @@ type LegacyBackupData = {
   catalogs?: Array<{ id: string; name: string; familyId: string; familyIds: string | null; format: string; productIds: string; pdfUri: string; purpose?: string | null; createdAt: string }>;
   profile?: Array<{ id: string; businessName: string; ownerName: string | null; phone: string | null; email: string | null; address: string | null; website: string | null; logoUri: string | null; bankName: string | null; bankAccountType: string | null; bankAccountNumber: string | null; updatedAt: string }>;
   orders?: Array<{ id: string; orderNumber: number; clientName: string; items: string; subtotal: number; iva: number; total: number; status?: string; paidAmount?: number; notes: string | null; createdAt: string }>;
+  invoices?: Array<{ id: string; invoiceNumber: string; invoiceDate: string; clientName: string; description: string | null; netAmount: number; taxAmount: number; totalAmount: number; paymentDate: string | null; status?: string; createdAt: string; updatedAt: string }>;
   images?: BackupImageMap;
 };
 
@@ -56,11 +58,16 @@ async function ensureAllTablesExist(db: Awaited<ReturnType<typeof getDatabase>>)
   await db.execAsync(`CREATE TABLE IF NOT EXISTS suppliers (
     id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, phone TEXT, email TEXT, contactName TEXT, notes TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
   )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS invoices (
+    id TEXT PRIMARY KEY NOT NULL, invoice_number TEXT NOT NULL, invoice_date TEXT NOT NULL, client_name TEXT NOT NULL,
+    description TEXT, net_amount REAL NOT NULL, tax_amount REAL NOT NULL, total_amount REAL NOT NULL,
+    payment_date TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  )`);
 }
 
 async function clearAllTables(db: Awaited<ReturnType<typeof getDatabase>>) {
   await db.execAsync('PRAGMA foreign_keys = ON');
-  const tables = ['orders', 'catalogs', 'products', 'families', 'profile', 'suppliers'];
+  const tables = ['invoices', 'orders', 'catalogs', 'products', 'families', 'profile', 'suppliers'];
   for (const table of tables) {
     try {
       await db.runAsync('DELETE FROM ' + table);
@@ -87,6 +94,7 @@ export type ImportResult = {
   suppliers: number;
   quotations: number;
   clients: number;
+  invoices: number;
   images: number;
 };
 
@@ -153,6 +161,11 @@ async function restorePayload(
     notes: quotation.notes ?? undefined,
     validUntil: quotation.validUntil ?? undefined,
   }));
+  const invoices = payload.invoices.map((invoice) => ({
+    ...invoice,
+    description: invoice.description ?? undefined,
+    paymentDate: invoice.paymentDate ?? undefined,
+  }));
 
   await new SQLiteBackupRepository().transactionalRestore({
     families: payload.families,
@@ -163,6 +176,7 @@ async function restorePayload(
     suppliers,
     quotations,
     clients,
+    invoices,
   });
 
   return {
@@ -173,6 +187,7 @@ async function restorePayload(
     suppliers: payload.suppliers.length,
     quotations: payload.quotations?.length ?? 0,
     clients: payload.clients?.length ?? 0,
+    invoices: payload.invoices?.length ?? 0,
     images: Object.keys(restoredImages).length,
   };
 }
@@ -211,7 +226,7 @@ export async function importBackupFromFile(filepath: string): Promise<ImportResu
   }
 
   const data = raw as LegacyBackupData;
-  if (!data.families && !data.products && !data.catalogs && !data.orders) {
+  if (!data.families && !data.products && !data.catalogs && !data.orders && !data.invoices) {
     throw new Error('El archivo no contiene datos de backup reconocidos.');
   }
 
@@ -224,7 +239,7 @@ export async function importBackupFromFile(filepath: string): Promise<ImportResu
     );
   }
 
-  let counts: ImportResult = { families: 0, products: 0, catalogs: 0, orders: 0, suppliers: 0, quotations: 0, clients: 0, images: 0 };
+  let counts: ImportResult = { families: 0, products: 0, catalogs: 0, orders: 0, suppliers: 0, quotations: 0, clients: 0, invoices: 0, images: 0 };
 
   await ensureAllTablesExist(db);
   await clearAllTables(db);
@@ -232,8 +247,7 @@ export async function importBackupFromFile(filepath: string): Promise<ImportResu
   await db.execAsync('PRAGMA foreign_keys = ON');
 
   if (data.families?.length) {
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.execAsync('PRAGMA foreign_keys = ON');
+    await withDbTransaction(async (txn) => {
       for (const f of data.families!) {
         await txn.runAsync(
           'INSERT OR REPLACE INTO families (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
@@ -250,8 +264,7 @@ export async function importBackupFromFile(filepath: string): Promise<ImportResu
     const BATCH = 50;
     for (let i = 0; i < data.products.length; i += BATCH) {
       const batch = data.products.slice(i, i + BATCH);
-      await db.withExclusiveTransactionAsync(async (txn) => {
-        await txn.execAsync('PRAGMA foreign_keys = ON');
+      await withDbTransaction(async (txn) => {
         for (const p of batch) {
           const photoUri = p.photoUri
             ? (restoredImages[p.photoUri] ?? p.photoUri)
@@ -267,8 +280,7 @@ export async function importBackupFromFile(filepath: string): Promise<ImportResu
   }
 
   if (data.catalogs?.length) {
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.execAsync('PRAGMA foreign_keys = ON');
+    await withDbTransaction(async (txn) => {
       for (const c of data.catalogs!) {
         await txn.runAsync(
           'INSERT OR REPLACE INTO catalogs (id, name, familyId, familyIds, format, productIds, pdfUri, purpose, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -280,8 +292,7 @@ export async function importBackupFromFile(filepath: string): Promise<ImportResu
   }
 
   if (data.orders?.length) {
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.execAsync('PRAGMA foreign_keys = ON');
+    await withDbTransaction(async (txn) => {
       for (const o of data.orders!) {
         await txn.runAsync(
           'INSERT OR REPLACE INTO orders (id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -294,8 +305,7 @@ export async function importBackupFromFile(filepath: string): Promise<ImportResu
   }
 
   if (data.profile?.length) {
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.execAsync('PRAGMA foreign_keys = ON');
+    await withDbTransaction(async (txn) => {
       for (const p of data.profile!) {
         const logoUri = p.logoUri
           ? (restoredImages[p.logoUri] ?? p.logoUri)
@@ -311,6 +321,20 @@ export async function importBackupFromFile(filepath: string): Promise<ImportResu
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_SCHEMA_VERSION}`);
+
+  if (data.invoices?.length) {
+    await withDbTransaction(async (txn) => {
+      for (const inv of data.invoices!) {
+        await txn.runAsync(
+          'INSERT OR REPLACE INTO invoices (id, invoice_number, invoice_date, client_name, description, net_amount, tax_amount, total_amount, payment_date, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          inv.id, inv.invoiceNumber, inv.invoiceDate, inv.clientName,
+          inv.description ?? null, inv.netAmount, inv.taxAmount, inv.totalAmount,
+          inv.paymentDate ?? null, inv.status ?? 'pending', inv.createdAt, inv.updatedAt,
+        );
+      }
+    });
+    counts.invoices = data.invoices.length;
+  }
 
   counts.images = Object.keys(restoredImages).length;
 
@@ -338,6 +362,7 @@ export async function previewBackupFromFile(filepath: string): Promise<BackupPre
       suppliers: payload.suppliers.length,
       quotations: payload.quotations?.length ?? 0,
       clients: payload.clients?.length ?? 0,
+      invoices: payload.invoices?.length ?? 0,
       images: Object.keys(payload.imageFiles ?? {}).length,
     };
   }
@@ -365,12 +390,13 @@ export async function previewBackupFromFile(filepath: string): Promise<BackupPre
       suppliers: payload.suppliers.length,
       quotations: payload.quotations?.length ?? 0,
       clients: payload.clients?.length ?? 0,
+      invoices: payload.invoices?.length ?? 0,
       images: Object.keys(payload.images).length,
     };
   }
 
   const data = raw as Record<string, unknown>;
-  if (!data.families && !data.products && !data.catalogs && !data.orders) {
+  if (!data.families && !data.products && !data.catalogs && !data.orders && !data.invoices) {
     throw new Error('El archivo no contiene datos de backup reconocidos.');
   }
 
@@ -382,6 +408,7 @@ export async function previewBackupFromFile(filepath: string): Promise<BackupPre
     suppliers: (data.suppliers as unknown[] | undefined)?.length ?? 0,
     quotations: (data.quotations as unknown[] | undefined)?.length ?? 0,
     clients: (data.clients as unknown[] | undefined)?.length ?? 0,
+    invoices: (data.invoices as unknown[] | undefined)?.length ?? 0,
     images: data.images && typeof data.images === 'object'
       ? Object.keys(data.images as Record<string, string>).length
       : 0,

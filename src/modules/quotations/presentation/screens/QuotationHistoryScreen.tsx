@@ -165,7 +165,7 @@ export function QuotationHistoryScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           data={[{ key: 'all' }, { key: 'pending' }, { key: 'accepted' }, { key: 'paid' }, { key: 'rejected' }, ...(deletedCount > 0 ? [{ key: 'deleted' }] : [])]}
-          contentContainerStyle={{ gap: 6, marginBottom: 6 }}
+          contentContainerStyle={{ gap: spacing.sm, marginBottom: spacing.sm }}
           decelerationRate="fast"
           keyExtractor={(item) => item.key}
           renderItem={({ item }) => {
@@ -193,7 +193,7 @@ export function QuotationHistoryScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           data={[{ key: 'newest', label: 'Mas recientes' }, { key: 'name', label: 'Cliente' }, { key: 'highest', label: 'Mayor monto' }]}
-          contentContainerStyle={{ gap: 6, marginBottom: 6 }}
+          contentContainerStyle={{ gap: spacing.sm, marginBottom: spacing.sm }}
           decelerationRate="fast"
           keyExtractor={(item) => item.key}
           renderItem={({ item }) => (
@@ -212,7 +212,7 @@ export function QuotationHistoryScreen() {
               LayoutAnimation.configureNext(ACCORDION_CONFIG);
               setShowDeleted(!showDeleted);
             }}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, paddingHorizontal: 4 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm, paddingHorizontal: spacing.xs }}
           >
             <Ionicons
               name={showDeleted ? 'eye-outline' : 'eye-off-outline'}
@@ -240,7 +240,7 @@ export function QuotationHistoryScreen() {
     const sl = statusLabels[quotation.status] ?? 'EN ESPERA';
 
     return (
-      <Card style={{ marginBottom: 12 }}>
+      <Card>
         <Pressable onPress={() => toggleExpand(quotation.id)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={[styles.orderIcon, { backgroundColor: colors[sc as keyof typeof colors] + '18' }]}>
@@ -444,7 +444,7 @@ export function QuotationHistoryScreen() {
             ListHeaderComponent={renderHeader}
             contentContainerStyle={{ paddingBottom: 140 }}
             showsVerticalScrollIndicator={false}
-            ItemSeparatorComponent={() => <View style={{ height: 0 }} />}
+            ItemSeparatorComponent={() => <View style={{ height: spacing.lg }} />}
           />
         )}
       </Screen>

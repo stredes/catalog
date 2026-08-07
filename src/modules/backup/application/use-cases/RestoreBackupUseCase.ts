@@ -104,6 +104,12 @@ export class RestoreBackupUseCase {
 
     const warnings: string[] = [];
 
+    if (payload.schemaVersion < DATABASE_SCHEMA_VERSION) {
+      warnings.push(
+        `El backup fue creado con el esquema ${payload.schemaVersion} y se sincronizó al esquema actual (${DATABASE_SCHEMA_VERSION}).`,
+      );
+    }
+
     const [currentFamilies, currentProducts, currentCatalogs, currentProfile, currentOrders, currentSuppliers, currentQuotations, currentInvoices, currentClients, currentPurchaseDocuments] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
@@ -257,6 +263,12 @@ export class RestoreBackupUseCase {
   private validatePayloadIntegrity(payload: BackupPayload): void {
     if (!Number.isFinite(payload.schemaVersion) || payload.schemaVersion < 0) {
       throw new AppError('DATABASE_ERROR', 'Backup tiene versión de esquema inválida');
+    }
+    if (payload.schemaVersion > DATABASE_SCHEMA_VERSION) {
+      throw new AppError(
+        'DATABASE_ERROR',
+        `El backup fue creado con un esquema más nuevo (${payload.schemaVersion}) y no puede restaurarse en esta versión de la app (esquema ${DATABASE_SCHEMA_VERSION}). Actualiza la app.`,
+      );
     }
     if (!payload.createdAt) {
       throw new AppError('DATABASE_ERROR', 'Backup no tiene fecha de creación');

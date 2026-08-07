@@ -20,6 +20,7 @@ import {
 import { CreateBackupUseCase } from '../application/use-cases/CreateBackupUseCase';
 import { RestoreBackupUseCase } from '../application/use-cases/RestoreBackupUseCase';
 import { BackupPayload } from '../domain/entities/BackupSnapshot';
+import { DATABASE_SCHEMA_VERSION } from '../../../shared/infrastructure/schema-version';
 
 describe('RestoreBackupUseCase - Transaccional', () => {
   let backupRepo: InMemoryBackupRepository;
@@ -238,7 +239,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
   it('valida payload corrupto e informa errores', async () => {
     const payload: BackupPayload = {
-      schemaVersion: 14,
+      schemaVersion: DATABASE_SCHEMA_VERSION,
       createdAt: new Date().toISOString(),
       families: [],
       products: [],
@@ -418,6 +419,79 @@ describe('RestoreBackupUseCase - Validaciones', () => {
       confirmRestore: true,
       createPreventiveBackup: false,
     })).rejects.toThrow('versión de esquema inválida');
+  });
+
+  it('rechaza backup con esquema más nuevo que la app', async () => {
+    const payload: BackupPayload = {
+      schemaVersion: DATABASE_SCHEMA_VERSION + 1,
+      createdAt: '2026-01-01',
+      families: [makeFamily({ id: 'fam_newer' })],
+      products: [],
+      catalogs: [],
+      profile: null,
+      orders: [],
+      suppliers: [],
+      quotations: [],
+      clients: [],
+      purchaseDocuments: [],
+      images: {},
+    };
+    const snapshot = makeBackupSnapshot({
+      id: 'bkp_newer',
+      checksum: computeBackupChecksum(payload),
+    });
+    await backupRepo.saveSnapshot(snapshot, payload);
+
+    const useCase = new RestoreBackupUseCase(
+      backupRepo, familyRepo, productRepo, catalogRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
+    );
+
+    await expect(useCase.execute({
+      backupId: 'bkp_newer',
+      confirmRestore: true,
+      createPreventiveBackup: false,
+    })).rejects.toThrow('esquema más nuevo');
+  });
+
+  it('acepta backup con esquema anterior y avisa que se sincroniza al actual', async () => {
+    const payload: BackupPayload = {
+      schemaVersion: Math.max(1, DATABASE_SCHEMA_VERSION - 1),
+      createdAt: '2026-01-01',
+      families: [makeFamily({ id: 'fam_older' })],
+      products: [],
+      catalogs: [],
+      profile: null,
+      orders: [],
+      suppliers: [],
+      quotations: [],
+      clients: [],
+      purchaseDocuments: [],
+      images: {},
+    };
+    const snapshot = makeBackupSnapshot({
+      id: 'bkp_older',
+      checksum: computeBackupChecksum(payload),
+    });
+    await backupRepo.saveSnapshot(snapshot, payload);
+
+    const useCase = new RestoreBackupUseCase(
+      backupRepo, familyRepo, productRepo, catalogRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
+    );
+
+    const result = await useCase.execute({
+      backupId: 'bkp_older',
+      confirmRestore: true,
+      createPreventiveBackup: false,
+    });
+
+    expect(result.familiesRestored).toBe(1);
+    expect(await familyRepo.findById('fam_older')).not.toBeNull();
+    expect(result.warnings.join(' ')).toContain('sincronizó');
+    expect(result.warnings.join(' ')).toContain(String(DATABASE_SCHEMA_VERSION));
   });
 
   it('rechaza backup con checksum incorrecto', async () => {

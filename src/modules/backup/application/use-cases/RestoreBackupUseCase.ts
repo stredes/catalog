@@ -7,6 +7,8 @@ import { OrderRepository } from '../../../orders/domain/repositories/OrderReposi
 import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
 import { QuotationRepository } from '../../../quotations/domain/repositories/QuotationRepository';
 import { InvoiceRepository } from '../../../invoices/domain/repositories/InvoiceRepository';
+import { ClientRepository } from '../../../clients/domain/repositories/ClientRepository';
+import { PurchaseDocumentRepository } from '../../../purchase-documents/domain/repositories/PurchaseDocumentRepository';
 import { BackupRepository } from '../../domain/repositories/BackupRepository';
 import { RestoreBackupInput, RestoreBackupSchema } from '../dtos/BackupDtos';
 import { AppError } from '../../../../shared/errors/AppError';
@@ -34,6 +36,7 @@ export type RestoreResult = {
   quotationsRestored: number;
   clientsRestored: number;
   invoicesRestored: number;
+  purchaseDocumentsRestored: number;
   profileRestored: boolean;
   imagesRestored: number;
   warnings: string[];
@@ -53,6 +56,8 @@ export class RestoreBackupUseCase {
     private readonly supplierRepo: SupplierRepository,
     private readonly quotationRepo: QuotationRepository,
     private readonly invoiceRepo: InvoiceRepository,
+    private readonly clientRepo: ClientRepository,
+    private readonly purchaseDocumentRepo: PurchaseDocumentRepository,
     restoreImages?: ImageRestorer,
     collectImages?: ImageCollector,
   ) {
@@ -82,7 +87,10 @@ export class RestoreBackupUseCase {
         cc: payload.catalogs.length,
         oc: payload.orders.length,
         sc: payload.suppliers?.length ?? 0,
+        qc: payload.quotations?.length ?? 0,
+        ic: payload.invoices?.length ?? 0,
         clc: payload.clients?.length ?? 0,
+        pdc: payload.purchaseDocuments?.length ?? 0,
         fp: payload.profile !== null,
         fn: payload.families.map((f) => f.id).sort(),
         pn: payload.products.map((p) => p.id).sort(),
@@ -96,7 +104,7 @@ export class RestoreBackupUseCase {
 
     const warnings: string[] = [];
 
-    const [currentFamilies, currentProducts, currentCatalogs, currentProfile, currentOrders, currentSuppliers, currentQuotations, currentInvoices] = await Promise.all([
+    const [currentFamilies, currentProducts, currentCatalogs, currentProfile, currentOrders, currentSuppliers, currentQuotations, currentInvoices, currentClients, currentPurchaseDocuments] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
       this.catalogRepo.findAll(),
@@ -105,6 +113,8 @@ export class RestoreBackupUseCase {
       this.supplierRepo.findAll(),
       this.quotationRepo.findAll(),
       this.invoiceRepo.findAll(),
+      this.clientRepo.findAll(),
+      this.purchaseDocumentRepo.findAll(),
     ]);
 
     if (validated.createPreventiveBackup) {
@@ -119,6 +129,8 @@ export class RestoreBackupUseCase {
         suppliers: currentSuppliers,
         quotations: currentQuotations,
         invoices: currentInvoices,
+        clients: currentClients,
+        purchaseDocuments: currentPurchaseDocuments,
         images: {},
       };
 
@@ -133,6 +145,9 @@ export class RestoreBackupUseCase {
           ordersCount: currentOrders.length,
           suppliersCount: currentSuppliers.length,
           invoicesCount: currentInvoices.length,
+          quotationsCount: currentQuotations.length,
+          clientsCount: currentClients.length,
+          purchaseDocumentsCount: currentPurchaseDocuments.length,
           hasProfile: currentProfile !== null,
           checksum: computeChecksum({
             fc: currentFamilies.length,
@@ -140,10 +155,15 @@ export class RestoreBackupUseCase {
             cc: currentCatalogs.length,
             oc: currentOrders.length,
             sc: currentSuppliers.length,
+            qc: currentQuotations.length,
+            ic: currentInvoices.length,
+            clc: currentClients.length,
+            pdc: currentPurchaseDocuments.length,
             fp: currentProfile !== null,
             fn: currentFamilies.map((f) => f.id).sort(),
             pn: currentProducts.map((p) => p.id).sort(),
             cn: currentCatalogs.map((c) => c.id).sort(),
+            cln: currentClients.map((c) => c.id).sort(),
           }),
           filePath: '',
           createdAt: nowIso(),
@@ -172,6 +192,16 @@ export class RestoreBackupUseCase {
       warnings.push(`${invoiceFailures.length} facturas inválidas omitidas: ${invoiceFailures.map((f) => `índice ${f.index}: ${f.errors[0]}`).join('; ')}`);
     }
 
+    const { valid: validClients, failures: clientFailures } = this.validateClients(payload.clients ?? []);
+    if (clientFailures.length > 0) {
+      warnings.push(`${clientFailures.length} clientes inválidos omitidos: ${clientFailures.map((f) => `índice ${f.index}: ${f.errors[0]}`).join('; ')}`);
+    }
+
+    const { valid: validPurchaseDocuments, failures: purchaseDocumentFailures } = this.validatePurchaseDocuments(payload.purchaseDocuments ?? []);
+    if (purchaseDocumentFailures.length > 0) {
+      warnings.push(`${purchaseDocumentFailures.length} documentos de compra inválidos omitidos: ${purchaseDocumentFailures.map((f) => `índice ${f.index}: ${f.errors[0]}`).join('; ')}`);
+    }
+
     let restoredImages: RestoredImageMap = {};
     try {
       restoredImages = await this.restoreImages(payload.images);
@@ -196,8 +226,9 @@ export class RestoreBackupUseCase {
         orders: validOrders,
         suppliers: validSuppliers,
         quotations: validQuotations,
-        clients: payload.clients ?? [],
+        clients: validClients,
         invoices: validInvoices,
+        purchaseDocuments: validPurchaseDocuments,
       });
     } catch (error) {
       throw new AppError(
@@ -214,8 +245,9 @@ export class RestoreBackupUseCase {
       ordersRestored: validOrders.length,
       suppliersRestored: validSuppliers.length,
       quotationsRestored: validQuotations.length,
-      clientsRestored: (payload.clients ?? []).length,
+      clientsRestored: validClients.length,
       invoicesRestored: validInvoices.length,
+      purchaseDocumentsRestored: validPurchaseDocuments.length,
       profileRestored: payload.profile !== null,
       imagesRestored: Object.keys(restoredImages).length,
       warnings,
@@ -235,6 +267,8 @@ export class RestoreBackupUseCase {
     const rawSuppliers = suppliers.map((s) => ({
       id: s.id,
       name: s.name,
+      rut: s.rut,
+      address: s.address,
       phone: s.phone,
       email: s.email,
       contactName: s.contactName,
@@ -332,6 +366,54 @@ export class RestoreBackupUseCase {
         failures.push({ index: i, errors });
       } else {
         valid.push(inv);
+      }
+    }
+
+    return { valid, failures };
+  }
+
+  private validateClients(clients: NonNullable<BackupPayload['clients']>) {
+    const valid: BackupPayload['clients'] = [];
+    const failures: Array<{ index: number; errors: string[] }> = [];
+
+    for (let i = 0; i < clients.length; i++) {
+      const c = clients[i];
+      const errors: string[] = [];
+      if (!c.id || typeof c.id !== 'string') errors.push('id inválido');
+      if (!c.name || typeof c.name !== 'string') errors.push('name inválido');
+      if (!c.createdAt) errors.push('createdAt inválido');
+      if (!c.updatedAt) errors.push('updatedAt inválido');
+
+      if (errors.length > 0) {
+        failures.push({ index: i, errors });
+      } else {
+        valid.push(c);
+      }
+    }
+
+    return { valid, failures };
+  }
+
+  private validatePurchaseDocuments(documents: BackupPayload['purchaseDocuments']) {
+    const valid: BackupPayload['purchaseDocuments'] = [];
+    const failures: Array<{ index: number; errors: string[] }> = [];
+
+    for (let i = 0; i < documents.length; i++) {
+      const d = documents[i];
+      const errors: string[] = [];
+      if (!d.id || typeof d.id !== 'string') errors.push('id inválido');
+      if (typeof d.documentNumber !== 'number') errors.push('documentNumber inválido');
+      if (d.type !== 'quotation' && d.type !== 'purchase-order') errors.push('type inválido');
+      if (!d.supplierId || typeof d.supplierId !== 'string') errors.push('supplierId inválido');
+      if (!d.supplierName || typeof d.supplierName !== 'string') errors.push('supplierName inválido');
+      if (!Array.isArray(d.items)) errors.push('items no es un array');
+      if (typeof d.total !== 'number' || !Number.isFinite(d.total)) errors.push('total inválido');
+      if (!d.createdAt) errors.push('createdAt inválido');
+
+      if (errors.length > 0) {
+        failures.push({ index: i, errors });
+      } else {
+        valid.push(d);
       }
     }
 

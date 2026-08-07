@@ -133,6 +133,8 @@ function makePayload(overrides: Partial<BackupPayload> = {}): BackupPayload {
     suppliers: [],
     quotations: [],
     clients: [],
+    invoices: [],
+    purchaseDocuments: [],
     images: { 'file:///doc/product-images/a.jpg': `data:image/jpeg;base64,${IMAGE_BASE64}` },
     ...overrides,
   };

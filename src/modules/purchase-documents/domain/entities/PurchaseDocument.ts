@@ -2,6 +2,7 @@ import { PurchaseCartItem } from '../../../orders/domain/entities/PurchaseCartIt
 
 export type PurchaseDocumentType = 'quotation' | 'purchase-order';
 export type PurchaseDocumentStatus = 'draft' | 'generated' | 'deleted';
+export type PurchaseOrderStatus = 'pending' | 'approved' | 'cancelled';
 
 export type PurchaseDocument = {
   id: string;
@@ -16,10 +17,11 @@ export type PurchaseDocument = {
   notes?: string;
   pdfUri?: string;
   status: PurchaseDocumentStatus;
+  orderStatus: PurchaseOrderStatus;
   createdAt: string;
 };
 
-export type NewPurchaseDocument = Omit<PurchaseDocument, 'documentNumber' | 'pdfUri' | 'status'>;
+export type NewPurchaseDocument = Omit<PurchaseDocument, 'documentNumber' | 'pdfUri' | 'status' | 'orderStatus'>;
 
 export function calculatePurchaseTaxes(netAmount: number, ivaRate = 0.19) {
   const safeNetAmount = Math.max(0, netAmount);

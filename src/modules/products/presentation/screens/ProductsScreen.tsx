@@ -326,94 +326,92 @@ export function ProductsScreen() {
           <>
             <SearchBar value={search} onChange={setSearch} placeholder="Buscar productos..." />
 
-            <View style={{ gap: 8 }}>
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs }}>
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: spacing.md }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+                  <ChoiceChip
+                    label="Todas"
+                    selected={filterFamily === null}
+                    onPress={() => setFilterFamily(null)}
+                  />
+                  {families.map((f) => (
                     <ChoiceChip
-                      label="Todas"
-                      selected={filterFamily === null}
-                      onPress={() => setFilterFamily(null)}
+                      key={f.id}
+                      label={f.name}
+                      selected={filterFamily === f.id}
+                      onPress={() => setFilterFamily(f.id === filterFamily ? null : f.id)}
                     />
-                    {families.map((f) => (
+                  ))}
+                </View>
+              </ScrollView>
+
+              <View style={{ flexDirection: 'row', gap: 4 }}>
+                <Pressable
+                  onPress={() => setViewMode('grid')}
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    backgroundColor: viewMode === 'grid' ? colors.primary + '18' : 'transparent',
+                  }}
+                >
+                  <Ionicons name="grid-outline" size={18} color={viewMode === 'grid' ? colors.primary : colors.textMuted} />
+                </Pressable>
+                <Pressable
+                  onPress={() => setViewMode('list')}
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    backgroundColor: viewMode === 'list' ? colors.primary + '18' : 'transparent',
+                  }}
+                >
+                  <Ionicons name="list-outline" size={18} color={viewMode === 'list' ? colors.primary : colors.textMuted} />
+                </Pressable>
+              </View>
+            </View>
+
+            {suppliers.length > 0 ? (
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: spacing.md }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
+                    <ChoiceChip
+                      label="Todos proveedores"
+                      selected={filterSupplier === null}
+                      onPress={() => setFilterSupplier(null)}
+                      color="#8B5CF6"
+                    />
+                    {suppliers.map((s) => (
                       <ChoiceChip
-                        key={f.id}
-                        label={f.name}
-                        selected={filterFamily === f.id}
-                        onPress={() => setFilterFamily(f.id === filterFamily ? null : f.id)}
+                        key={s.id}
+                        label={s.name}
+                        selected={filterSupplier === s.id}
+                        onPress={() => setFilterSupplier(s.id === filterSupplier ? null : s.id)}
+                        color="#8B5CF6"
                       />
                     ))}
                   </View>
                 </ScrollView>
-
-                <View style={{ flexDirection: 'row', gap: spacing.xs }}>
-                  <Pressable
-                    onPress={() => setViewMode('grid')}
-                    style={{
-                      padding: 8,
-                      borderRadius: 8,
-                      backgroundColor: viewMode === 'grid' ? colors.primary + '18' : 'transparent',
-                    }}
-                  >
-                    <Ionicons name="grid-outline" size={18} color={viewMode === 'grid' ? colors.primary : colors.textMuted} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setViewMode('list')}
-                    style={{
-                      padding: 8,
-                      borderRadius: 8,
-                      backgroundColor: viewMode === 'list' ? colors.primary + '18' : 'transparent',
-                    }}
-                  >
-                    <Ionicons name="list-outline" size={18} color={viewMode === 'list' ? colors.primary : colors.textMuted} />
-                  </Pressable>
-                </View>
               </View>
+            ) : null}
 
-              {suppliers.length > 0 ? (
-                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xxs }}>
-                      <ChoiceChip
-                        label="Todos proveedores"
-                        selected={filterSupplier === null}
-                        onPress={() => setFilterSupplier(null)}
-                        color="#8B5CF6"
-                      />
-                      {suppliers.map((s) => (
-                        <ChoiceChip
-                          key={s.id}
-                          label={s.name}
-                          selected={filterSupplier === s.id}
-                          onPress={() => setFilterSupplier(s.id === filterSupplier ? null : s.id)}
-                          color="#8B5CF6"
-                        />
-                      ))}
-                    </View>
-                  </ScrollView>
-                </View>
-              ) : null}
-
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                <ChoiceChip
-                  label="Más recientes"
-                  selected={sortBy === 'newest'}
-                  onPress={() => setSortBy('newest')}
-                  color={colors.textSecondary}
-                />
-                <ChoiceChip
-                  label="Nombre"
-                  selected={sortBy === 'name'}
-                  onPress={() => setSortBy('name')}
-                  color={colors.textSecondary}
-                />
-                <ChoiceChip
-                  label="Precio"
-                  selected={sortBy === 'price'}
-                  onPress={() => setSortBy('price')}
-                  color={colors.textSecondary}
-                />
-              </View>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: spacing.md }}>
+              <ChoiceChip
+                label="Más recientes"
+                selected={sortBy === 'newest'}
+                onPress={() => setSortBy('newest')}
+                color={colors.textSecondary}
+              />
+              <ChoiceChip
+                label="Nombre"
+                selected={sortBy === 'name'}
+                onPress={() => setSortBy('name')}
+                color={colors.textSecondary}
+              />
+              <ChoiceChip
+                label="Precio"
+                selected={sortBy === 'price'}
+                onPress={() => setSortBy('price')}
+                color={colors.textSecondary}
+              />
             </View>
           </>
         ) : null}
@@ -465,7 +463,7 @@ export function ProductsScreen() {
           </View>
         ) : (
           filteredProducts.map((p) => (
-            <Card key={p.id} onPress={() => setSelectedProduct(p)}>
+            <Card key={p.id} style={{ marginBottom: spacing.md }} onPress={() => setSelectedProduct(p)}>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 {p.photoUri ? (
                   <Image

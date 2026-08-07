@@ -282,7 +282,7 @@ export function PurchaseDetailScreen() {
         {selectedItems.length > 0 ? (
           <>
             {selectedItems.map((item) => (
-              <Card key={item.productId}>
+              <Card key={item.productId} style={{ marginBottom: spacing.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' } as any}>
@@ -396,7 +396,7 @@ export function PurchaseDetailScreen() {
                 onPress={() => openQuantityDialog(item)}
                 style={({ pressed }) => ({
                   opacity: pressed ? 0.85 : 1,
-                  marginBottom: 8,
+                  marginBottom: spacing.md,
                 })}
               >
                 <Card style={{

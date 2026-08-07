@@ -28,6 +28,7 @@ import { Product } from '../../../products/domain/entities/product';
 import { PurchaseCartItem, PurchaseDiscountType } from '../../../orders/domain/entities/PurchaseCartItem';
 import { calculatePurchaseTaxes, PurchaseDocumentType } from '../../../purchase-documents/domain/entities/PurchaseDocument';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { spacing } from '../../../../shared/presentation/theme';
 
 export function SupplierPurchaseScreen() {
   const colors = useThemeColors();
@@ -221,15 +222,6 @@ export function SupplierPurchaseScreen() {
       setPdfUri(uri);
       setShowResult(true);
 
-      if (documentType === 'purchase-order') {
-        for (const item of items) {
-          const product = products.find((p) => p.id === item.productId);
-          if (product) {
-            await useCases.updateStock.execute(item.productId, product.stock + item.quantity);
-          }
-        }
-      }
-
       await useCases.clearPurchaseCart.execute();
       await reload();
     } catch (err) {
@@ -342,7 +334,7 @@ export function SupplierPurchaseScreen() {
         ) : (
           <>
             {items.map((item) => (
-              <Card key={item.productId}>
+              <Card key={item.productId} style={{ marginBottom: spacing.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' } as any}>
@@ -476,7 +468,7 @@ export function SupplierPurchaseScreen() {
                 onPress={() => openQuantityDialog(item)}
                 style={({ pressed }) => ({
                   opacity: pressed ? 0.85 : 1,
-                  marginBottom: 8,
+                  marginBottom: spacing.md,
                 })}
               >
                 <Card style={{
@@ -664,6 +656,13 @@ export function SupplierPurchaseScreen() {
               <AppText variant="bodySmall" color="secondary" style={{ marginTop: 4 }}>
                 PDF listo para compartir
               </AppText>
+              {documentType === 'purchase-order' ? (
+                <View style={{ marginTop: 12, backgroundColor: colors.warning + '12', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
+                  <AppText variant="bodySmall" color="warning" style={{ textAlign: 'center', fontWeight: '600' } as any}>
+                    Orden pendiente de aprobación. El stock se sumará al aprobarla desde el historial.
+                  </AppText>
+                </View>
+              ) : null}
             </>
           ) : null}
         </Card>

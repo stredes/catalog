@@ -6,10 +6,12 @@ export class SQLiteSupplierRepository implements SupplierRepository {
   async create(supplier: Supplier) {
     const db = await getDatabase();
     await db.runAsync(
-      `INSERT INTO suppliers (id, name, phone, email, contactName, notes, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO suppliers (id, name, rut, address, phone, email, contactName, notes, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       supplier.id,
       supplier.name,
+      supplier.rut ?? null,
+      supplier.address ?? null,
       supplier.phone ?? null,
       supplier.email ?? null,
       supplier.contactName ?? null,
@@ -23,9 +25,11 @@ export class SQLiteSupplierRepository implements SupplierRepository {
     const db = await getDatabase();
     await db.runAsync(
       `UPDATE suppliers
-       SET name = ?, phone = ?, email = ?, contactName = ?, notes = ?, updatedAt = ?
+       SET name = ?, rut = ?, address = ?, phone = ?, email = ?, contactName = ?, notes = ?, updatedAt = ?
        WHERE id = ?`,
       supplier.name,
+      supplier.rut ?? null,
+      supplier.address ?? null,
       supplier.phone ?? null,
       supplier.email ?? null,
       supplier.contactName ?? null,
@@ -43,14 +47,14 @@ export class SQLiteSupplierRepository implements SupplierRepository {
   async findAll() {
     const db = await getDatabase();
     return db.getAllAsync<Supplier>(
-      'SELECT id, name, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers ORDER BY createdAt DESC'
+      'SELECT id, name, rut, address, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers ORDER BY createdAt DESC'
     );
   }
 
   async findById(id: string) {
     const db = await getDatabase();
     return db.getFirstAsync<Supplier>(
-      'SELECT id, name, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers WHERE id = ?',
+      'SELECT id, name, rut, address, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers WHERE id = ?',
       id,
     );
   }

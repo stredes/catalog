@@ -59,6 +59,7 @@ export class OrderPdfGenerator {
 
   private buildHtml(order: Order, profile: Profile | null, logoDataUri: string): string {
     const isSupplierDocument = !!order.documentType;
+    const isPurchaseOrder = order.documentType === 'purchase-order';
     const documentTitle = order.documentType === 'quotation'
       ? 'COTIZACIÓN'
       : order.documentType === 'purchase-order'
@@ -116,7 +117,7 @@ export class OrderPdfGenerator {
           ${profile.email ? `<div>Email: ${escapeHtml(profile.email)}</div>` : ''}
           ${profile.address ? `<div>Dir: ${escapeHtml(profile.address)}</div>` : ''}
         </div>
-        ${profile.bankName ? `
+        ${profile.bankName && !isPurchaseOrder ? `
           <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb">
             <div style="font-size:10px;font-weight:800;color:#1d4ed8;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px">Datos de transferencia</div>
             <div style="display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:#64748b">
@@ -140,9 +141,9 @@ export class OrderPdfGenerator {
   </style>
 </head>
 <body>
-  <div style="text-align:center;margin-bottom:8px">
-    <h1 style="font-size:24px;font-weight:800;color:#111827;letter-spacing:1px">${documentTitle}</h1>
-    <div style="font-size:13px;color:#64748b;margin-top:4px">N° ${formatOrderNumber(order.orderNumber)}</div>
+  <div style="text-align:center;margin-bottom:${isPurchaseOrder ? '12px' : '8px'};${isPurchaseOrder ? 'background:#f1f5f9;border:1px solid #e5e7eb;border-radius:12px;padding:20px 16px' : ''}">
+    <h1 style="font-size:${isPurchaseOrder ? '34px' : '24px'};font-weight:800;color:#111827;letter-spacing:${isPurchaseOrder ? '2px' : '1px'}">${documentTitle}</h1>
+    <div style="font-size:${isPurchaseOrder ? '17px' : '13px'};color:#64748b;margin-top:${isPurchaseOrder ? '6px' : '4px'};font-weight:${isPurchaseOrder ? '700' : 'normal'}">N° ${formatOrderNumber(order.orderNumber)}</div>
     ${isSupplierDocument ? '' : `<div style="margin-top:6px;display:inline-block;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:0.5px;${statusStyle}">${statusLabel}</div>`}
   </div>
 

@@ -63,7 +63,7 @@ export function ProductSelectionCard({
         backgroundColor,
         borderWidth: 1,
         borderColor,
-        marginBottom: 4,
+        marginBottom: spacing.sm,
       })}
     >
       {photoUri ? (

@@ -212,7 +212,7 @@ export function QuotationHistoryScreen() {
               LayoutAnimation.configureNext(ACCORDION_CONFIG);
               setShowDeleted(!showDeleted);
             }}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm, paddingHorizontal: spacing.xs }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md, paddingHorizontal: 4 }}
           >
             <Ionicons
               name={showDeleted ? 'eye-outline' : 'eye-off-outline'}

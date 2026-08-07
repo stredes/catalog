@@ -153,6 +153,9 @@ export class AutoBackupService {
       orders: last.ordersCount,
       suppliers: last.suppliersCount ?? 0,
       invoices: last.invoicesCount ?? 0,
+      quotations: last.quotationsCount ?? 0,
+      clients: last.clientsCount ?? 0,
+      purchaseDocuments: last.purchaseDocumentsCount ?? 0,
       hasProfile: last.hasProfile,
     };
 

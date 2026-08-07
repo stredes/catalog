@@ -13,6 +13,7 @@ import {
   InMemoryQuotationRepository,
   InMemoryClientRepository,
   InMemoryInvoiceRepository,
+  InMemoryPurchaseDocumentRepository,
   makeFamily,
   makeProduct,
 } from '../../../__tests__/fakes';
@@ -26,6 +27,9 @@ describe('AutoBackupService', () => {
   let orderRepo: InMemoryOrderRepository;
   let supplierRepo: InMemorySupplierRepository;
   let quotationRepo: InMemoryQuotationRepository;
+  let clientRepo: InMemoryClientRepository;
+  let invoiceRepo: InMemoryInvoiceRepository;
+  let purchaseDocumentRepo: InMemoryPurchaseDocumentRepository;
   let createBackup: CreateBackupUseCase;
   let changeDetector: ChangeDetector;
   let service: AutoBackupService;
@@ -39,6 +43,9 @@ describe('AutoBackupService', () => {
     orderRepo = new InMemoryOrderRepository();
     supplierRepo = new InMemorySupplierRepository();
     quotationRepo = new InMemoryQuotationRepository();
+    clientRepo = new InMemoryClientRepository();
+    invoiceRepo = new InMemoryInvoiceRepository();
+    purchaseDocumentRepo = new InMemoryPurchaseDocumentRepository();
 
     createBackup = new CreateBackupUseCase(
       backupRepo,
@@ -49,8 +56,9 @@ describe('AutoBackupService', () => {
       orderRepo,
       supplierRepo,
       quotationRepo,
-      new InMemoryClientRepository(),
-      new InMemoryInvoiceRepository(),
+      clientRepo,
+      invoiceRepo,
+      purchaseDocumentRepo,
     );
 
     changeDetector = new ChangeDetector(
@@ -60,7 +68,10 @@ describe('AutoBackupService', () => {
       profileRepo,
       orderRepo,
       supplierRepo,
-      new InMemoryInvoiceRepository(),
+      invoiceRepo,
+      quotationRepo,
+      clientRepo,
+      purchaseDocumentRepo,
     );
 
     service = new AutoBackupService(createBackup, changeDetector, backupRepo, {

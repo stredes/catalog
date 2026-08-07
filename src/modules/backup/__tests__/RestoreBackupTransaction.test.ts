@@ -10,6 +10,7 @@ import {
   InMemoryQuotationRepository,
   InMemoryClientRepository,
   InMemoryInvoiceRepository,
+  InMemoryPurchaseDocumentRepository,
   makeFamily,
   makeProduct,
   makeProfile,
@@ -31,6 +32,7 @@ describe('RestoreBackupUseCase - Transaccional', () => {
   let quotationRepo: InMemoryQuotationRepository;
   let clientRepo: InMemoryClientRepository;
   let invoiceRepo: InMemoryInvoiceRepository;
+  let purchaseDocumentRepo: InMemoryPurchaseDocumentRepository;
 
   beforeEach(() => {
     familyRepo = new InMemoryFamilyRepository();
@@ -42,17 +44,19 @@ describe('RestoreBackupUseCase - Transaccional', () => {
     quotationRepo = new InMemoryQuotationRepository();
     clientRepo = new InMemoryClientRepository();
     invoiceRepo = new InMemoryInvoiceRepository();
+    purchaseDocumentRepo = new InMemoryPurchaseDocumentRepository();
     backupRepo = new InMemoryBackupRepository({
       familyRepo, productRepo, catalogRepo,
       profileRepo, orderRepo, supplierRepo,
-      clientRepo, invoiceRepo,
+      clientRepo, invoiceRepo, quotationRepo, purchaseDocumentRepo,
     });
   });
 
   it('lanza error cuando el backup no existe', async () => {
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
     );
 
     await expect(useCase.execute({
@@ -74,13 +78,16 @@ describe('RestoreBackupUseCase - Transaccional', () => {
       orders: [],
       suppliers: [],
       quotations: [],
+      clients: [],
+      purchaseDocuments: [],
       images: {},
     };
     await backupRepo.saveSnapshot(snapshot, payload);
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
     );
 
     await expect(useCase.execute({
@@ -104,6 +111,8 @@ describe('RestoreBackupUseCase - Transaccional', () => {
       orders: [],
       suppliers: [],
       quotations: [],
+      clients: [],
+      purchaseDocuments: [],
       images: {},
     };
 
@@ -112,7 +121,8 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
     );
 
     const result = await useCase.execute({
@@ -160,6 +170,8 @@ describe('RestoreBackupUseCase - Transaccional', () => {
         { id: 'sup_1', name: 'Supplier1', createdAt: '2026-01-01', updatedAt: '2026-01-01' } as any,
       ],
       quotations: [],
+      clients: [],
+      purchaseDocuments: [],
       images: {},
     };
 
@@ -168,7 +180,8 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
     );
 
     const result = await useCase.execute({
@@ -195,6 +208,8 @@ describe('RestoreBackupUseCase - Transaccional', () => {
       orders: [],
       suppliers: [],
       quotations: [],
+      clients: [],
+      purchaseDocuments: [],
       images: {},
     };
 
@@ -203,7 +218,8 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
     );
 
     try {
@@ -231,6 +247,8 @@ describe('RestoreBackupUseCase - Transaccional', () => {
       orders: [],
       suppliers: [],
       quotations: [],
+      clients: [],
+      purchaseDocuments: [],
       images: {},
     };
 
@@ -239,7 +257,8 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
     );
 
     const result = await useCase.execute({
@@ -250,6 +269,92 @@ describe('RestoreBackupUseCase - Transaccional', () => {
 
     expect(result.warnings).toHaveLength(0);
     expect(result.familiesRestored).toBe(0);
+  });
+  it('restaura clientes y documentos de compra y conserva referencias cruzadas', async () => {
+    const payload: BackupPayload = {
+      schemaVersion: 14,
+      createdAt: new Date().toISOString(),
+      families: [],
+      products: [],
+      catalogs: [],
+      profile: null,
+      orders: [
+        {
+          id: 'ord_1',
+          orderNumber: 1,
+          clientId: 'cli_1',
+          clientName: 'Cliente',
+          items: [],
+          subtotal: 0,
+          iva: 0,
+          total: 0,
+          status: 'pending' as const,
+          paidAmount: 0,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      suppliers: [
+        { id: 'sup_1', name: 'Proveedor', rut: '76.123.456-7', address: 'Av 1', createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+      ],
+      quotations: [
+        {
+          id: 'quo_1',
+          quotationNumber: 1,
+          clientName: 'Cliente',
+          clientRut: '11.111.111-1',
+          items: [],
+          subtotal: 0,
+          ivaRate: 19,
+          ivaAmount: 0,
+          total: 0,
+          status: 'pending',
+          createdAt: '2026-01-01',
+        },
+      ],
+      clients: [
+        { id: 'cli_1', name: 'Cliente', rut: '11.111.111-1', createdAt: '2026-01-01', updatedAt: '2026-01-01' },
+      ],
+      purchaseDocuments: [
+        {
+          id: 'pdoc_1',
+          documentNumber: 1,
+          type: 'purchase-order' as const,
+          supplierId: 'sup_1',
+          supplierName: 'Proveedor',
+          items: [],
+          netAmount: 0,
+          ivaAmount: 0,
+          total: 0,
+          status: 'generated' as const,
+          orderStatus: 'pending' as const,
+          createdAt: '2026-01-01',
+        },
+      ],
+      images: {},
+    };
+
+    const snapshot = makeBackupSnapshot({ id: 'bkp_full', checksum: computeBackupChecksum(payload) });
+    await backupRepo.saveSnapshot(snapshot, payload);
+
+    const useCase = new RestoreBackupUseCase(
+      backupRepo, familyRepo, productRepo, catalogRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
+    );
+
+    const result = await useCase.execute({
+      backupId: 'bkp_full',
+      confirmRestore: true,
+      createPreventiveBackup: false,
+    });
+
+    expect(result.clientsRestored).toBe(1);
+    expect(result.purchaseDocumentsRestored).toBe(1);
+    expect((await clientRepo.findAll())[0].id).toBe('cli_1');
+    expect((await orderRepo.findById('ord_1'))?.clientId).toBe('cli_1');
+    expect((await quotationRepo.findById('quo_1'))?.clientRut).toBe('11.111.111-1');
+    expect((await supplierRepo.findById('sup_1'))?.rut).toBe('76.123.456-7');
+    expect((await purchaseDocumentRepo.findById('pdoc_1'))?.id).toBe('pdoc_1');
   });
 });
 
@@ -264,6 +369,7 @@ describe('RestoreBackupUseCase - Validaciones', () => {
   let quotationRepo: InMemoryQuotationRepository;
   let clientRepo: InMemoryClientRepository;
   let invoiceRepo: InMemoryInvoiceRepository;
+  let purchaseDocumentRepo: InMemoryPurchaseDocumentRepository;
 
   beforeEach(() => {
     familyRepo = new InMemoryFamilyRepository();
@@ -275,10 +381,11 @@ describe('RestoreBackupUseCase - Validaciones', () => {
     quotationRepo = new InMemoryQuotationRepository();
     clientRepo = new InMemoryClientRepository();
     invoiceRepo = new InMemoryInvoiceRepository();
+    purchaseDocumentRepo = new InMemoryPurchaseDocumentRepository();
     backupRepo = new InMemoryBackupRepository({
       familyRepo, productRepo, catalogRepo,
       profileRepo, orderRepo, supplierRepo,
-      clientRepo, invoiceRepo,
+      clientRepo, invoiceRepo, quotationRepo, purchaseDocumentRepo,
     });
   });
 
@@ -293,6 +400,8 @@ describe('RestoreBackupUseCase - Validaciones', () => {
       orders: [],
       suppliers: [],
       quotations: [],
+      clients: [],
+      purchaseDocuments: [],
       images: {},
     };
     const snapshot = makeBackupSnapshot({ id: 'bkp_bad_ver' });
@@ -300,7 +409,8 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
     );
 
     await expect(useCase.execute({
@@ -321,6 +431,8 @@ describe('RestoreBackupUseCase - Validaciones', () => {
       orders: [],
       suppliers: [],
       quotations: [],
+      clients: [],
+      purchaseDocuments: [],
       images: {},
     };
 
@@ -329,7 +441,8 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
     );
 
     await expect(useCase.execute({
@@ -352,6 +465,8 @@ describe('RestoreBackupUseCase - Validaciones', () => {
       orders: [],
       suppliers: [],
       quotations: [],
+      clients: [],
+      purchaseDocuments: [],
       images: {},
     };
 
@@ -360,7 +475,8 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
     );
 
     const result = await useCase.execute({
@@ -395,6 +511,8 @@ describe('RestoreBackupUseCase - Validaciones', () => {
       orders: [],
       suppliers: [],
       quotations: [],
+      clients: [],
+      purchaseDocuments: [],
       images: { [oldUri]: 'data:image/jpeg;base64,ZmFrZQ==' },
     };
     const snapshot = makeBackupSnapshot({
@@ -405,7 +523,8 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const useCase = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
       async () => ({ [oldUri]: newUri }),
     );
 
@@ -434,7 +553,8 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const createBackup = new CreateBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, clientRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      clientRepo, invoiceRepo, purchaseDocumentRepo,
     );
     const created = await createBackup.execute({ label: 'con clientes', trigger: 'manual' });
     const storedPayload = await backupRepo.loadPayload(created.id);
@@ -445,7 +565,8 @@ describe('RestoreBackupUseCase - Validaciones', () => {
 
     const restoreBackup = new RestoreBackupUseCase(
       backupRepo, familyRepo, productRepo, catalogRepo,
-      profileRepo, orderRepo, supplierRepo, quotationRepo, invoiceRepo,
+      profileRepo, orderRepo, supplierRepo, quotationRepo,
+      invoiceRepo, clientRepo, purchaseDocumentRepo,
     );
     const result = await restoreBackup.execute({
       backupId: created.id,

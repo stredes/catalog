@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   productInfo: { padding: spacing.lg },
   productMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
 
-  formatBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.sm },
+  formatBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: borderRadius.full },
 
   stockCounter: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 0 },
   stockButton: { width: 30, height: 28, borderRadius: borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
@@ -74,15 +74,15 @@ const styles = StyleSheet.create({
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: sizes.inputIconGap, borderRadius: borderRadius.lg, borderWidth: 1.5, paddingHorizontal: sizes.inputPaddingHorizontal, height: sizes.inputHeight },
   searchInput: { flex: 1, fontSize: 15, fontWeight: '500', paddingVertical: 0 },
 
-  filterChip: { paddingHorizontal: sizes.inputPaddingHorizontal, paddingVertical: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1.5, minHeight: 36, justifyContent: 'center' },
-  badge: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xxs, borderRadius: borderRadius.sm, alignSelf: 'flex-start' },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: borderRadius.full, borderWidth: 1.5, minHeight: 32, justifyContent: 'center' },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: borderRadius.full, alignSelf: 'flex-start' },
 
   emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 20 },
   emptyIconWrap: { width: 72, height: 72, borderRadius: borderRadius.xl, alignItems: 'center', justifyContent: 'center' },
 
-  section: {},
+  section: { marginBottom: spacing.lg },
   sectionContent: { gap: spacing.lg },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
 
   divider: { height: 1, marginVertical: spacing.lg },
 

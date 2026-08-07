@@ -108,6 +108,11 @@ import {
 import { SQLiteInvoiceRepository } from '../modules/invoices/infrastructure/repositories/SQLiteInvoiceRepository';
 import { SQLiteRecordHistoryRepository } from '../modules/invoices/infrastructure/repositories/SQLiteRecordHistoryRepository';
 import { SQLitePurchaseDocumentRepository } from '../modules/purchase-documents/infrastructure/repositories/SQLitePurchaseDocumentRepository';
+import {
+  ApprovePurchaseOrderUseCase,
+  GetPurchaseOrdersUseCase,
+  RejectPurchaseOrderUseCase,
+} from '../modules/purchase-documents/application/use-cases/PurchaseOrderUseCases';
 
 type Dependencies = ReturnType<typeof buildDependencies>;
 
@@ -151,6 +156,7 @@ function buildDependencies() {
     quotationRepository,
     clientRepository,
     invoiceRepository,
+    purchaseDocumentRepository,
     collectBackupImages,
   );
 
@@ -162,6 +168,9 @@ function buildDependencies() {
     orderRepository,
     supplierRepository,
     invoiceRepository,
+    quotationRepository,
+    clientRepository,
+    purchaseDocumentRepository,
   );
 
   const autoBackupService = new AutoBackupService(
@@ -251,6 +260,8 @@ function buildDependencies() {
           supplierRepository,
           quotationRepository,
           invoiceRepository,
+          clientRepository,
+          purchaseDocumentRepository,
           restoreBackupImages,
           collectBackupImages,
         ),
@@ -272,6 +283,9 @@ function buildDependencies() {
         deleteInvoice: new DeleteInvoiceUseCase(invoiceRepository),
         updateInvoiceStatus: new UpdateInvoiceStatusUseCase(invoiceRepository),
         getInvoices: new GetInvoicesUseCase(invoiceRepository),
+        getPurchaseOrders: new GetPurchaseOrdersUseCase(purchaseDocumentRepository),
+        approvePurchaseOrder: new ApprovePurchaseOrderUseCase(purchaseDocumentRepository),
+        rejectPurchaseOrder: new RejectPurchaseOrderUseCase(purchaseDocumentRepository),
       },
       autoBackupService,
     };

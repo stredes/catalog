@@ -21,6 +21,7 @@ import { ServiceItemInputDto } from '../../application/dtos/QuotationDtos';
 import { Quotation, IVA_RATE } from '../../domain/entities/Quotation';
 import { calculateServiceSubtotal } from '../../domain/entities/ServiceItem';
 import { createId } from '../../../../shared/utils/ids';
+import { spacing } from '../../../../shared/presentation/theme';
 
 export function QuotationBuilderScreen() {
   const colors = useThemeColors();
@@ -510,35 +511,35 @@ export function QuotationBuilderScreen() {
       >
         {lastQuotation && (
           <>
-            <Card style={{ marginBottom: 12 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Card style={{ marginBottom: spacing.md }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <AppText variant="bodyMedium" color="muted">N° Cotizacion</AppText>
                 <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '700' as any }}>N° {String(lastQuotation.quotationNumber).padStart(4, '0')}</AppText>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <AppText variant="bodyMedium" color="muted">Cliente</AppText>
                 <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' as any }}>{lastQuotation.clientName}</AppText>
               </View>
               {lastQuotation.clientRut ? (
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                   <AppText variant="bodyMedium" color="muted">RUT</AppText>
                   <AppText variant="bodyMedium" color="primary">{lastQuotation.clientRut}</AppText>
                 </View>
               ) : null}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <AppText variant="bodyMedium" color="muted">Servicios</AppText>
                 <AppText variant="bodyMedium" color="primary">{lastQuotation.items.length}</AppText>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <AppText variant="bodyMedium" color="muted">Precio Neto</AppText>
                 <AppText variant="bodyMedium" color="primary">{formatMoney(lastQuotation.subtotal)}</AppText>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <AppText variant="bodyMedium" color="muted">IVA ({lastQuotation.ivaRate}%)</AppText>
                 <AppText variant="bodyMedium" color="primary">{formatMoney(lastQuotation.ivaAmount)}</AppText>
               </View>
               <Divider />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md }}>
                 <AppText variant="headingSmall" color="primary">Total</AppText>
                 <AppText variant="headingSmall" color="accent" style={{ fontWeight: '700' as any }}>{formatMoney(lastQuotation.total)}</AppText>
               </View>

@@ -19,6 +19,7 @@ import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Order } from '../../domain/entities/Order';
 import { CartItem, calculateSubtotal } from '../../domain/entities/CartItem';
+import { spacing } from '../../../../shared/presentation/theme';
 
 const EDIT_ORDER_STORAGE_KEY = 'catalog_clean_edit_order_items';
 const EDIT_ORDER_CLIENT_KEY = 'catalog_clean_edit_order_client';
@@ -224,7 +225,7 @@ export function EditOrderScreen() {
         ) : (
           <>
             {items.map((item, index) => (
-              <Card key={`${item.productId}-${index}`}>
+              <Card key={`${item.productId}-${index}`} style={{ marginBottom: spacing.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' } as any}>

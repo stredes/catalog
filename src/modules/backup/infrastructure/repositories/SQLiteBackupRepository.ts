@@ -14,6 +14,9 @@ type SnapshotRow = {
   ordersCount: number;
   suppliersCount: number;
   invoicesCount: number;
+  quotationsCount: number;
+  clientsCount: number;
+  purchaseDocumentsCount: number;
   hasProfile: number;
   checksum: string;
   createdAt: string;
@@ -30,8 +33,8 @@ export class SQLiteBackupRepository implements BackupRepository {
   async saveSnapshot(snapshot: BackupSnapshot, payload: BackupPayload): Promise<void> {
     await withDbTransaction(async (transaction) => {
       await transaction.runAsync(
-        `INSERT INTO backup_snapshots (id, label, trigger, familiesCount, productsCount, catalogsCount, ordersCount, suppliersCount, invoicesCount, hasProfile, checksum, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO backup_snapshots (id, label, trigger, familiesCount, productsCount, catalogsCount, ordersCount, suppliersCount, invoicesCount, quotationsCount, clientsCount, purchaseDocumentsCount, hasProfile, checksum, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         snapshot.id,
         snapshot.label,
         snapshot.trigger,
@@ -41,6 +44,9 @@ export class SQLiteBackupRepository implements BackupRepository {
         snapshot.ordersCount ?? 0,
         snapshot.suppliersCount ?? 0,
         snapshot.invoicesCount ?? 0,
+        snapshot.quotationsCount ?? 0,
+        snapshot.clientsCount ?? 0,
+        snapshot.purchaseDocumentsCount ?? 0,
         snapshot.hasProfile ? 1 : 0,
         snapshot.checksum,
         snapshot.createdAt,
@@ -59,7 +65,7 @@ export class SQLiteBackupRepository implements BackupRepository {
   async findAll(): Promise<BackupSnapshot[]> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<SnapshotRow>(
-      'SELECT id, label, trigger, familiesCount, productsCount, catalogsCount, ordersCount, suppliersCount, invoicesCount, hasProfile, checksum, createdAt FROM backup_snapshots ORDER BY createdAt DESC'
+      'SELECT id, label, trigger, familiesCount, productsCount, catalogsCount, ordersCount, suppliersCount, invoicesCount, quotationsCount, clientsCount, purchaseDocumentsCount, hasProfile, checksum, createdAt FROM backup_snapshots ORDER BY createdAt DESC'
     );
     return rows.map(this.toDomain);
   }
@@ -67,7 +73,7 @@ export class SQLiteBackupRepository implements BackupRepository {
   async findById(id: string): Promise<BackupSnapshot | null> {
     const db = await getDatabase();
     const row = await db.getFirstAsync<SnapshotRow>(
-      'SELECT id, label, trigger, familiesCount, productsCount, catalogsCount, ordersCount, suppliersCount, invoicesCount, hasProfile, checksum, createdAt FROM backup_snapshots WHERE id = ?',
+      'SELECT id, label, trigger, familiesCount, productsCount, catalogsCount, ordersCount, suppliersCount, invoicesCount, quotationsCount, clientsCount, purchaseDocumentsCount, hasProfile, checksum, createdAt FROM backup_snapshots WHERE id = ?',
       id
     );
     return row ? this.toDomain(row) : null;
@@ -135,6 +141,7 @@ export class SQLiteBackupRepository implements BackupRepository {
         await txn.runAsync('DELETE FROM quotations');
         await txn.runAsync('DELETE FROM clients');
         await txn.runAsync('DELETE FROM invoices');
+        await txn.runAsync('DELETE FROM purchase_documents');
       });
 
       await dbStep('FAMILIES', async () => {
@@ -149,9 +156,10 @@ export class SQLiteBackupRepository implements BackupRepository {
       await dbStep('SUPPLIERS', async () => {
         for (const supplier of data.suppliers) {
           await txn.runAsync(
-            `INSERT INTO suppliers (id, name, phone, email, contactName, notes, createdAt, updatedAt)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            supplier.id, supplier.name, supplier.phone ?? null, supplier.email ?? null,
+            `INSERT INTO suppliers (id, name, rut, address, phone, email, contactName, notes, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            supplier.id, supplier.name, supplier.rut ?? null, supplier.address ?? null,
+            supplier.phone ?? null, supplier.email ?? null,
             supplier.contactName ?? null, supplier.notes ?? null,
             supplier.createdAt, supplier.updatedAt,
           );
@@ -200,9 +208,9 @@ export class SQLiteBackupRepository implements BackupRepository {
       await dbStep('ORDERS', async () => {
         for (const order of data.orders) {
           await txn.runAsync(
-            `INSERT INTO orders (id, orderNumber, clientName, items, subtotal, iva, total, status, paidAmount, notes, createdAt)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            order.id, order.orderNumber, order.clientName,
+            `INSERT INTO orders (id, orderNumber, clientName, clientId, items, subtotal, iva, total, status, paidAmount, notes, createdAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            order.id, order.orderNumber, order.clientName, order.clientId ?? null,
             JSON.stringify(order.items), order.subtotal, order.iva, order.total,
             order.status, order.paidAmount, order.notes ?? null, order.createdAt,
           );
@@ -212,11 +220,11 @@ export class SQLiteBackupRepository implements BackupRepository {
       await dbStep('QUOTATIONS', async () => {
         for (const quotation of data.quotations) {
           await txn.runAsync(
-            `INSERT INTO quotations (id, quotationNumber, clientName, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO quotations (id, quotationNumber, clientName, clientRut, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             quotation.id, quotation.quotationNumber, quotation.clientName,
-            quotation.clientPhone ?? null, quotation.clientEmail ?? null,
-            quotation.clientAddress ?? null, JSON.stringify(quotation.items),
+            quotation.clientRut ?? null, quotation.clientPhone ?? null,
+            quotation.clientEmail ?? null, quotation.clientAddress ?? null, JSON.stringify(quotation.items),
             quotation.subtotal, quotation.ivaRate, quotation.ivaAmount, quotation.total,
             quotation.status, quotation.notes ?? null, quotation.validUntil ?? null,
             quotation.createdAt,
@@ -252,6 +260,19 @@ export class SQLiteBackupRepository implements BackupRepository {
             console.error(`[restore] invoice #${index} failed`, invoice?.invoiceNumber, error);
             throw error;
           }
+        }
+      });
+
+      await dbStep('PURCHASE_DOCUMENTS', async () => {
+        for (const document of data.purchaseDocuments ?? []) {
+          await txn.runAsync(
+            `INSERT INTO purchase_documents (id, documentNumber, type, supplierId, supplierName, items, netAmount, ivaAmount, total, notes, pdfUri, status, orderStatus, createdAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            document.id, document.documentNumber, document.type, document.supplierId,
+            document.supplierName, JSON.stringify(document.items), document.netAmount,
+            document.ivaAmount, document.total, document.notes ?? null, document.pdfUri ?? null,
+            document.status, document.orderStatus, document.createdAt,
+          );
         }
       });
     });
@@ -290,6 +311,9 @@ export class SQLiteBackupRepository implements BackupRepository {
       ordersCount: row.ordersCount,
       suppliersCount: row.suppliersCount ?? 0,
       invoicesCount: row.invoicesCount ?? 0,
+      quotationsCount: row.quotationsCount ?? 0,
+      clientsCount: row.clientsCount ?? 0,
+      purchaseDocumentsCount: row.purchaseDocumentsCount ?? 0,
       hasProfile: row.hasProfile === 1,
       checksum: row.checksum,
       filePath: '',

@@ -23,6 +23,7 @@ import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Order } from '../../domain/entities/Order';
 import { DiscountType } from '../../domain/entities/CartItem';
+import { spacing } from '../../../../shared/presentation/theme';
 
 export function CartScreen() {
   const colors = useThemeColors();
@@ -201,7 +202,7 @@ export function CartScreen() {
         ) : (
           <>
             {items.map((item) => (
-              <Card key={item.productId}>
+              <Card key={item.productId} style={{ marginBottom: spacing.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' } as any}>
@@ -382,25 +383,25 @@ export function CartScreen() {
       >
         {lastOrder && (
           <>
-            <Card style={{ marginBottom: 12 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Card style={{ marginBottom: spacing.md }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <AppText variant="bodyMedium" color="muted">N° Pedido</AppText>
                 <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '700' } as any}>N° {String(lastOrder.orderNumber).padStart(4, '0')}</AppText>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <AppText variant="bodyMedium" color="muted">Cliente</AppText>
                 <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' } as any}>{lastOrder.clientName}</AppText>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <AppText variant="bodyMedium" color="muted">Productos</AppText>
                 <AppText variant="bodyMedium" color="primary">{lastOrder.items.length}</AppText>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <AppText variant="bodyMedium" color="muted">Subtotal</AppText>
                 <AppText variant="bodyMedium" color="primary">{formatMoney(lastOrder.subtotal)}</AppText>
               </View>
               <Divider />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md }}>
                 <AppText variant="headingSmall" color="primary">Total</AppText>
                 <AppText variant="headingSmall" color="accent" style={{ fontWeight: '700' } as any}>{formatMoney(lastOrder.total)}</AppText>
               </View>

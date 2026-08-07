@@ -232,6 +232,21 @@ const migrations: Record<number, string[]> = {
     `CREATE INDEX IF NOT EXISTS idx_purchase_documents_createdAt ON purchase_documents(createdAt)`,
     `CREATE INDEX IF NOT EXISTS idx_purchase_documents_supplierId ON purchase_documents(supplierId)`,
   ],
+  26: [
+    `ALTER TABLE purchase_documents ADD COLUMN orderStatus TEXT NOT NULL DEFAULT 'pending'`,
+    `UPDATE purchase_documents SET orderStatus = 'approved' WHERE type = 'purchase-order' AND status = 'generated'`,
+    `CREATE INDEX IF NOT EXISTS idx_purchase_documents_orderStatus ON purchase_documents(orderStatus)`,
+  ],
+  27: [
+    `ALTER TABLE suppliers ADD COLUMN rut TEXT`,
+    `ALTER TABLE suppliers ADD COLUMN address TEXT`,
+    `CREATE INDEX IF NOT EXISTS idx_suppliers_rut ON suppliers(rut)`,
+  ],
+  28: [
+    `ALTER TABLE backup_snapshots ADD COLUMN quotationsCount INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE backup_snapshots ADD COLUMN clientsCount INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE backup_snapshots ADD COLUMN purchaseDocumentsCount INTEGER NOT NULL DEFAULT 0`,
+  ],
 }
 
 async function columnExists(db: SQLiteDatabase, table: string, column: string): Promise<boolean> {
@@ -374,10 +389,13 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
     const catalogs = hasCatalogs ? await db.getAllAsync('SELECT id, name, familyId, familyIds, format, productIds, pdfUri, purpose, createdAt FROM catalogs') : [];
     const profile = hasProfile ? await db.getAllAsync('SELECT id, businessName, ownerName, phone, email, address, website, logoUri, bankName, bankAccountType, bankAccountNumber, updatedAt FROM profile') : [];
     const orders = hasOrders ? await db.getAllAsync('SELECT id, orderNumber, clientName, clientId, items, subtotal, iva, total, status, paidAmount, notes, createdAt FROM orders') : [];
-    const suppliers = hasSuppliers ? await db.getAllAsync('SELECT id, name, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers') : [];
+    const suppliers = hasSuppliers ? await db.getAllAsync('SELECT id, name, rut, address, phone, email, contactName, notes, createdAt, updatedAt FROM suppliers') : [];
     const quotations = hasQuotations ? await db.getAllAsync('SELECT id, quotationNumber, clientName, clientRut, clientPhone, clientEmail, clientAddress, items, subtotal, ivaRate, ivaAmount, total, status, notes, validUntil, createdAt FROM quotations') : [];
     const clients = hasClients ? await db.getAllAsync('SELECT id, name, rut, phone, email, notes, createdAt, updatedAt FROM clients') : [];
     const invoices = hasInvoices ? await db.getAllAsync('SELECT id, invoiceNumber, invoiceDate, clientName, description, netAmount, taxAmount, totalAmount, paymentDate, status, createdAt, updatedAt FROM invoices') : [];
+    const purchaseDocuments = hasOrders
+      ? await db.getAllAsync('SELECT id, documentNumber, type, supplierId, supplierName, items, netAmount, ivaAmount, total, notes, pdfUri, status, orderStatus, createdAt FROM purchase_documents').catch(() => [])
+      : [];
     const migrations = await db.getAllAsync('SELECT version, appliedAt FROM schema_migrations').catch(() => []);
 
     const backupData = {
@@ -393,6 +411,7 @@ async function autoBackupBeforeMigration(db: SQLiteDatabase, currentVersion: num
       quotations,
       clients,
       invoices,
+      purchaseDocuments,
       schemaMigrations: migrations,
     };
 

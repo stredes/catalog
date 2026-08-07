@@ -24,6 +24,7 @@ import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { BackupSnapshot } from '../../domain/entities/BackupSnapshot';
 import { useBackupManager } from '../hooks/useBackupManager';
 import { formatFileSize } from '../../../../shared/utils/money';
+import { spacing } from '../../../../shared/presentation/theme';
 
 const TRIGGER_LABELS: Record<string, string> = {
   manual: 'Manual',
@@ -306,7 +307,7 @@ export function BackupSettingsScreen() {
 
         {/* Progress bars */}
         {creating && createProgress !== null && (
-          <Card style={{ marginTop: 12, marginBottom: 8 }} testID="create-progress-bar">
+          <Card style={{ marginTop: spacing.md, marginBottom: spacing.md }} testID="create-progress-bar">
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Ionicons name="cloud-upload-outline" size={22} color={colors.primary} />
               <View style={{ flex: 1 }}>
@@ -320,7 +321,7 @@ export function BackupSettingsScreen() {
         )}
 
         {restoring && restoreProgress !== null && (
-          <Card style={{ marginTop: 12, marginBottom: 8 }} testID="restore-progress-bar">
+          <Card style={{ marginTop: spacing.md, marginBottom: spacing.md }} testID="restore-progress-bar">
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Ionicons name="cloud-download-outline" size={22} color={colors.warning} />
               <View style={{ flex: 1 }}>
@@ -334,7 +335,7 @@ export function BackupSettingsScreen() {
         )}
 
         {importProgress !== null && (
-          <Card style={{ marginTop: 12, marginBottom: 8 }} testID="import-progress-bar">
+          <Card style={{ marginTop: spacing.md, marginBottom: spacing.md }} testID="import-progress-bar">
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Ionicons name="document-text-outline" size={22} color={colors.success} />
               <View style={{ flex: 1 }}>
@@ -555,7 +556,7 @@ export function BackupSettingsScreen() {
               testID="confirm-create-backup-btn"
               onPress={handleCreateBackup}
             />
-            <View style={{ height: 8 }} />
+            <View style={{ height: spacing.md }} />
             <SecondaryButton
               label="Cancelar"
               testID="cancel-create-backup-btn"
@@ -672,7 +673,7 @@ export function BackupSettingsScreen() {
               testID="confirm-import-btn"
               onPress={confirmImport}
             />
-            <View style={{ height: 8 }} />
+            <View style={{ height: spacing.md }} />
             <SecondaryButton
               label="Cancelar"
               testID="cancel-import-btn"

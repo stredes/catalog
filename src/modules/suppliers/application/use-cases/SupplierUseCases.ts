@@ -13,6 +13,8 @@ export class CreateSupplierUseCase {
     const supplier: Supplier = {
       id: createId('sup'),
       name: dto.name,
+      rut: dto.rut,
+      address: dto.address,
       phone: dto.phone,
       email: dto.email,
       contactName: dto.contactName,
@@ -39,6 +41,8 @@ export class UpdateSupplierUseCase {
     const updated: Supplier = {
       ...current,
       name: dto.name,
+      rut: dto.rut,
+      address: dto.address,
       phone: dto.phone,
       email: dto.email,
       contactName: dto.contactName,

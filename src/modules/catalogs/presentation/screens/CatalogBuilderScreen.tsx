@@ -242,7 +242,7 @@ export function CatalogBuilderScreen() {
                   borderWidth: 2,
                   borderColor: format === key ? colors.primary : colors.borderDefault,
                   backgroundColor: format === key ? colors.primary + '08' : colors.backgroundSurface,
-                  marginBottom: 10,
+                  marginBottom: spacing.md,
                 }}
               >
                 <View style={{
@@ -311,7 +311,7 @@ export function CatalogBuilderScreen() {
                 </View>
                 <View style={{ height: 16 }} />
                 <Button label="Compartir PDF" icon="share-social-outline" onPress={shareGenerated} color={colors.warning} fullWidth />
-                <View style={{ height: 8 }} />
+                <View style={{ height: spacing.md }} />
                 <SecondaryButton label={purpose === 'purchase-detail' ? 'Crear otro detalle' : 'Crear otro catálogo'} icon="add-circle-outline" onPress={resetForm} />
               </Card>
             ) : null}
@@ -631,7 +631,7 @@ export function CatalogBuilderScreen() {
               f.name.toLowerCase().includes(sel.state.searchQuery.toLowerCase().trim()),
             )
             .map((family, index) => (
-              <View key={family.id} style={{ marginBottom: 6 }}>
+              <View key={family.id} style={{ marginBottom: spacing.sm }}>
                 <FamilySelectionCard
                   name={family.name}
                   productCount={family.productCount}

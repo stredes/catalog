@@ -7,6 +7,7 @@ import { SupplierRepository } from '../../../suppliers/domain/repositories/Suppl
 import { QuotationRepository } from '../../../quotations/domain/repositories/QuotationRepository';
 import { ClientRepository } from '../../../clients/domain/repositories/ClientRepository';
 import { InvoiceRepository } from '../../../invoices/domain/repositories/InvoiceRepository';
+import { PurchaseDocumentRepository } from '../../../purchase-documents/domain/repositories/PurchaseDocumentRepository';
 import { BackupRepository } from '../../domain/repositories/BackupRepository';
 import { BackupSnapshot, BackupPayload, BackupImageMap } from '../../domain/entities/BackupSnapshot';
 import { CreateBackupInput, CreateBackupSchema } from '../dtos/BackupDtos';
@@ -35,6 +36,7 @@ export class CreateBackupUseCase {
     private readonly quotationRepo: QuotationRepository,
     private readonly clientRepo: ClientRepository,
     private readonly invoiceRepo: InvoiceRepository,
+    private readonly purchaseDocumentRepo: PurchaseDocumentRepository,
     collectImages?: ImageCollector,
   ) {
     this.collectImages = collectImages ?? noopImageCollector;
@@ -43,7 +45,7 @@ export class CreateBackupUseCase {
   async execute(input: CreateBackupInput): Promise<BackupSnapshot> {
     const validated = CreateBackupSchema.parse(input);
 
-    const [families, products, catalogs, profile, orders, suppliers, quotations, clients, invoices] = await Promise.all([
+    const [families, products, catalogs, profile, orders, suppliers, quotations, clients, invoices, purchaseDocuments] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
       this.catalogRepo.findAll(),
@@ -53,6 +55,7 @@ export class CreateBackupUseCase {
       this.quotationRepo.findAll(),
       this.clientRepo.findAll(),
       this.invoiceRepo.findAll(),
+      this.purchaseDocumentRepo.findAll(),
     ]);
 
     const images = await this.collectImages(products, profile);
@@ -69,6 +72,7 @@ export class CreateBackupUseCase {
       quotations,
       clients,
       invoices,
+      purchaseDocuments,
       images,
     };
 
@@ -78,7 +82,10 @@ export class CreateBackupUseCase {
       cc: payload.catalogs.length,
       oc: payload.orders.length,
       sc: payload.suppliers?.length ?? 0,
+      qc: payload.quotations?.length ?? 0,
+      ic: payload.invoices?.length ?? 0,
       clc: payload.clients?.length ?? 0,
+      pdc: payload.purchaseDocuments?.length ?? 0,
       fp: payload.profile !== null,
       fn: payload.families.map((f) => f.id).sort(),
       pn: payload.products.map((p) => p.id).sort(),
@@ -96,6 +103,9 @@ export class CreateBackupUseCase {
       ordersCount: orders.length,
       suppliersCount: suppliers.length,
       invoicesCount: invoices.length,
+      quotationsCount: quotations.length,
+      clientsCount: clients.length,
+      purchaseDocumentsCount: purchaseDocuments.length,
       hasProfile: profile !== null,
       checksum,
       filePath: '',

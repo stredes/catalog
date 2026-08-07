@@ -31,6 +31,7 @@ import { ProfileInputDto, profileSchema, CHILEAN_BANKS, BANK_ACCOUNT_TYPES } fro
 import { useProfile } from '../hooks/useProfile';
 import { useTheme, useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { User } from '../../../auth/domain/AuthPort';
+import { spacing } from '../../../../shared/presentation/theme';
 
 const USER_KEY = 'catalog_clean_user';
 
@@ -411,7 +412,7 @@ export function ProfileScreen() {
             />
           ) : (
             catalogs.map((catalog) => (
-              <View key={catalog.id}>
+              <View key={catalog.id} style={{ marginBottom: spacing.md }}>
                 <CatalogHistoryItem
                   name={catalog.name}
                   format={catalog.format}

@@ -89,6 +89,7 @@ export const OrderSchema = z.object({
   id: z.string().min(1),
   orderNumber: NonNegativeInteger,
   clientName: z.string().min(1),
+  clientId: z.string().optional(),
   items: z.array(CartItemSchema)
     .nullish()
     .transform((value) => value ?? []),
@@ -126,6 +127,8 @@ export type ValidatedCatalog = z.infer<typeof CatalogSchema>;
 export const SupplierSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
+  rut: z.string().nullish(),
+  address: z.string().nullish(),
   phone: z.string().nullish(),
   email: z.string().nullish(),
   contactName: z.string().nullish(),
@@ -186,6 +189,7 @@ export const QuotationSchema = z.object({
   id: z.string().min(1),
   quotationNumber: NonNegativeInteger,
   clientName: z.string().min(1),
+  clientRut: z.string().nullish(),
   clientPhone: z.string().nullish(),
   clientEmail: z.string().nullish(),
   clientAddress: z.string().nullish(),
@@ -206,6 +210,41 @@ export const QuotationSchema = z.object({
 
 export type ValidatedQuotation = z.infer<typeof QuotationSchema>;
 
+export const PurchaseCartItemSchema = z.object({
+  productId: z.string().min(1),
+  productName: z.string().min(1),
+  productCode: z.string().optional(),
+  unitPrice: MoneySchema.positive('El precio unitario debe ser mayor a cero'),
+  quantity: StrictPositiveInteger,
+  format: z.string().min(1),
+  discountType: z.enum(['none', 'currency', 'percentage']),
+  discountValue: z.number().finite().nonnegative(),
+  subtotal: MoneySchema,
+});
+
+export const PurchaseDocumentTypeSchema = z.enum(['quotation', 'purchase-order']);
+export const PurchaseDocumentStatusSchema = z.enum(['draft', 'generated', 'deleted']);
+export const PurchaseOrderStatusSchema = z.enum(['pending', 'approved', 'cancelled']);
+
+export const PurchaseDocumentSchema = z.object({
+  id: z.string().min(1),
+  documentNumber: NonNegativeInteger,
+  type: PurchaseDocumentTypeSchema,
+  supplierId: z.string().min(1),
+  supplierName: z.string().min(1),
+  items: z.array(PurchaseCartItemSchema),
+  netAmount: MoneySchema,
+  ivaAmount: MoneySchema,
+  total: MoneySchema,
+  notes: z.string().optional(),
+  pdfUri: z.string().optional(),
+  status: PurchaseDocumentStatusSchema.default('generated'),
+  orderStatus: PurchaseOrderStatusSchema.default('pending'),
+  createdAt: z.string().min(1),
+});
+
+export type ValidatedPurchaseDocument = z.infer<typeof PurchaseDocumentSchema>;
+
 export const BackupPayloadSchema = z.object({
   schemaVersion: z.number().int().nonnegative(),
   createdAt: z.string().min(1),
@@ -224,6 +263,9 @@ export const BackupPayloadSchema = z.object({
     .nullish()
     .transform((value) => value ?? []),
   invoices: z.array(InvoiceSchema)
+    .nullish()
+    .transform((value) => value ?? []),
+  purchaseDocuments: z.array(PurchaseDocumentSchema)
     .nullish()
     .transform((value) => value ?? []),
   images: z.record(z.string(), z.string())

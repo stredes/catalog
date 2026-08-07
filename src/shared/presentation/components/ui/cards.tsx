@@ -73,7 +73,7 @@ export function CardHeader({ title, subtitle, action }: {
     <View style={styles.cardHeader}>
       <View style={{ flex: 1 }}>
         <AppText variant="headingSmall" color="primary">{title}</AppText>
-        {subtitle ? <AppText variant="bodySmall" color="muted" style={{ marginTop: spacing.xxs }}>{subtitle}</AppText> : null}
+        {subtitle ? <AppText variant="bodySmall" color="muted" style={{ marginTop: spacing.xs }}>{subtitle}</AppText> : null}
       </View>
       {action ? <View style={{ marginLeft: spacing.sm }}>{action}</View> : null}
     </View>

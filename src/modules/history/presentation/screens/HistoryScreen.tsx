@@ -180,7 +180,7 @@ export function HistoryScreen() {
               />
             </View>
 
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: spacing.md }}>
               <ChoiceChip
                 label="Más recientes"
                 selected={sortBy === 'newest'}
@@ -221,7 +221,7 @@ export function HistoryScreen() {
         ) : (
           <Section title={`${resultCount} resultado${resultCount !== 1 ? 's' : ''}`}>
             {sortedCatalogs.map((catalog) => (
-              <View key={catalog.id}>
+              <View key={catalog.id} style={{ marginBottom: spacing.md }}>
                 <CatalogHistoryItem
                   name={catalog.name}
                   format={catalog.format}
@@ -235,7 +235,7 @@ export function HistoryScreen() {
               </View>
             ))}
             {sortedPurchaseDocuments.map((document) => (
-              <View key={document.id} style={{ marginBottom: 8 }}>
+              <View key={document.id} style={{ marginBottom: spacing.md }}>
                 <CatalogHistoryItem
                   name={`N° ${String(document.documentNumber).padStart(4, '0')} - ${document.supplierName}`}
                   format={formatMoney(document.total)}

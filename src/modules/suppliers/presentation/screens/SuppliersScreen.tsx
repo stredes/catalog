@@ -18,20 +18,38 @@ import {
   SecondaryButton,
   Section,
   ChoiceChip,
+  StatusBadge,
+  Divider,
 } from '../../../../shared/presentation/components/ui';
 import { SupplierInputDto, supplierSchema } from '../../application/dtos/SupplierDtos';
 import { Supplier } from '../../domain/entities/Supplier';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { useProducts } from '../../../products/presentation/hooks/useProducts';
+import { usePurchaseOrders } from '../../../purchase-documents/presentation/hooks/usePurchaseOrders';
+import { PurchaseDocument, PurchaseOrderStatus } from '../../../purchase-documents/domain/entities/PurchaseDocument';
+import { formatMoney } from '../../../../shared/utils/money';
+import { formatDate } from '../../../../shared/utils/dates';
 import { borderRadius, spacing } from '../../../../shared/presentation/theme';
+
+const ORDER_STATUS_META: Record<PurchaseOrderStatus, { label: string; tone: 'info' | 'success' | 'warning' | 'danger' }> = {
+  pending: { label: 'Pendiente', tone: 'warning' },
+  approved: { label: 'Aprobada', tone: 'success' },
+  cancelled: { label: 'Cancelada', tone: 'danger' },
+};
+
+type SuppliersTab = 'suppliers' | 'history';
 
 export function SuppliersScreen() {
   const colors = useThemeColors();
   const { useCases } = useDependencies();
   const { navigate } = useAppNavigation();
   const { suppliers, reload } = useSuppliers();
-  const { products } = useProducts();
+  const { products, reload: reloadProducts } = useProducts();
+  const { orders, reload: reloadOrders } = usePurchaseOrders();
+  const [tab, setTab] = useState<SuppliersTab>('suppliers');
+  const [statusFilter, setStatusFilter] = useState<'all' | PurchaseOrderStatus>('all');
+  const [selectedOrder, setSelectedOrder] = useState<PurchaseDocument | null>(null);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
@@ -39,6 +57,8 @@ export function SuppliersScreen() {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
 
   const [formName, setFormName] = useState('');
+  const [formRut, setFormRut] = useState('');
+  const [formAddress, setFormAddress] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formContactName, setFormContactName] = useState('');
@@ -63,9 +83,18 @@ export function SuppliersScreen() {
     return suppliers.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
+        s.rut?.toLowerCase().includes(q) ||
+        s.address?.toLowerCase().includes(q) ||
         s.contactName?.toLowerCase().includes(q),
     );
   }, [suppliers, search]);
+
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === 'all') return orders;
+    return orders.filter((o) => o.orderStatus === statusFilter);
+  }, [orders, statusFilter]);
+
+  const pendingOrdersCount = useMemo(() => orders.filter((o) => o.orderStatus === 'pending').length, [orders]);
 
   async function submit() {
     if (!formName.trim() || formName.trim().length < 2) {
@@ -75,6 +104,8 @@ export function SuppliersScreen() {
 
     const input: SupplierInputDto = {
       name: formName.trim(),
+      rut: formRut.trim() || undefined,
+      address: formAddress.trim() || undefined,
       phone: formPhone.trim() || undefined,
       email: formEmail.trim() || undefined,
       contactName: formContactName.trim() || undefined,
@@ -102,6 +133,8 @@ export function SuppliersScreen() {
 
   function resetForm() {
     setFormName('');
+    setFormRut('');
+    setFormAddress('');
     setFormPhone('');
     setFormEmail('');
     setFormContactName('');
@@ -113,6 +146,8 @@ export function SuppliersScreen() {
     setEditing(supplier);
     setShowForm(true);
     setFormName(supplier.name);
+    setFormRut(supplier.rut ?? '');
+    setFormAddress(supplier.address ?? '');
     setFormPhone(supplier.phone ?? '');
     setFormEmail(supplier.email ?? '');
     setFormContactName(supplier.contactName ?? '');
@@ -173,6 +208,52 @@ export function SuppliersScreen() {
     }
   }
 
+  async function approveOrder(order: PurchaseDocument) {
+    Alert.alert(
+      'Aprobar orden de compra',
+      `Se sumará al stock ${order.items.length} producto${order.items.length !== 1 ? 's' : ''} de ${order.supplierName}. ¿Continuar?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Aprobar',
+          onPress: async () => {
+            try {
+              await useCases.approvePurchaseOrder.execute(order.id);
+              setSelectedOrder((current) => (current?.id === order.id ? null : current));
+              await reloadOrders();
+              await reloadProducts();
+            } catch (err) {
+              Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo aprobar la orden');
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  async function rejectOrder(order: PurchaseDocument) {
+    Alert.alert(
+      'Rechazar orden de compra',
+      `¿Marcar la orden #${order.documentNumber} de ${order.supplierName} como cancelada?`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Cancelar orden',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await useCases.rejectPurchaseOrder.execute(order.id);
+              setSelectedOrder((current) => (current?.id === order.id ? null : current));
+              await reloadOrders();
+            } catch (err) {
+              Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo cancelar la orden');
+            }
+          },
+        },
+      ],
+    );
+  }
+
   const supplierColors = useMemo(
     () => [
       colors.primary,
@@ -205,89 +286,176 @@ export function SuppliersScreen() {
           }
         />
 
-        {suppliers.length > 0 ? (
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <View style={{ flex: 1 }}>
+            <ChoiceChip label="Proveedores" selected={tab === 'suppliers'} onPress={() => setTab('suppliers')} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <ChoiceChip
+              label={pendingOrdersCount > 0 ? `Historial (${pendingOrdersCount})` : 'Historial'}
+              selected={tab === 'history'}
+              onPress={() => setTab('history')}
+            />
+          </View>
+        </View>
+
+        {tab === 'suppliers' ? (
           <>
-            <SearchBar value={search} onChange={setSearch} placeholder="Buscar proveedor..." />
-          </>
-        ) : null}
+            {suppliers.length > 0 ? (
+              <SearchBar value={search} onChange={setSearch} placeholder="Buscar proveedor..." />
+            ) : null}
 
-        {error ? (
-          <AppText variant="bodySmall" color="error" style={{ fontWeight: '600' as any }}>
-            {error}
-          </AppText>
-        ) : null}
+            {error ? (
+              <AppText variant="bodySmall" color="error" style={{ fontWeight: '600' as any }}>
+                {error}
+              </AppText>
+            ) : null}
 
-        {suppliers.length === 0 ? (
-          <EmptyStateIllustrated
-            icon="people-outline"
-            title="Sin proveedores"
-            subtitle="Registra tu primer proveedor para asociar productos a sus catalogos."
-            action={
-              <PrimaryButton
-                label="Crear proveedor"
-                icon="add-circle-outline"
-                onPress={openCreate}
+            {suppliers.length === 0 ? (
+              <EmptyStateIllustrated
+                icon="people-outline"
+                title="Sin proveedores"
+                subtitle="Registra tu primer proveedor para asociar productos a sus catalogos."
+                action={
+                  <PrimaryButton
+                    label="Crear proveedor"
+                    icon="add-circle-outline"
+                    onPress={openCreate}
+                  />
+                }
               />
-            }
-          />
-        ) : filteredSuppliers.length === 0 ? (
-          <EmptyStateIllustrated
-            icon="search-outline"
-            title="Sin resultados"
-            subtitle="Ningun proveedor coincide con tu busqueda."
-          />
-        ) : (
-          <Section
-            title={`${filteredSuppliers.length} resultado${filteredSuppliers.length !== 1 ? 's' : ''}`}
-            action={
-              <Pressable onPress={openCreate}>
-                <AppText variant="labelLarge" color="accent">+ Nuevo</AppText>
-              </Pressable>
-            }
-          >
-            {filteredSuppliers.map((supplier, index) => {
-              const productCount = productCountBySupplier.get(supplier.id) ?? 0;
-              const color = supplierColors[index % supplierColors.length];
-
-              return (
-                <Card key={supplier.id}>
-                  <Pressable onPress={() => setSelectedSupplier(supplier)}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <View
-                        style={{
-                          width: 42,
-                          height: 42,
-                          borderRadius: borderRadius.md,
-                          backgroundColor: color + '18',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Ionicons name="business-outline" size={20} color={color} />
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' as any }}>
-                          {supplier.name}
-                        </AppText>
-                        <View style={{ flexDirection: 'row', gap: 6, marginTop: 2 }}>
-                          <AppText variant="caption" color="muted">
-                            {productCount} producto{productCount !== 1 ? 's' : ''}
-                          </AppText>
-                          {supplier.contactName ? (
-                            <>
-                              <AppText variant="caption" color="disabled">·</AppText>
-                              <AppText variant="caption" color="muted">{supplier.contactName}</AppText>
-                            </>
-                          ) : null}
-                        </View>
-                      </View>
-                      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                    </View>
+            ) : filteredSuppliers.length === 0 ? (
+              <EmptyStateIllustrated
+                icon="search-outline"
+                title="Sin resultados"
+                subtitle="Ningun proveedor coincide con tu busqueda."
+              />
+            ) : (
+              <Section
+                title={`${filteredSuppliers.length} resultado${filteredSuppliers.length !== 1 ? 's' : ''}`}
+                action={
+                  <Pressable onPress={openCreate}>
+                    <AppText variant="labelLarge" color="accent">+ Nuevo</AppText>
                   </Pressable>
-                </Card>
-              );
-            })}
-          </Section>
+                }
+              >
+                {filteredSuppliers.map((supplier, index) => {
+                  const productCount = productCountBySupplier.get(supplier.id) ?? 0;
+                  const color = supplierColors[index % supplierColors.length];
+
+                  return (
+                    <Card key={supplier.id} style={{ marginBottom: spacing.md }}>
+                      <Pressable onPress={() => setSelectedSupplier(supplier)}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <View
+                            style={{
+                              width: 42,
+                              height: 42,
+                              borderRadius: borderRadius.md,
+                              backgroundColor: color + '18',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Ionicons name="business-outline" size={20} color={color} />
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' as any }}>
+                              {supplier.name}
+                            </AppText>
+                            <View style={{ flexDirection: 'row', gap: 6, marginTop: 2 }}>
+                              <AppText variant="caption" color="muted">
+                                {productCount} producto{productCount !== 1 ? 's' : ''}
+                              </AppText>
+                              {supplier.contactName ? (
+                                <>
+                                  <AppText variant="caption" color="disabled">·</AppText>
+                                  <AppText variant="caption" color="muted">{supplier.contactName}</AppText>
+                                </>
+                              ) : null}
+                            </View>
+                          </View>
+                          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                        </View>
+                      </Pressable>
+                    </Card>
+                  );
+                })}
+              </Section>
+            )}
+          </>
+        ) : (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+              <ChoiceChip label="Todas" selected={statusFilter === 'all'} onPress={() => setStatusFilter('all')} />
+              <ChoiceChip label="Pendientes" selected={statusFilter === 'pending'} onPress={() => setStatusFilter('pending')} />
+              <ChoiceChip label="Aprobadas" selected={statusFilter === 'approved'} onPress={() => setStatusFilter('approved')} />
+              <ChoiceChip label="Canceladas" selected={statusFilter === 'cancelled'} onPress={() => setStatusFilter('cancelled')} />
+            </ScrollView>
+
+            {filteredOrders.length === 0 ? (
+              <EmptyStateIllustrated
+                icon="document-text-outline"
+                title={statusFilter === 'all' ? 'Sin ordenes de compra' : 'Sin ordenes con este estado'}
+                subtitle="Genera una orden de compra desde el detalle de un proveedor para verla aqui."
+              />
+            ) : (
+              <Section
+                title={`${filteredOrders.length} orden${filteredOrders.length !== 1 ? 'es' : ''} de compra`}
+              >
+                {filteredOrders.map((order) => {
+                  const meta = ORDER_STATUS_META[order.orderStatus];
+                  return (
+                    <Card key={order.id} style={{ marginBottom: spacing.md, gap: spacing.sm }}>
+                      <Pressable onPress={() => setSelectedOrder(order)}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                          <AppText variant="bodySmall" color="muted">Orden #{order.documentNumber}</AppText>
+                          <StatusBadge label={meta.label} tone={meta.tone} />
+                        </View>
+                        <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' as any, marginTop: 4 }}>
+                          {order.supplierName}
+                        </AppText>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                          <AppText variant="caption" color="muted">
+                            {order.items.length} producto{order.items.length !== 1 ? 's' : ''} · {formatDate(order.createdAt)}
+                          </AppText>
+                          <AppText variant="bodySmall" color="accent" style={{ fontWeight: '600' as any }}>
+                            {formatMoney(order.total)}
+                          </AppText>
+                        </View>
+                      </Pressable>
+                      {order.orderStatus === 'pending' ? (
+                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                          <View style={{ flex: 1 }}>
+                            <PrimaryButton
+                              label="Aprobar"
+                              icon="checkmark-outline"
+                              onPress={() => approveOrder(order)}
+                            />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <SecondaryButton
+                              label="Rechazar"
+                              icon="close-outline"
+                              onPress={() => rejectOrder(order)}
+                            />
+                          </View>
+                        </View>
+                      ) : order.orderStatus === 'approved' ? (
+                        <AppText variant="caption" color="success" style={{ fontWeight: '600' as any }}>
+                          Stock sumado al aprobar la orden
+                        </AppText>
+                      ) : (
+                        <AppText variant="caption" color="error" style={{ fontWeight: '600' as any }}>
+                          Orden cancelada, no suma stock
+                        </AppText>
+                      )}
+                    </Card>
+                  );
+                })}
+              </Section>
+            )}
+          </>
         )}
       </Screen>
 
@@ -328,6 +496,22 @@ export function SuppliersScreen() {
                   {selectedSupplier.name}
                 </AppText>
               </View>
+              {selectedSupplier.rut ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                  <AppText variant="bodySmall" color="muted">RUT</AppText>
+                  <AppText variant="bodySmall" color="primary" style={{ flex: 1, textAlign: 'right' }}>
+                    {selectedSupplier.rut}
+                  </AppText>
+                </View>
+              ) : null}
+              {selectedSupplier.address ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                  <AppText variant="bodySmall" color="muted">Direccion</AppText>
+                  <AppText variant="bodySmall" color="primary" style={{ flex: 1, textAlign: 'right' }}>
+                    {selectedSupplier.address}
+                  </AppText>
+                </View>
+              ) : null}
               {selectedSupplier.contactName ? (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
                   <AppText variant="bodySmall" color="muted">Contacto</AppText>
@@ -444,6 +628,105 @@ export function SuppliersScreen() {
       </BottomSheet>
 
       <BottomSheet
+        visible={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        title={`Orden #${selectedOrder?.documentNumber ?? ''}`}
+        stickyFooter={
+          selectedOrder?.orderStatus === 'pending' ? (
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <SecondaryButton
+                  label="Rechazar"
+                  icon="close-outline"
+                  onPress={() => selectedOrder && rejectOrder(selectedOrder)}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Aprobar"
+                  icon="checkmark-outline"
+                  onPress={() => selectedOrder && approveOrder(selectedOrder)}
+                />
+              </View>
+            </View>
+          ) : undefined
+        }
+      >
+        {selectedOrder ? (
+          <View style={{ gap: 12 }}>
+            <Card style={{ padding: 14, gap: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' as any, flex: 1 }}>
+                  {selectedOrder.supplierName}
+                </AppText>
+                <StatusBadge label={ORDER_STATUS_META[selectedOrder.orderStatus].label} tone={ORDER_STATUS_META[selectedOrder.orderStatus].tone} />
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                <AppText variant="bodySmall" color="muted">Fecha</AppText>
+                <AppText variant="bodySmall" color="primary">{formatDate(selectedOrder.createdAt)}</AppText>
+              </View>
+              {selectedOrder.notes ? (
+                <AppText variant="caption" color="muted">Notas: {selectedOrder.notes}</AppText>
+              ) : null}
+            </Card>
+
+            <AppText variant="labelMedium" color="secondary">Productos</AppText>
+            <Card style={{ padding: 14, gap: 10 }}>
+              {selectedOrder.items.map((item, index) => (
+                <View key={item.productId} style={{ gap: 6 }}>
+                  {index > 0 ? <Divider /> : null}
+                  <AppText variant="bodyMedium" color="primary" numberOfLines={1} style={{ fontWeight: '600' as any }}>
+                    {item.productName}
+                  </AppText>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                    <AppText variant="bodySmall" color="muted">
+                      {item.quantity} x {formatMoney(item.unitPrice)}
+                      {item.discountType !== 'none' && item.discountValue > 0
+                        ? ` (${item.discountType === 'currency' ? `-${formatMoney(item.discountValue)}` : `-${item.discountValue}%`})`
+                        : ''}
+                    </AppText>
+                    <AppText variant="bodySmall" color="primary" style={{ fontWeight: '600' as any }}>
+                      {formatMoney(item.subtotal)}
+                    </AppText>
+                  </View>
+                </View>
+              ))}
+            </Card>
+
+            <Card variant="elevated" style={{ gap: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <AppText variant="bodyMedium" color="muted">Neto</AppText>
+                <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' as any }}>{formatMoney(selectedOrder.netAmount)}</AppText>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <AppText variant="bodyMedium" color="muted">IVA (19%)</AppText>
+                <AppText variant="bodyMedium" color="primary" style={{ fontWeight: '600' as any }}>{formatMoney(selectedOrder.ivaAmount)}</AppText>
+              </View>
+              <Divider />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <AppText variant="headingSmall" color="primary">Total</AppText>
+                <AppText variant="headingSmall" color="accent" style={{ fontWeight: '700' as any }}>{formatMoney(selectedOrder.total)}</AppText>
+              </View>
+            </Card>
+
+            {selectedOrder.orderStatus === 'approved' ? (
+              <AppText variant="caption" color="success" style={{ textAlign: 'center', fontWeight: '600' as any }}>
+                El stock de estos productos ya fue sumado al aprobar la orden.
+              </AppText>
+            ) : selectedOrder.orderStatus === 'cancelled' ? (
+              <AppText variant="caption" color="error" style={{ textAlign: 'center', fontWeight: '600' as any }}>
+                Orden cancelada, no suma stock.
+              </AppText>
+            ) : (
+              <AppText variant="caption" color="warning" style={{ textAlign: 'center', fontWeight: '600' as any }}>
+                Pendiente de aprobación. Al aprobar se sumará el stock de los productos.
+              </AppText>
+            )}
+          </View>
+        ) : null}
+      </BottomSheet>
+
+      <BottomSheet
         visible={showForm}
         onClose={() => { setShowForm(false); setEditing(null); resetForm(); }}
         title={editing ? 'Editar proveedor' : 'Nuevo proveedor'}
@@ -471,6 +754,41 @@ export function SuppliersScreen() {
           }}
           value={formName}
           onChangeText={setFormName}
+        />
+        <TextInput
+          placeholder="RUT (opcional)"
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="characters"
+          style={{
+            borderRadius: 12,
+            borderWidth: 1.5,
+            borderColor: colors.borderDefault,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            fontSize: 15,
+            fontWeight: '500',
+            color: colors.textPrimary,
+            marginBottom: 12,
+          }}
+          value={formRut}
+          onChangeText={setFormRut}
+        />
+        <TextInput
+          placeholder="Direccion (opcional)"
+          placeholderTextColor={colors.textMuted}
+          style={{
+            borderRadius: 12,
+            borderWidth: 1.5,
+            borderColor: colors.borderDefault,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            fontSize: 15,
+            fontWeight: '500',
+            color: colors.textPrimary,
+            marginBottom: 12,
+          }}
+          value={formAddress}
+          onChangeText={setFormAddress}
         />
         <TextInput
           placeholder="Nombre de contacto (opcional)"

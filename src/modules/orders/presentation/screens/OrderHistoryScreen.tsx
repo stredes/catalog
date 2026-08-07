@@ -252,7 +252,7 @@ export function OrderHistoryScreen() {
 
         {orders.length > 0 ? (
           <>
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: spacing.md }}>
               <ChoiceChip
                 label=" Lista"
                 selected={viewMode === 'list'}
@@ -300,7 +300,7 @@ export function OrderHistoryScreen() {
                   />
                 </View>
 
-                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: spacing.md }}>
                   <ChoiceChip
                     label="Mas recientes"
                     selected={sortBy === 'newest'}
@@ -438,7 +438,7 @@ export function OrderHistoryScreen() {
                   const progress = order.total > 0 ? paidAmount / order.total : 0;
 
                   return (
-                    <Card key={order.id}>
+                    <Card key={order.id} style={{ marginBottom: spacing.md }}>
                       <Pressable onPress={() => toggleExpand(order.id)}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                           <View
@@ -576,7 +576,7 @@ export function OrderHistoryScreen() {
                 const progress = order.total > 0 ? paidAmount / order.total : 0;
 
                 return (
-                  <Card key={order.id}>
+                  <Card key={order.id} style={{ marginBottom: spacing.md }}>
                     <Pressable onPress={() => toggleExpand(order.id)}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         <View

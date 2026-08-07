@@ -20,13 +20,15 @@ import { PurchaseCartRepository } from '../modules/orders/domain/repositories/Pu
 import { OrderPdfGeneratorPort } from '../modules/orders/application/use-cases/GenerateOrderPdfUseCase';
 import { Supplier } from '../modules/suppliers/domain/entities/Supplier';
 import { SupplierRepository } from '../modules/suppliers/domain/repositories/SupplierRepository';
-import { Quotation, QuotationStatus } from '../modules/quotations/domain/entities/Quotation';
-import { QuotationRepository } from '../modules/quotations/domain/repositories/QuotationRepository';
 import { Client } from '../modules/clients/domain/entities/Client';
 import { ClientRepository } from '../modules/clients/domain/repositories/ClientRepository';
+import { Quotation, QuotationStatus } from '../modules/quotations/domain/entities/Quotation';
+import { QuotationRepository } from '../modules/quotations/domain/repositories/QuotationRepository';
 import { Invoice } from '../modules/invoices/domain/entities/Invoice';
 import { InvoiceRepository } from '../modules/invoices/domain/repositories/InvoiceRepository';
 import { InvoiceHistoryEntry, RecordHistoryRepository } from '../modules/invoices/domain/repositories/RecordHistoryRepository';
+import { PurchaseDocument, PurchaseOrderStatus } from '../modules/purchase-documents/domain/entities/PurchaseDocument';
+import { PurchaseDocumentRepository } from '../modules/purchase-documents/domain/repositories/PurchaseDocumentRepository';
 import { computeChecksum } from '../shared/utils/checksum';
 
 export class InMemoryFamilyRepository implements FamilyRepository {
@@ -234,6 +236,8 @@ export interface InMemoryBackupRepositoryDeps {
   supplierRepo?: SupplierRepository;
   clientRepo?: ClientRepository;
   invoiceRepo?: InvoiceRepository;
+  quotationRepo?: QuotationRepository;
+  purchaseDocumentRepo?: PurchaseDocumentRepository;
 }
 
 export class InMemoryBackupRepository implements BackupRepository {
@@ -281,7 +285,7 @@ export class InMemoryBackupRepository implements BackupRepository {
   async transactionalRestore(data: TransactionalRestoreData): Promise<void> {
     this.lastRestoreData = { ...data };
 
-    const { familyRepo, productRepo, catalogRepo, profileRepo, orderRepo, supplierRepo, clientRepo, invoiceRepo } = this.deps;
+    const { familyRepo, productRepo, catalogRepo, profileRepo, orderRepo, supplierRepo, clientRepo, invoiceRepo, quotationRepo, purchaseDocumentRepo } = this.deps;
 
     if (familyRepo) {
       for (const f of await familyRepo.findAll()) await familyRepo.delete(f.id);
@@ -306,6 +310,10 @@ export class InMemoryBackupRepository implements BackupRepository {
       for (const s of await supplierRepo.findAll()) await supplierRepo.delete(s.id);
       for (const s of data.suppliers) await supplierRepo.create(s);
     }
+    if (quotationRepo) {
+      for (const q of await quotationRepo.findAll()) await quotationRepo.delete(q.id);
+      for (const q of data.quotations) await quotationRepo.save(q);
+    }
     if (clientRepo) {
       for (const c of await clientRepo.findAll()) await clientRepo.delete(c.id);
       for (const c of data.clients ?? []) await clientRepo.create(c);
@@ -313,6 +321,10 @@ export class InMemoryBackupRepository implements BackupRepository {
     if (invoiceRepo) {
       for (const inv of await invoiceRepo.findAll()) await invoiceRepo.delete(inv.id);
       for (const inv of data.invoices ?? []) await invoiceRepo.create(inv);
+    }
+    if (purchaseDocumentRepo) {
+      for (const d of await purchaseDocumentRepo.findAll()) await purchaseDocumentRepo.delete(d.id);
+      for (const d of data.purchaseDocuments) await purchaseDocumentRepo.create(d);
     }
   }
 
@@ -330,6 +342,9 @@ export function makeBackupSnapshot(overrides: Partial<BackupSnapshot> = {}): Bac
     ordersCount: 0,
     suppliersCount: 0,
     invoicesCount: 0,
+    quotationsCount: 0,
+    clientsCount: 0,
+    purchaseDocumentsCount: 0,
     hasProfile: true,
     checksum: 'abc123',
     filePath: '',
@@ -345,7 +360,10 @@ export function computeBackupChecksum(payload: BackupPayload): string {
     cc: payload.catalogs.length,
     oc: payload.orders.length,
     sc: payload.suppliers?.length ?? 0,
+    qc: payload.quotations?.length ?? 0,
+    ic: payload.invoices?.length ?? 0,
     clc: payload.clients?.length ?? 0,
+    pdc: payload.purchaseDocuments?.length ?? 0,
     fp: payload.profile !== null,
     fn: payload.families.map((f) => f.id).sort(),
     pn: payload.products.map((p) => p.id).sort(),
@@ -522,6 +540,93 @@ export class InMemoryPurchaseCartRepository implements PurchaseCartRepository {
   }
 }
 
+export class InMemoryClientRepository implements ClientRepository {
+  clients = new Map<string, Client>();
+
+  async findAll() {
+    return [...this.clients.values()];
+  }
+
+  async findById(id: string) {
+    return this.clients.get(id) ?? null;
+  }
+
+  async findByRut(rut: string) {
+    return [...this.clients.values()].find((c) => c.rut === rut) ?? null;
+  }
+
+  async create(client: Client) {
+    this.clients.set(client.id, client);
+  }
+
+  async update(client: Client) {
+    this.clients.set(client.id, client);
+  }
+
+  async delete(id: string) {
+    this.clients.delete(id);
+  }
+}
+
+export class InMemoryPurchaseDocumentRepository implements PurchaseDocumentRepository {
+  documents = new Map<string, PurchaseDocument>();
+
+  async createDraft(document: Omit<PurchaseDocument, 'documentNumber' | 'pdfUri' | 'status' | 'orderStatus'>, minimumPreviousNumber = 0): Promise<PurchaseDocument> {
+    const numbers = [...this.documents.values()]
+      .filter((d) => d.type === document.type)
+      .map((d) => d.documentNumber);
+    const documentNumber = Math.max(0, ...numbers, minimumPreviousNumber) + 1;
+    const created: PurchaseDocument = {
+      ...document,
+      documentNumber,
+      status: 'draft',
+      orderStatus: 'pending',
+    };
+    this.documents.set(document.id, created);
+    return created;
+  }
+
+  async attachPdf(id: string, pdfUri: string): Promise<void> {
+    const current = this.documents.get(id);
+    if (!current) throw new Error('Documento no encontrado');
+    this.documents.set(id, { ...current, pdfUri, status: 'generated' });
+  }
+
+  async create(document: PurchaseDocument): Promise<void> {
+    this.documents.set(document.id, document);
+  }
+
+  async findAll(): Promise<PurchaseDocument[]> {
+    return [...this.documents.values()]
+      .filter((d) => d.status === 'generated')
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async findById(id: string): Promise<PurchaseDocument | null> {
+    return this.documents.get(id) ?? null;
+  }
+
+  async delete(id: string): Promise<void> {
+    const current = this.documents.get(id);
+    if (current) this.documents.set(id, { ...current, status: 'deleted', pdfUri: undefined });
+  }
+
+  async setOrderStatus(id: string, status: PurchaseOrderStatus): Promise<void> {
+    const current = this.documents.get(id);
+    if (!current) throw new Error('Orden no encontrada');
+    this.documents.set(id, { ...current, orderStatus: status });
+  }
+
+  async approvePurchaseOrder(id: string): Promise<void> {
+    const current = this.documents.get(id);
+    if (!current) throw new Error('Orden de compra no encontrada');
+    if (current.type !== 'purchase-order') throw new Error('Solo las órdenes de compra suman stock');
+    if (current.orderStatus === 'approved') throw new Error('La orden ya fue aprobada');
+    if (current.orderStatus === 'cancelled') throw new Error('La orden fue cancelada y no se puede aprobar');
+    this.documents.set(id, { ...current, orderStatus: 'approved' });
+  }
+}
+
 export class InMemoryQuotationRepository implements QuotationRepository {
   quotations = new Map<string, Quotation>();
 
@@ -555,34 +660,6 @@ export class InMemoryQuotationRepository implements QuotationRepository {
       if (q.quotationNumber > max) max = q.quotationNumber;
     }
     return max;
-  }
-}
-
-export class InMemoryClientRepository implements ClientRepository {
-  clients = new Map<string, Client>();
-
-  async create(client: Client) {
-    this.clients.set(client.id, client);
-  }
-
-  async update(client: Client) {
-    this.clients.set(client.id, client);
-  }
-
-  async delete(id: string) {
-    this.clients.delete(id);
-  }
-
-  async findAll() {
-    return [...this.clients.values()];
-  }
-
-  async findById(id: string) {
-    return this.clients.get(id) ?? null;
-  }
-
-  async findByRut(rut: string) {
-    return [...this.clients.values()].find((c) => c.rut === rut) ?? null;
   }
 }
 

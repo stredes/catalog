@@ -5,6 +5,9 @@ import { ProfileRepository } from '../../../profile/domain/repositories/ProfileR
 import { OrderRepository } from '../../../orders/domain/repositories/OrderRepository';
 import { SupplierRepository } from '../../../suppliers/domain/repositories/SupplierRepository';
 import { InvoiceRepository } from '../../../invoices/domain/repositories/InvoiceRepository';
+import { QuotationRepository } from '../../../quotations/domain/repositories/QuotationRepository';
+import { ClientRepository } from '../../../clients/domain/repositories/ClientRepository';
+import { PurchaseDocumentRepository } from '../../../purchase-documents/domain/repositories/PurchaseDocumentRepository';
 import { ChangeTrackerPort, ChangeSnapshot, TableCounts } from '../../domain/repositories/ChangeTrackerPort';
 import { computeChecksum } from '../../../../shared/utils/checksum';
 
@@ -17,10 +20,13 @@ export class ChangeDetector implements ChangeTrackerPort {
     private readonly orderRepo: OrderRepository,
     private readonly supplierRepo: SupplierRepository,
     private readonly invoiceRepo: InvoiceRepository,
+    private readonly quotationRepo: QuotationRepository,
+    private readonly clientRepo: ClientRepository,
+    private readonly purchaseDocumentRepo: PurchaseDocumentRepository,
   ) {}
 
   async capture(): Promise<ChangeSnapshot> {
-    const [families, products, catalogs, profile, orders, suppliers, invoices] = await Promise.all([
+    const [families, products, catalogs, profile, orders, suppliers, invoices, quotations, clients, purchaseDocuments] = await Promise.all([
       this.familyRepo.findAll(),
       this.productRepo.findAll(),
       this.catalogRepo.findAll(),
@@ -28,6 +34,9 @@ export class ChangeDetector implements ChangeTrackerPort {
       this.orderRepo.findAll(),
       this.supplierRepo.findAll(),
       this.invoiceRepo.findAll(),
+      this.quotationRepo.findAll(),
+      this.clientRepo.findAll(),
+      this.purchaseDocumentRepo.findAll(),
     ]);
 
     const counts: TableCounts = {
@@ -37,6 +46,9 @@ export class ChangeDetector implements ChangeTrackerPort {
       orders: orders.length,
       suppliers: suppliers.length,
       invoices: invoices.length,
+      quotations: quotations.length,
+      clients: clients.length,
+      purchaseDocuments: purchaseDocuments.length,
       hasProfile: profile !== null,
     };
 

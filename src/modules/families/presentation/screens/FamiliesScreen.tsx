@@ -22,6 +22,7 @@ import { Family } from '../../domain/entities/Family';
 import { useFamilies } from '../hooks/useFamilies';
 import { useThemeColors } from '../../../../shared/presentation/ThemeContext';
 import { useProducts } from '../../../products/presentation/hooks/useProducts';
+import { spacing } from '../../../../shared/presentation/theme';
 
 export function FamiliesScreen() {
   const colors = useThemeColors();
@@ -142,7 +143,7 @@ export function FamiliesScreen() {
             }
           >
             {families.map((family, index) => (
-              <View key={family.id}>
+              <View key={family.id} style={{ marginBottom: spacing.md }}>
                 <FamilyCard
                   name={family.name}
                   productCount={productCountByFamily.get(family.id) ?? 0}
@@ -175,7 +176,7 @@ export function FamiliesScreen() {
           icon="save-outline"
           onPress={form.handleSubmit(submit)}
         />
-        <View style={{ height: 8 }} />
+        <View style={{ height: spacing.md }} />
         <SecondaryButton label="Cancelar" onPress={() => { setShowForm(false); setEditing(null); }} />
       </BottomSheet>
 

@@ -56,7 +56,16 @@ async function ensureAllTablesExist(db: Awaited<ReturnType<typeof getDatabase>>)
     status TEXT NOT NULL DEFAULT 'pending', paidAmount REAL NOT NULL DEFAULT 0, notes TEXT, createdAt TEXT NOT NULL
   )`);
   await db.execAsync(`CREATE TABLE IF NOT EXISTS suppliers (
-    id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, phone TEXT, email TEXT, contactName TEXT, notes TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+    id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, rut TEXT, address TEXT, phone TEXT, email TEXT, contactName TEXT, notes TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS clients (
+    id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, rut TEXT, phone TEXT, email TEXT, notes TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS purchase_documents (
+    id TEXT PRIMARY KEY NOT NULL, documentNumber INTEGER NOT NULL, type TEXT NOT NULL, supplierId TEXT NOT NULL,
+    supplierName TEXT NOT NULL, items TEXT NOT NULL, netAmount REAL NOT NULL, ivaAmount REAL NOT NULL,
+    total REAL NOT NULL, notes TEXT, pdfUri TEXT, status TEXT NOT NULL DEFAULT 'generated',
+    orderStatus TEXT NOT NULL DEFAULT 'pending', createdAt TEXT NOT NULL
   )`);
   await db.execAsync(`CREATE TABLE IF NOT EXISTS invoices (
     id TEXT PRIMARY KEY NOT NULL, invoice_number TEXT NOT NULL, invoice_date TEXT NOT NULL, client_name TEXT NOT NULL,
@@ -141,6 +150,8 @@ async function restorePayload(
   }));
   const suppliers = payload.suppliers.map((supplier) => ({
     ...supplier,
+    rut: supplier.rut ?? undefined,
+    address: supplier.address ?? undefined,
     phone: supplier.phone ?? undefined,
     email: supplier.email ?? undefined,
     contactName: supplier.contactName ?? undefined,
@@ -155,6 +166,7 @@ async function restorePayload(
   }));
   const quotations = payload.quotations.map((quotation) => ({
     ...quotation,
+    clientRut: quotation.clientRut ?? undefined,
     clientPhone: quotation.clientPhone ?? undefined,
     clientEmail: quotation.clientEmail ?? undefined,
     clientAddress: quotation.clientAddress ?? undefined,
@@ -165,6 +177,11 @@ async function restorePayload(
     ...invoice,
     description: invoice.description ?? undefined,
     paymentDate: invoice.paymentDate ?? undefined,
+  }));
+  const purchaseDocuments = payload.purchaseDocuments.map((document) => ({
+    ...document,
+    notes: document.notes ?? undefined,
+    pdfUri: document.pdfUri ?? undefined,
   }));
 
   await new SQLiteBackupRepository().transactionalRestore({
@@ -177,6 +194,7 @@ async function restorePayload(
     quotations,
     clients,
     invoices,
+    purchaseDocuments,
   });
 
   return {
